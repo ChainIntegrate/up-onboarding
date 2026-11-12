@@ -32,7 +32,7 @@ in the same batch. Remove an item when its release is done.
    the next request leaves without a picture while the field looks filled in. To do: clear the field with the
    picture (and whenever the form is shown again, e.g. after "Remove the access"), and show plainly whether a
    picture will be sent (the preview, or "no picture"). Test: create, remove, create again with the same file.
-   *Waiting for the maintainer's confirmation that the same file was chosen.*
+   *Confirmed by the maintainer (2026-11-12): the same file was chosen again.*
 4. **The picture's format** (to check with a valid name and a picture): the extension sends WebP (JPEG only where
    the browser cannot encode WebP). To check that Universal Everything shows it; if not, JPEG.
 
