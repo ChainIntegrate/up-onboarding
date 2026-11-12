@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'">
+<script src="lib/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Informativa sulla privacy — ChainIntegrate Account</title>
+<meta name="description" content="Come l'estensione ChainIntegrate Account e il servizio di creazione degli account trattano i dati.">
+<link rel="icon" href="favicon.ico">
+<link rel="canonical" href="https://account.chainintegrate.it/privacy.html">
+<script src="lib/ui.js"></script>
+<style>
+  /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
+     Buttons and links use a darker teal, readable on white. The dark theme is in lib/theme.js. */
+  :root {
+    --bg: #f7f7f7; --panel: #ffffff; --border: #dde3e6; --field: #fbfcfc; --chip: #e8eef1; --disabled: #c5ced3; --raised: #ffffff;
+    --text: #1b1e21; --text-dim: #5b6b74;
+    --brand: #22b8c9; --slate: #6090a2; --accent: #0e7f8c; --btn: #0e7f8c;
+    --ok: #1a8a4a; --warn: #a8650a; --err: #c93535;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+         max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .brand-row { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid var(--brand); }
+  .brand-logo { display: block; height: 72px; width: auto; max-width: 100%; border-radius: 10px; background: #f7f7f7; }
+  .site-footer { margin-top: 40px; padding: 18px 20px; background: #f7f7f7; border: 1px solid #dde3e6; border-radius: 10px; color: #4b4f58; }
+  .footer-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .footer-logo { height: 40px; width: auto; flex-shrink: 0; }
+  .footer-text { font-size: 13px; line-height: 1.6; }
+  .footer-li { display: inline-flex; vertical-align: middle; margin: 0 2px; }
+  .site-footer a { color: #0e7f8c; text-decoration: none; font-weight: 600; }
+  .site-footer a:hover { text-decoration: underline; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 28px; }
+  #langToggle { width: auto; background: var(--chip); padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+                border-radius: 6px; border: 1px solid var(--border); color: var(--text); cursor: pointer; margin-top: 2px; flex-shrink: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.03em; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; }
+  label:first-child { margin-top: 0; }
+  select, input, textarea { width: 100%; background: var(--field); border: 1px solid var(--border); color: var(--text);
+                  border-radius: 6px; padding: 10px 12px; font-size: 13.5px; font-family: inherit; }
+  textarea { font-family: monospace; font-size: 11.5px; min-height: 90px; resize: vertical; word-break: break-all; }
+  button { width: 100%; background: var(--btn); color: white; border: none; border-radius: 6px;
+           padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  button:disabled { background: var(--disabled); cursor: not-allowed; }
+  button.danger { background: var(--err); }
+  button.secondary { background: var(--chip); }
+  .status-box { background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 12px;
+                font-family: monospace; font-size: 12.5px; margin-top: 12px; word-break: break-all; }
+  .status-box .empty { color: var(--text-dim); }
+  .line-ok { color: var(--ok); } .line-warn { color: var(--warn); } .line-err { color: var(--err); } .line-dim { color: var(--text-dim); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+  .badge.ok { background: rgba(63,191,111,0.15); color: var(--ok); }
+  .badge.err { background: rgba(224,90,90,0.15); color: var(--err); }
+  .badge.warn { background: rgba(224,168,60,0.15); color: var(--warn); }
+  .ctrl-card { background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+  .ctrl-card .addr { font-family: monospace; font-size: 12.5px; }
+  .ctrl-card .flags { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .divider { color: var(--text-dim); font-size: 12px; text-align: center; margin: 16px 0 6px; }
+  .note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.5; }
+  .note b { color: var(--text); }
+  .check-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--text); margin-top: 12px; }
+  .check-row input { width: auto; margin-top: 2px; }
+  .check-row[hidden] { display: none; }
+  #log { font-family: monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin-top: 10px; }
+  /* While a backup action runs: a fixed box that says what is happening, so the wait before the wallet opens is never silent. */
+  #busyToast { display: none; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50;
+               width: calc(100% - 32px); max-width: 720px; background: var(--raised); border: 2px solid var(--warn); border-radius: 10px;
+               padding: 12px 16px; font-size: 14px; line-height: 1.5; color: var(--text); box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+  #busyToast.on { display: flex; gap: 12px; align-items: center; }
+  #busyToast .spin { width: 18px; height: 18px; flex: 0 0 18px; border: 3px solid var(--warn); border-top-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; }
+  #busyToast .msg { word-break: break-word; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #busyToast .spin { animation: none; } }
+  .ctrl-row { display: grid; grid-template-columns: 1fr; gap: 6px; background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+  .ctrl-row .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ctrl-row button { margin-top: 0; padding: 8px; font-size: 12.5px; }
+  @media (max-width: 560px) { .ctrl-row .two { grid-template-columns: 1fr; } }
+  .img-prev { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+  .img-prev img { max-width: 96px; max-height: 96px; border-radius: 8px; border: 1px solid var(--border); }
+  .row-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row-btns button { margin-top: 12px; }
+  .result a { color: var(--accent); }
+  .mono { font-family: monospace; font-size: 12.5px; word-break: break-all; }
+  .steps { margin: 8px 0 0; padding-left: 20px; } .steps li { margin-bottom: 6px; }
+  .status-box { font-family: inherit; font-size: 13.5px; }
+  .step { display: flex; gap: 14px; align-items: flex-start; margin-top: 16px; }
+  .step .n { flex: 0 0 32px; height: 32px; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step b { font-size: 15px; }
+  .step p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--text-dim); }
+  .cta { display: block; text-align: center; text-decoration: none; background: var(--btn); color: #fff; font-weight: 700; padding: 13px; border-radius: 8px; margin-top: 18px; }
+  details { margin-top: 12px; font-size: 13.5px; line-height: 1.55; } details summary { cursor: pointer; font-weight: 600; }
+  .done { border: 2px solid var(--ok); border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .done[hidden] { display: none; }
+  .pv h2 { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--text); }
+  .pv div, .pv li { font-size: 13.5px; line-height: 1.6; }
+  .pv ul { padding-left: 20px; margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<div class="brand-row">
+  <img src="logo.png" alt="ChainIntegrate" class="brand-logo" width="830" height="240">
+</div>
+
+<div class="header-row">
+  <div>
+    <h1 data-i18n="h1">Informativa sulla privacy</h1>
+    <div class="subtitle" data-i18n="subtitle"></div>
+  </div>
+  <button id="langToggle" type="button">English</button>
+</div>
+
+<div class="panel pv"><h2 data-i18n="s1t"></h2><div data-i18n-html="s1"></div></div>
+<div class="panel pv"><h2 data-i18n="s2t"></h2><div data-i18n-html="s2"></div></div>
+<div class="panel pv"><h2 data-i18n="s3t"></h2><div data-i18n-html="s3"></div></div>
+<div class="panel pv"><h2 data-i18n="s4t"></h2><div data-i18n-html="s4"></div></div>
+<div class="panel pv"><h2 data-i18n="s5t"></h2><div data-i18n-html="s5"></div></div>
+<div class="panel pv"><h2 data-i18n="s6t"></h2><div data-i18n-html="s6"></div></div>
+<div class="panel pv"><h2 data-i18n="s7t"></h2><div data-i18n-html="s7"></div></div>
+<div class="panel pv"><h2 data-i18n="s8t"></h2><div data-i18n-html="s8"></div></div>
+<div class="panel pv"><h2 data-i18n="s9t"></h2><div data-i18n-html="s9"></div></div>
+
+<div class="site-footer">
+  <div class="footer-row">
+    <img src="logo.png" alt="ChainIntegrate" class="footer-logo">
+    <div class="footer-text" data-i18n-html="footerHtml"></div>
+  </div>
+</div>
+
+<script src="privacy.js"></script>
+</body>
+</html>

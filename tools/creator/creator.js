@@ -112,8 +112,14 @@ function makeService(cfg) {
     const list = (recent.get(ip) || []).filter((t) => now - t < 60000);
     if (list.length >= cfg.perIpPerMinute) throw new HttpError(429, "rate_limited");
     list.push(now); recent.set(ip, list);
-    if (recent.size > 10000) for (const [k, v] of recent) if (!v.some((t) => now - t < 60000)) recent.delete(k);
   }
+  // IP addresses are kept in memory for at most a minute (the privacy notice says so): forgotten every 30 seconds
+  // once their last request is a minute old.
+  const forget = setInterval(() => {
+    const now = Date.now();
+    for (const m of [recent, recentLookups]) for (const [k, v] of m) if (!v.some((t) => now - t < 60000)) m.delete(k);
+  }, 30000);
+  forget.unref();
 
   function checkInvite(code) {
     const hash = hashCode(code);
@@ -211,7 +217,6 @@ function makeService(cfg) {
     const list = (recentLookups.get(ip) || []).filter((t) => now - t < 60000);
     if (list.length >= 10) throw new HttpError(429, "rate_limited");
     list.push(now); recentLookups.set(ip, list);
-    if (recentLookups.size > 10000) recentLookups.clear();
   }
 
   return { handleCreate, handleLookup, wallet, provider, store };

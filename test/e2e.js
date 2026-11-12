@@ -146,6 +146,16 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     }
     await client.close();
 
+    // ---- the privacy notice: both languages, the link from the client's page
+    const pv = await newPage(browser, operator);
+    await pv.goto(`http://127.0.0.1:${PORT}/privacy.html`);
+    const pvIt = await pv.textContent("body");
+    await pv.click("#langToggle");
+    const pvEn = await pv.textContent("body");
+    check(/titolare/.test(pvIt + pvEn) || /Chi è il titolare/.test(pvIt), "the privacy notice shows its sections");
+    check(/info@chainintegrate\.it/.test(pvIt) && /GDPR/.test(pvEn) && pvIt !== pvEn, "the privacy notice is in Italian and English, with contacts and rights");
+    await pv.close();
+
     // ---- IPFS mode, phone width
     const phone = await newPage(browser, operator, { viewport: { width: 390, height: 900 } });
     let uploads = 0;

@@ -34,7 +34,7 @@
       a3: "Installi l'estensione su un altro computer, scegli \"ripristina dalla copia di backup\" e ritrovi il tuo account. Il tuo account è solo tuo: <b>senza la copia di backup nessuno può recuperarlo, nemmeno ChainIntegrate</b>.",
       q4: "Dove trovo il codice di invito?",
       a4: "Te lo dà ChainIntegrate. Vale per un solo account e scade dopo qualche settimana: se è scaduto, chiedine uno nuovo.",
-      footerHtml: `ChainIntegrate · Servizi di integrazione dati per le aziende · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Codice sorgente</a>`,
+      footerHtml: `ChainIntegrate · Servizi di integrazione dati per le aziende · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Codice sorgente</a>`,
     },
     en: {
       pageTitle: "Create your ChainIntegrate account",
@@ -60,7 +60,7 @@
       a3: "Install the extension on another computer, choose \"restore from the backup copy\" and you get your account back. Your account is yours alone: <b>without the backup copy no one can recover it, not even ChainIntegrate</b>.",
       q4: "Where do I get the invitation code?",
       a4: "ChainIntegrate gives it to you. It is good for one account and expires after a few weeks: if it has expired, ask for a new one.",
-      footerHtml: `ChainIntegrate · Data integration services for companies · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Source code</a>`,
+      footerHtml: `ChainIntegrate · Data integration services for companies · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Source code</a>`,
     },
   };
   const t = (k) => I18N[LANG][k] ?? I18N.it[k];

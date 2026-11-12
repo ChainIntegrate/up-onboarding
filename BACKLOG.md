@@ -41,6 +41,10 @@ judging what Universal Everything shows (item 4).
    (LSP25 `executeRelayCall`, signed by the key, sent by the service's wallet), with limits like the creation's.
    One mechanism for all of them, designed and tested once.
 
+9. **The privacy notice from the extension** (2026-11-12): `web/privacy.html` is published and linked from the
+   client's page; the extension's footer links it in the next version (and the notice is updated when the extension
+   starts talking to the ChainIntegrate services, 0.4.0).
+
 ## Under investigation
 
 5. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,
