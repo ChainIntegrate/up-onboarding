@@ -1,0 +1,18 @@
+# /etc/systemd/system/up-onboarding-alert@.service
+# Started by systemd when the creation service fails for good (OnFailure= in up-onboarding-creator.service):
+# one e-mail saying so.
+[Unit]
+Description=E-mail: %i failed (up-onboarding)
+
+[Service]
+Type=oneshot
+User=up-onboarding
+Group=up-onboarding
+WorkingDirectory=/var/www/up-onboarding/tools/creator
+EnvironmentFile=/etc/up-onboarding/smtp.env
+Environment=CREATOR_CONFIG=/etc/up-onboarding/config.json
+ExecStart=/usr/bin/node alert.js failed %i
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

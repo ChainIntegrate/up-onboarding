@@ -3,6 +3,10 @@
 Description=ChainIntegrate account creation service (up-onboarding)
 After=network-online.target
 Wants=network-online.target
+# Restarts up to 5 times in 10 minutes; past that systemd gives up and the alert e-mail goes out.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+OnFailure=up-onboarding-alert@%n.service
 
 [Service]
 User=up-onboarding

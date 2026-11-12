@@ -5,6 +5,11 @@
   "description": "ChainIntegrate's account creation service",
   "license": "MIT",
   "main": "creator.js",
-  "engines": { "node": ">=20" },
-  "dependencies": { "ethers": "6.13.4" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ethers": "6.13.4",
+    "nodemailer": "10.4.1"
+  }
 }

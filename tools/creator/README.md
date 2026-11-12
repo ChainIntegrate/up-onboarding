@@ -43,6 +43,17 @@ The gas wallet's key stays on the server (`gasKeyFile`): the service is the only
 With `CREATOR_CONFIG=/etc/up-onboarding/config.json` (the service's) and as the service's user, so the files keep
 their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config.json node creator.js invite`.
 
+## Alerts
+
+`alert.js`, by e-mail through the same mailbox as Cross_Chain's relayer monitor (`smtp.env.example`):
+
+- `failed <unit>`: systemd gave up restarting the service (5 restarts in 10 minutes; `OnFailure=` starts
+  `up-onboarding-alert@.service`);
+- `check`, every 10 minutes (`up-onboarding-creator-check.timer`): the service answers at `/api/health`, the gas
+  wallet holds more than `minBalance` + 0.1, no code is in `review` (or `creating` for more than 15 minutes).
+  An e-mail when a problem appears, every 6 hours while it lasts, and when it is solved;
+- `test`: a test e-mail.
+
 ## Configuration
 
 `config.example.json`; paths relative to the configuration file.

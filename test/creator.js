@@ -132,6 +132,28 @@ async function waitFor(url, body) {
     check(r.status === 429 && r.body.error === "daily_limit", "the daily limit holds");
     check(/created today 2 of 2/.test(cli("status")), "status counts today's accounts");
     check(cli("invites").split("\n").length === 4, "the codes are listed");
+
+    // ---- alerts (alert.js check), e-mails to a file
+    const outbox = path.join(dir, "outbox.jsonl");
+    const ALERT = path.join(__dirname, "..", "tools", "creator", "alert.js");
+    const alert = (...a) => execFileSync(process.execPath, [ALERT, ...a], { env: { ...env, ALERT_OUTBOX: outbox }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const mails = () => (fs.existsSync(outbox) ? fs.readFileSync(outbox, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+    check(alert("check") === "all good" && mails().length === 0, "alerts: all good, no e-mail");
+    svc.kill(); await sleep(500);
+    alert("check");
+    check(mails().length === 1 && /a problem/.test(mails()[0].subject) && /does not answer/.test(mails()[0].text), "alerts: the service down sends an e-mail");
+    alert("check");
+    check(mails().length === 1, "alerts: the same problem is not sent again at once");
+    svc = spawn(process.execPath, [CREATOR, "serve"], { env, stdio: ["ignore", "inherit", "inherit"] });
+    await waitFor(`http://127.0.0.1:${PORT}/api/health`);
+    alert("check");
+    check(mails().length === 2 && /solved/.test(mails()[1].subject), "alerts: an e-mail when it is solved");
+    await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("0.06").toString(16)]);
+    alert("check");
+    check(mails().length === 3 && /top it up/.test(mails()[2].text), "alerts: a low gas wallet sends an e-mail");
+    await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("10").toString(16)]);
+    alert("failed", "up-onboarding-creator.service");
+    check(/service is down/.test(mails()[3].subject) && /journalctl/.test(mails()[3].text), "alerts: the e-mail when systemd gives up");
     const mine = ethers.Wallet.createRandom().address;
     cli("withdraw", mine, "1.5");
     check((await prov.getBalance(mine)) === ethers.parseEther("1.5"), "withdraw sends an amount to the operator's address");

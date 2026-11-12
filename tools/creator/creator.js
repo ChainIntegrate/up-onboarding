@@ -31,6 +31,9 @@ const path = require("path");
 const http = require("http");
 const crypto = require("crypto");
 const { ethers } = require("ethers");
+// The shared files take ethers from globalThis first: on the server ethers is installed in tools/creator only,
+// and a require("ethers") from shared/ would not find it.
+globalThis.ethers = ethers;
 const UPRequest = require("../../shared/request.js");
 const UPDeploy = require("../../shared/deploy.js");
 const UPIpfs = require("../../shared/ipfs.js");

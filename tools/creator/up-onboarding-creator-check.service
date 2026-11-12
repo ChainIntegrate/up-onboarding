@@ -1,0 +1,21 @@
+# /etc/systemd/system/up-onboarding-creator-check.service
+# Run by up-onboarding-creator-check.timer: the service answers, the gas wallet is above its floor, no code is
+# left in "review"; an e-mail when that changes (alert.js check).
+[Unit]
+Description=Check of the up-onboarding creation service (e-mail on problems)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=up-onboarding
+Group=up-onboarding
+WorkingDirectory=/var/www/up-onboarding/tools/creator
+EnvironmentFile=/etc/up-onboarding/smtp.env
+Environment=CREATOR_CONFIG=/etc/up-onboarding/config.json
+ExecStart=/usr/bin/node alert.js check
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/up-onboarding

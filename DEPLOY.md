@@ -85,6 +85,19 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
 
    The log names the gas wallet's address: send it a few LYX (LYXt on the testnet, from LUKSO's faucet).
 
+   **E-mail alerts** (the same mailbox as Cross_Chain's relayer monitor): an e-mail when systemd gives up
+   restarting the service, and, every 10 minutes, when the service does not answer, the gas wallet is low or a
+   code is stuck in "review"; again every 6 hours while it lasts, and when it is solved.
+
+   ```bash
+   sudo install -m 600 -o up-onboarding -g up-onboarding /etc/crosschain-relayer/smtp.env /etc/up-onboarding/smtp.env
+   sudo nano /etc/up-onboarding/smtp.env        # NOTIFICATION_EMAIL: where the alerts go
+   cd /var/www/up-onboarding/tools/creator
+   sudo cp up-onboarding-alert@.service up-onboarding-creator-check.service up-onboarding-creator-check.timer /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now up-onboarding-creator-check.timer
+   sudo -u up-onboarding env $(sudo cat /etc/up-onboarding/smtp.env | grep -v '^#' | xargs) node alert.js test   # a test e-mail
+   ```
+
 6. **nginx**: the site file has the `/api/` location; copy it again and reload:
 
    ```bash
