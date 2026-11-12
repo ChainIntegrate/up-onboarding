@@ -64,5 +64,6 @@ curl -s -o /dev/null -w "%{http_code}\n" https://account.chainintegrate.it/READM
   Pinata, and is not indexed (`X-Robots-Tag: noindex`, and `robots.txt`).
 - The web root is `web/`: the rest of the repository (tests, tools, the extension, `.git`) is never served.
 
-Tested on nginx 1.24 with a local certificate: the pages work under these headers with no policy violation, the
+Written for the server's nginx 1.18 (no directive newer than it) and tested on nginx 1.24 with a local
+certificate: the pages work under these headers with no policy violation, the
 operator's page reaches the RPC and nothing else, `.git` and the files outside `web/` answer 404.
