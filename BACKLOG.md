@@ -26,12 +26,23 @@ in the same batch. Remove an item when its release is done.
    To confirm before writing it: digits allowed? Hyphens? A minimum and maximum length (LUKSO's own tools: to
    check)?
 
+3. **The picture chosen again is not sent** (2026-11-12, the second test account, `chaintest`: `inspect` shows
+   `0 profile image(s)` in its JSON). After an account is created the extension forgets the picture
+   (`avatar = null`) but leaves the file field as it was; choosing the same file again fires no `change` event, so
+   the next request leaves without a picture while the field looks filled in. To do: clear the field with the
+   picture (and whenever the form is shown again, e.g. after "Remove the access"), and show plainly whether a
+   picture will be sent (the preview, or "no picture"). Test: create, remove, create again with the same file.
+   *Waiting for the maintainer's confirmation that the same file was chosen.*
+4. **The picture's format** (to check with a valid name and a picture): the extension sends WebP (JPEG only where
+   the browser cannot encode WebP). To check that Universal Everything shows it; if not, JPEG.
+
 ## Under investigation
 
-3. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,
+5. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,
    `0xd7a1Fc3D859c4a414075d029a9851B3c081635E6`, name `"Account_Chain_Test"`). `creator.js inspect`: the
    LSP3Profile value is right (VerifiableURI, keccak256 utf8), the JSON and the image are on the IPFS node and are
    served with the right hashes by LUKSO's gateway (`api.universalprofile.cloud`), the one Universal Everything
    uses. The second account, `chaintest`, shows its name and description: the cause is the name (item 2).
-4. **The second account shows no profile picture** on Universal Everything (screenshot of 2026-11-12): to check
-   whether a picture was given and, if so, where it stops (`creator.js inspect`).
+6. **The second account shows no profile picture** on Universal Everything (screenshot of 2026-11-12): checked,
+   no picture reached the service (`0 profile image(s)`); LUKSO's index has the account as `chaintest#A9a9`.
+   See item 3.
