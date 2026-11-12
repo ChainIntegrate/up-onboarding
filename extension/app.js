@@ -50,6 +50,9 @@
       verifyHtml: "Per essere sicuri che la copia funzioni, <b>caricala qui</b> dal posto in cui l'hai salvata e scrivi la sua password.",
       verifyBtn: "Controlla",
       downloadAgainBtn: "Scaricala di nuovo",
+      integrityTitle: "Questa estensione è stata modificata",
+      integrityHtml: "Alcuni file di questa estensione sul computer <b>non sono quelli pubblicati da ChainIntegrate</b>. Per sicurezza l'estensione non sblocca il tuo accesso. <b>Non scrivere qui nessuna password.</b> Togli l'estensione da chrome://extensions, scarica di nuovo la versione ufficiale da account.chainintegrate.it e, se serve, ripristina l'accesso dalla copia di backup. Avvisa ChainIntegrate.",
+      integrityBlocked: "❌ L'estensione sul computer è stata modificata: per sicurezza non sblocca l'accesso. Leggi l'avviso in alto.",
       updateTitle: "È disponibile una nuova versione",
       updateText: (v) => `Hai la versione ${v.mine}, la più recente è la ${v.latest}. Per aggiornare: scarica il file, scompattalo nella stessa cartella di adesso sostituendo i file, poi in chrome://extensions premi "Ricarica" su ChainIntegrate Account. Il tuo accesso resta com'è.`,
       updateLink: "Scarica la nuova versione",
@@ -145,6 +148,9 @@
       verifyHtml: "To be sure the copy works, <b>load it here</b> from where you saved it and type its password.",
       verifyBtn: "Check",
       downloadAgainBtn: "Download it again",
+      integrityTitle: "This extension has been modified",
+      integrityHtml: "Some files of this extension on the computer <b>are not the ones ChainIntegrate published</b>. For safety the extension does not unlock your access. <b>Do not type any password here.</b> Remove the extension in chrome://extensions, download the official version again from account.chainintegrate.it and, if needed, restore the access from the backup copy. Tell ChainIntegrate.",
+      integrityBlocked: "❌ The extension on the computer has been modified: for safety it does not unlock the access. Read the warning at the top.",
       updateTitle: "A new version is available",
       updateText: (v) => `You have version ${v.mine}, the latest is ${v.latest}. To update: download the file, unzip it into the same folder as now, replacing the files, then in chrome://extensions press "Reload" on ChainIntegrate Account. Your access stays as it is.`,
       updateLink: "Download the new version",
@@ -272,11 +278,12 @@
   }
 
   // ---- first start
-  $("startNew").addEventListener("click", () => { endPending(); pending = { mode: "new" }; show("sProtect"); });
-  $("startRestore").addEventListener("click", () => { endPending(); show("sRestore"); });
+  $("startNew").addEventListener("click", async () => { if (!(await guard())) return; endPending(); pending = { mode: "new" }; show("sProtect"); });
+  $("startRestore").addEventListener("click", async () => { if (!(await guard())) return; endPending(); show("sRestore"); });
   document.querySelectorAll(".back").forEach((b) => b.addEventListener("click", () => { endPending(); show("sWelcome"); }));
 
   $("restoreBtn").addEventListener("click", async () => {
+    if (!(await guard("restoreMsg"))) return;
     busy(true, "restoreMsg");
     try {
       const rec = K.readBackup(await readJsonFile($("restoreFile")));
@@ -294,6 +301,7 @@
   function usePassword() { document.querySelector("input[name=how][value=password]").checked = true; $("pwBox").hidden = false; }
 
   $("protectBtn").addEventListener("click", async () => {
+    if (!(await guard("protectMsg"))) return;
     if (!pending) { show("sWelcome"); return; }
     if (how() === "password") { const bad = newPassword("devPw", "devPw2"); if (bad) { say("protectMsg", bad, "line-err"); return; } }
     busy(true, "protectMsg");
@@ -328,6 +336,7 @@
 
   // ---- the backup copy
   $("backupBtn").addEventListener("click", async () => {
+    if (!(await guard("backupMsg"))) return;
     if (!pending || !pending.privateKey) { show(account ? "sMain" : "sWelcome"); return; }
     const bad = newPassword("bkPw", "bkPw2");
     if (bad) { say("backupMsg", bad, "line-err"); return; }
@@ -350,6 +359,7 @@
   });
 
   $("verifyBtn").addEventListener("click", async () => {
+    if (!(await guard("verifyMsg"))) return;
     busy(true, "verifyMsg");
     try {
       const rec = K.readBackup(await readJsonFile($("verifyFile")));
@@ -441,6 +451,7 @@
   }
 
   $("createBtn").addEventListener("click", async () => {
+    if (!(await guard("createMsg"))) return;
     if (!$("invite").value.trim()) { say("createMsg", t("noInvite"), "line-err"); return; }
     if (!$("pName").value.trim()) { say("createMsg", t("noName"), "line-err"); return; }
     busy(true, "createMsg");
@@ -485,6 +496,7 @@
 
   // A new backup copy needs the key: unlocked with the computer's lock or this computer's password.
   async function startRenew(password) {
+    if (!(await guard("mainMsg"))) return;
     busy(true, "mainMsg");
     let secret = null;
     try {
@@ -521,6 +533,44 @@
     if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
+
+  // ---- integrity (Cross_Chain audit EXT-06): Chrome does not check an extension loaded from a folder, so the
+  // extension compares its own code (html, js, json) with the SHA-256 that ChainIntegrate's site publishes for this
+  // version, and refuses to unlock the key, or to read a backup and its password, when a file differs. It catches a
+  // corrupted, half-updated or crudely modified copy; code rewritten on purpose could also rewrite this check, so the
+  // complete protection is the Chrome Web Store (Chrome verifies its files) and tools/verify-extension.js from outside.
+  // When the list cannot be fetched (offline), the extension works and the check runs again at the next opening.
+  const integrity = { state: "pending", bad: [] };
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  async function checkIntegrity() {
+    let text;
+    try {
+      const res = await fetch(CONFIG.sums + chrome.runtime.getManifest().version + "/SHA256SUMS", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      text = await res.text();
+    } catch (e) { integrity.state = "unknown"; return; }
+    const bad = [];
+    for (const line of text.split("\n")) {
+      const m = line.match(/^([0-9a-f]{64}) {2}chainintegrate-account\/(.+\.(?:js|html|json))$/);
+      if (!m) continue;
+      try {
+        const got = hex(await crypto.subtle.digest("SHA-256", await (await fetch(chrome.runtime.getURL(m[2]), { cache: "no-store" })).arrayBuffer()));
+        if (got !== m[1]) bad.push(m[2]);
+      } catch (e) { bad.push(m[2]); }
+    }
+    integrity.state = bad.length ? "bad" : "ok";
+    integrity.bad = bad;
+    if (bad.length) { $("integrityBox").hidden = false; $("integrityFiles").textContent = bad.join(", "); }
+  }
+  const integrityReady = checkIntegrity();
+  // true when the key may be used; otherwise says why, in the message box of the screen.
+  async function guard(msgId) {
+    await integrityReady;
+    if (integrity.state !== "bad") return true;
+    if (msgId) say(msgId, t("integrityBlocked"), "line-err");
+    window.scrollTo(0, 0);
+    return false;
+  }
 
   // ---- updates: the service announces the latest version (the one in its clone of the repository)
   const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };

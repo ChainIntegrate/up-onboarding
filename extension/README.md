@@ -60,6 +60,35 @@ service which account has this key (`/api/lookup`), so the account comes back to
 - **Stored data** keeps its format across versions (`account` in `chrome.storage.local`: the key record of
   `shared/keystore.js`, version 1, and the account fields); a version that changes it must read the old one.
 
+## Integrity of the download and of the installed copy
+
+The point of Cross_Chain's audit EXT-06 (2026-11-04): Chrome does not check an extension loaded from a folder, so a
+program on the computer, or a sync client, could change its files; and a release should be verifiable. Here:
+
+- **Reproducible package.** `tools/pack-extension.js` builds the same zip, byte for byte, from the same sources
+  (sorted files, fixed dates and permissions, `.gitattributes`: no line-ending conversion). Anyone can rebuild a
+  release from its tag: `node tools/pack-extension.js --check`.
+- **SHA-256 on two channels.** `web/extension/<version>/SHA256SUMS` (the zip and every file in it) is committed,
+  so reviewed with the code, and served by ChainIntegrate's own site (`account.chainintegrate.it/extension/…`);
+  the GitHub release carries the same file and the zip's SHA-256 in its notes. A unit test fails when the
+  package no longer matches it: a released version never changes, a change needs a new version.
+- **Hardened release** (`.github/workflows/extension-release.yml`): actions pinned by commit, read-only by
+  default and no stored token; the zip is built and checked against the committed SHA256SUMS before any
+  dependency or test tool is installed; tests run in a separate job; the only job that may write checks the
+  SHA-256 again, adds GitHub's build provenance attestation (`gh attestation verify chainintegrate-account.zip
+  --repo ChainIntegrate/up-onboarding`) and publishes.
+- **The extension checks itself** each time it opens: its html, js and json files against the SHA-256 that the
+  site publishes for its version. When one differs it names it, says not to type any password, and refuses to
+  unlock the access, to read a backup or to create one. Offline it works and checks again at the next opening.
+  Limit, stated plainly: code rewritten on purpose could also rewrite this check. It catches corrupted,
+  half-updated or crudely changed copies; against a targeted change the protections are the next two.
+- **Checked from outside**: `node tools/verify-extension.js <folder>` compares every file of an installed copy,
+  and lists extra ones, with the site's SHA256SUMS (or `--sums` a file from the release).
+- **Installed outside synced folders**: the install steps say `%LOCALAPPDATA%\ChainIntegrate` on Windows and
+  `~/Library/Application Support/ChainIntegrate` on a Mac, not Documents (often synced by OneDrive or iCloud).
+- **The complete protection is the Chrome Web Store** (even unlisted): Chrome then verifies the files itself,
+  disables a modified extension and updates it. The extension's ID is already fixed for it.
+
 ## Build, install, test
 
 ```bash

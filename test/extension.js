@@ -25,13 +25,14 @@ const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); 
 const EXPECTED_ID = [...require("crypto").createHash("sha256").update(Buffer.from(JSON.parse(fs.readFileSync(path.join(EXT, "manifest.json"))).key, "base64")).digest("hex").slice(0, 32)]
   .map((c) => String.fromCharCode(97 + parseInt(c, 16))).join("");
 
-async function launch(health, extDir = EXT, profile = null) {
+async function launch(health, extDir = EXT, profile = null, sums = null) {
   const dir = profile || fs.mkdtempSync(path.join(os.tmpdir(), "ci-ext-"));
   const ctx = await chromium.launchPersistentContext(dir, { channel: "chromium", headless: true, acceptDownloads: true,
     args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`] });
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
   const id = new URL(sw.url()).host;
+  if (sums) await ctx.route("https://account.chainintegrate.it/extension/**", (r) => r.fulfill({ status: 200, contentType: "text/plain", body: sums }));
   if (health) await ctx.route("https://account.chainintegrate.it/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => check(false, "page error: " + e.message));
@@ -68,6 +69,26 @@ async function verify(page, file, pw) {
     r = await launch(null, EXT, r.dir); // same browser profile, the extension from another folder (an update)
     check(r.id === EXPECTED_ID && (await r.page.evaluate(() => chrome.storage.local.get("account"))).account.probe === true, "what the extension keeps survives loading it from another folder");
     await r.page.evaluate(() => chrome.storage.local.remove("account"));
+    await r.ctx.close();
+  }
+
+  // ---- integrity: the extension checks its own files against the published SHA-256 (EXT-06)
+  {
+    const crypto = require("crypto");
+    const walk = (d, b = "") => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name), b + e.name + "/") : [b + e.name]));
+    const good = walk(EXT).filter((f) => /\.(js|html|json)$/.test(f)).map((f) => `${crypto.createHash("sha256").update(fs.readFileSync(path.join(EXT, f))).digest("hex")}  chainintegrate-account/${f}`).join("\n") + "\n";
+    let r = await launch(null, EXT, null, good);
+    await r.page.waitForTimeout(800);
+    await r.page.click("#startNew");
+    check(await r.page.isVisible("#sProtect") && !(await r.page.isVisible("#integrityBox")), "integrity: the published files let the extension work");
+    await r.ctx.close();
+    const bad = good.replace(/^[0-9a-f]{64}(  chainintegrate-account\/passkey\.js)$/m, "0".repeat(64) + "$1");
+    r = await launch(null, EXT, null, bad);
+    await r.page.click("#startRestore");
+    await visible(r.page, "integrityBox");
+    check(!(await r.page.isVisible("#sRestore")) && /passkey\.js/.test(await r.page.textContent("#integrityFiles")), "integrity: a modified file is named and the access is not unlocked (restore refused)");
+    await r.page.click("#startNew");
+    check(!(await r.page.isVisible("#sProtect")), "integrity: a new access is refused too");
     await r.ctx.close();
   }
 

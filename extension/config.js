@@ -6,5 +6,8 @@ const CONFIG = {
   service: "https://account.chainintegrate.it/api/create",
   lookup: "https://account.chainintegrate.it/api/lookup",
   health: "https://account.chainintegrate.it/api/health",
+  // The SHA-256 of each released version's files, served by ChainIntegrate's site (web/extension/<v>/SHA256SUMS):
+  // the extension checks its own files against them before unlocking the key.
+  sums: "https://account.chainintegrate.it/extension/",
   profileBase: "https://universaleverything.io/",
 };
