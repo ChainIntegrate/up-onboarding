@@ -13,21 +13,27 @@ files: the `web/` folder of this repository, served by nginx. Nothing runs on th
    sudo git clone https://github.com/ChainIntegrate/up-onboarding /var/www/up-onboarding
    ```
 
-3. **nginx**: the headers snippet and the site, both from `tools/nginx/`:
+3. **The certificate**, before the site: nginx refuses an `ssl` server without its certificate, so first
+   only the port 80 block, which serves certbot's check from the web root:
+
+   ```bash
+   sudo sed -n '/^server {/,/^}/p;/^}/q' /var/www/up-onboarding/tools/nginx/account.chainintegrate.it.conf | sudo tee /etc/nginx/sites-available/account.chainintegrate.it
+   sudo ln -sf /etc/nginx/sites-available/account.chainintegrate.it /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot certonly --webroot -w /var/www/up-onboarding/web -d account.chainintegrate.it
+   ```
+
+4. **The site**: the headers snippet and the whole site file, both from `tools/nginx/`:
 
    ```bash
    sudo cp /var/www/up-onboarding/tools/nginx/account-security-headers.conf /etc/nginx/snippets/
    sudo cp /var/www/up-onboarding/tools/nginx/account.chainintegrate.it.conf /etc/nginx/sites-available/account.chainintegrate.it
-   sudo ln -s /etc/nginx/sites-available/account.chainintegrate.it /etc/nginx/sites-enabled/
-   ```
-
-   The two `ssl_certificate` lines are commented until the certificate exists: certbot writes them.
-4. **The certificate**:
-
-   ```bash
-   sudo certbot --nginx -d account.chainintegrate.it
    sudo nginx -t && sudo systemctl reload nginx
    ```
+
+   The certificate renews by itself (certbot's timer) through the same port 80 path; after a renewal nginx
+   needs a reload: `sudo certbot renew --dry-run` checks it, and a deploy hook
+   (`--deploy-hook "systemctl reload nginx"`) can be added to the renewal.
 
 ## Every update
 
