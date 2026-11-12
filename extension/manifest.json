@@ -3,12 +3,32 @@
   "name": "ChainIntegrate Account",
   "short_name": "ChainIntegrate",
   "version": "0.2.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAriIYhnkdPvpW4ry9pS+vZrbqjWGvhLU2vTUWMNbgh3W2LDmozt7oilmlbflOwMwk3dcgmEodgfiv8nU4vPmMW+T+9MSFHxGnjeElDdz1+1y0AxxBTiG/N5gPkFLfj+j02+OKwYWpwMJY4+ujSiKkTJcRA4fJSE5FK2oSUmjTt55/hV+FQ5cdkKkWMvtcC2WU+OEH8s9gIn6z54jI+yDUlUrbq+JSoRIuIugEjRzAtwLi6YfDvZLUn0unA8Peome164z2oCljuY8hwSV3wNWQ0hCVm4PPceRm4G1hFIMReojIcJUtcCj8M3iVU6muTVtp5y8mfW/aoa+EWswfREm7PQIDAQAB",
   "description": "Il tuo accesso all'account ChainIntegrate su questo computer. / Your access to your ChainIntegrate account on this computer.",
   "minimum_chrome_version": "121",
-  "icons": { "16": "img/icon-16.png", "32": "img/icon-32.png", "48": "img/icon-48.png", "128": "img/icon-128.png" },
-  "action": { "default_title": "ChainIntegrate Account", "default_icon": { "16": "img/icon-16.png", "32": "img/icon-32.png" } },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["storage"],
-  "host_permissions": ["https://account.chainintegrate.it/*"],
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" }
+  "icons": {
+    "16": "img/icon-16.png",
+    "32": "img/icon-32.png",
+    "48": "img/icon-48.png",
+    "128": "img/icon-128.png"
+  },
+  "action": {
+    "default_title": "ChainIntegrate Account",
+    "default_icon": {
+      "16": "img/icon-16.png",
+      "32": "img/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://account.chainintegrate.it/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  }
 }

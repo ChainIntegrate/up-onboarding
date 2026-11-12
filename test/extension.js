@@ -21,10 +21,14 @@ const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|ga
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); if (!ok) failures++; };
 
-async function launch(health) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-ext-"));
+// The ID fixed by the manifest's key: the first 32 hex digits of SHA-256(public key), written with a-p.
+const EXPECTED_ID = [...require("crypto").createHash("sha256").update(Buffer.from(JSON.parse(fs.readFileSync(path.join(EXT, "manifest.json"))).key, "base64")).digest("hex").slice(0, 32)]
+  .map((c) => String.fromCharCode(97 + parseInt(c, 16))).join("");
+
+async function launch(health, extDir = EXT, profile = null) {
+  const dir = profile || fs.mkdtempSync(path.join(os.tmpdir(), "ci-ext-"));
   const ctx = await chromium.launchPersistentContext(dir, { channel: "chromium", headless: true, acceptDownloads: true,
-    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`] });
+    args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`] });
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
   const id = new URL(sw.url()).host;
@@ -32,8 +36,8 @@ async function launch(health) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => check(false, "page error: " + e.message));
   await page.goto(`chrome-extension://${id}/app.html?lang=it`);
-  await page.waitForSelector("#sWelcome:not([hidden])");
-  return { ctx, page };
+  await page.waitForSelector(".screen:not([hidden])");
+  return { ctx, page, id, dir };
 }
 const visible = (page, id) => page.waitForSelector(`#${id}:not([hidden])`, { timeout: 30000 });
 const msg = (page, id) => page.textContent(`#${id}`);
@@ -53,8 +57,23 @@ async function verify(page, file, pw) {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
 
+  // ---- 0. the ID does not depend on the folder; an access survives an update into another folder
+  {
+    const copy = fs.mkdtempSync(path.join(os.tmpdir(), "ci-ext-copy-"));
+    fs.cpSync(EXT, copy, { recursive: true });
+    let r = await launch(null, copy);
+    check(r.id === EXPECTED_ID, `the extension's ID is fixed by its key (${r.id})`);
+    await r.page.evaluate(() => chrome.storage.local.set({ account: { probe: true } }));
+    await r.ctx.close();
+    r = await launch(null, EXT, r.dir); // same browser profile, the extension from another folder (an update)
+    check(r.id === EXPECTED_ID && (await r.page.evaluate(() => chrome.storage.local.get("account"))).account.probe === true, "what the extension keeps survives loading it from another folder");
+    await r.page.evaluate(() => chrome.storage.local.remove("account"));
+    await r.ctx.close();
+  }
+
   // ---- 1. setup with a password
   let { ctx, page } = await launch();
+  await page.waitForSelector("#sWelcome:not([hidden])");
   for (const lang of ["it", "en"]) {
     if ((await page.evaluate(() => document.documentElement.lang)) !== lang) await page.click("#langToggle");
     const words = await page.evaluate(() => { document.querySelectorAll(".screen, .screen .panel").forEach((s) => { s.hidden = false; }); const t = document.body.innerText + "\n" + [...document.querySelectorAll("[placeholder]")].map((e) => e.placeholder).join("\n"); document.querySelectorAll(".screen").forEach((s) => { s.hidden = s.id !== "sWelcome"; }); document.querySelectorAll(".screen .panel[id]").forEach((p) => { p.hidden = true; }); return t; });

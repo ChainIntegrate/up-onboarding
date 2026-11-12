@@ -47,7 +47,7 @@ service which account has this key (`/api/lookup`), so the account comes back to
 
 ## Distribution and updates
 
-- **The extension's ID is fixed** by the public key in `manifest.json` (`key`): the same ID whatever folder the
+- **The extension's ID is fixed**, `djmmccacningahefoaepjgefdojohmbj`, by the public key in `manifest.json` (`key`): the same ID whatever folder the
   extension is loaded from, and on the Chrome Web Store later (its first upload carries the matching private key,
   kept by ChainIntegrate, never in this repository). Everything the extension keeps (the encrypted access, the
   passkey, which belongs to the ID) survives updates. The release workflow refuses a manifest without `key`.
