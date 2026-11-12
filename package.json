@@ -5,10 +5,11 @@
   "description": "Universal Profiles on LUKSO for people and companies new to crypto, with ChainIntegrate as the operator",
   "license": "MIT",
   "scripts": {
-    "test": "npm run test:unit && npm run test:e2e && npm run test:extension",
+    "test": "npm run test:unit && npm run test:e2e && npm run test:creator && npm run test:extension",
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node test/e2e.js",
     "test:extension": "node test/extension.js",
+    "test:creator": "node test/creator.js",
     "pack:extension": "node tools/pack-extension.js",
     "sync": "node tools/sync-shared.js"
   },

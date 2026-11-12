@@ -1,7 +1,8 @@
 # Publishing account.chainintegrate.it
 
 The client's page (`https://account.chainintegrate.it/`) and the operator's (`/operator.html`) are static
-files: the `web/` folder of this repository, served by nginx. Nothing runs on the server.
+files: the `web/` folder of this repository, served by nginx. The creation service (`/api/`, `tools/creator`)
+runs next to them, from the same clone.
 
 ## Once
 
@@ -35,10 +36,74 @@ files: the `web/` folder of this repository, served by nginx. Nothing runs on th
    needs a reload: `sudo certbot renew --dry-run` checks it, and a deploy hook
    (`--deploy-hook "systemctl reload nginx"`) can be added to the renewal.
 
+## The creation service (once)
+
+The service (`tools/creator`) runs from the same clone, as its own system user, on this machine only
+(127.0.0.1:8787); nginx passes `/api/` to it. It needs Node.js 20 or later (`node -v`).
+
+1. **User, folders, dependencies**:
+
+   ```bash
+   sudo useradd --system --home /var/lib/up-onboarding --shell /usr/sbin/nologin up-onboarding
+   sudo install -d -m 700 -o up-onboarding -g up-onboarding /var/lib/up-onboarding
+   sudo install -d -m 750 -o root -g up-onboarding /etc/up-onboarding
+   cd /var/www/up-onboarding/tools/creator && sudo npm ci --omit=dev
+   ```
+
+2. **The gas wallet**: a new key, used only by the service, created on the server and never copied elsewhere:
+
+   ```bash
+   sudo sh -c 'cd /var/www/up-onboarding/tools/creator && node -e "console.log(require(\"ethers\").Wallet.createRandom().privateKey)" > /etc/up-onboarding/gas-key'
+   sudo chown up-onboarding:up-onboarding /etc/up-onboarding/gas-key && sudo chmod 600 /etc/up-onboarding/gas-key
+   ```
+
+3. **The Pinata JWT** (pinata.cloud, API Keys, a key allowed to pin files), one line:
+
+   ```bash
+   sudo nano /etc/up-onboarding/pinata-jwt
+   sudo chown up-onboarding:up-onboarding /etc/up-onboarding/pinata-jwt && sudo chmod 600 /etc/up-onboarding/pinata-jwt
+   ```
+
+4. **The configuration**: start on LUKSO Testnet (`"network": "lukso-testnet"`, `"rpc": "https://rpc.testnet.lukso.network"`,
+   `"chainId": 4201`), move to LUKSO when the test is good. The extension follows the service's network by itself.
+
+   ```bash
+   sudo cp /var/www/up-onboarding/tools/creator/config.example.json /etc/up-onboarding/config.json
+   sudo nano /etc/up-onboarding/config.json
+   sudo chown root:up-onboarding /etc/up-onboarding/config.json && sudo chmod 640 /etc/up-onboarding/config.json
+   ```
+
+5. **systemd**:
+
+   ```bash
+   sudo cp /var/www/up-onboarding/tools/creator/up-onboarding-creator.service /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now up-onboarding-creator
+   sudo journalctl -u up-onboarding-creator -n 5
+   ```
+
+   The log names the gas wallet's address: send it a few LYX (LYXt on the testnet, from LUKSO's faucet).
+
+6. **nginx**: the site file has the `/api/` location; copy it again and reload:
+
+   ```bash
+   sudo cp /var/www/up-onboarding/tools/nginx/account.chainintegrate.it.conf /etc/nginx/sites-available/account.chainintegrate.it
+   sudo nginx -t && sudo systemctl reload nginx
+   curl -s --resolve account.chainintegrate.it:443:127.0.0.1 https://account.chainintegrate.it/api/health   # {"ok":true,"network":...}
+   ```
+
+7. **An invitation code**, and the status:
+
+   ```bash
+   cd /var/www/up-onboarding/tools/creator
+   sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config.json node creator.js invite --note "Test"
+   sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config.json node creator.js status
+   ```
+
 ## Every update
 
 ```bash
 cd /var/www/up-onboarding && sudo git pull --ff-only
+cd tools/creator && sudo npm ci --omit=dev && sudo systemctl restart up-onboarding-creator   # when tools/creator or shared/ changed
 ```
 
 Pages and scripts are sent with `Cache-Control: no-cache`, so clients get the new version at once. A change

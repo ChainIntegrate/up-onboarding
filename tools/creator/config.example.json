@@ -1,0 +1,16 @@
+{
+  "network": "lukso",
+  "rpc": "https://rpc.mainnet.lukso.network",
+  "chainId": 42,
+  "gasKeyFile": "/etc/up-onboarding/gas-key",
+  "pinataJwtFile": "/etc/up-onboarding/pinata-jwt",
+  "dataDir": "/var/lib/up-onboarding",
+  "host": "127.0.0.1",
+  "port": 8787,
+  "maxPerDay": 20,
+  "perIpPerMinute": 1,
+  "maxControllers": 5,
+  "inviteDays": 30,
+  "minBalance": "0.05",
+  "confirmSeconds": 180
+}

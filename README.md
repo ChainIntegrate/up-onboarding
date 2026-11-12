@@ -22,16 +22,29 @@ chooses to make it a recovery administrator.
 
 | Part | What it is | Where | Status |
 |---|---|---|---|
-| **Web pages** | `index.html`, for the client: "Create your ChainIntegrate account", in plain words, with no crypto terms; it produces the request file. `operator.html`, for ChainIntegrate only: loads the request and creates the Universal Profile, one transaction to LUKSO's LSP23 factory sent and paid by the operator | [`web/`](web/) | working, tested on a local chain |
-| **Browser extension** | The client's access on the computer: creates it (protected by the computer's lock or a password), makes the client download and check a backup copy, restores it on another computer, shows the device code for the account page. Separate from UP Wallet | [`extension/`](extension/) | 0.1, tested in Chromium; signing for the services next |
-| **Android app** | The same on the phone. Separate from UP Wallet for Android | [`android/`](android/) | design |
-| **Shared code** | The request file's format and checks, and the client's keys (created, kept encrypted, backed up), used by the page, the extension and the app | [`shared/`](shared/) | working, unit-tested |
+| **Browser extension** | The client's access on the computer, and where the account is created: the access protected by the computer's lock or a password, a backup copy downloaded and checked before anything else, then the invitation code, the name and the picture, and the account is ready in about a minute. Restores the access, and finds the account again, on another computer | [`extension/`](extension/) | 0.2, tested in Chromium |
+| **Creation service** | Creates the account when the extension asks, with an invitation code, within daily and per-address limits, paying the gas with its own wallet: what LUKSO's relayer does for Universal Everything. Has no key or permission on any account | [`tools/creator/`](tools/creator/) | tested on a local chain |
+| **Web pages** | `index.html`, for the client: the three steps, in plain words. `operator.html`, for ChainIntegrate only: creates an account by hand, from a request file or filled in | [`web/`](web/) | online at account.chainintegrate.it |
+| **Shared code** | The request and its signature, the client's keys (kept encrypted, backed up), the creation call and its check: one copy used by the extension, the service and the pages | [`shared/`](shared/) | unit-tested |
+| **Android app** | The same as the extension, on the phone | [`android/`](android/) | design |
 
 This project is separate from [Cross_Chain](https://github.com/ChainIntegrate/Cross_Chain) and its UP Wallet
 (the extension and the Android app), which serve people who already use crypto. The page reuses two small
 read-only helpers from Cross_Chain (`web/lib/backup-check.js`, `web/lib/deploy-check.js`) and its theme script.
 
-## How a profile is created
+## How an account is created
+
+For the client, as with Universal Everything:
+
+1. installs the extension and chooses how to protect the access (computer's lock or password);
+2. downloads the backup copy and loads it back to check it (required);
+3. types the invitation code from ChainIntegrate, the name and, optionally, a description and a picture;
+4. the extension signs the request with the new key and sends it to the creation service, which creates the
+   account on LUKSO, paying the gas, and answers with its address in about a minute.
+
+What the creation writes, the same whether the service or the operator's page creates it:
+
+### Details (operator's page)
 
 1. **The client's keys.** The client gives the operator the *addresses* of their keys, never a private key.
    Each key is an **administrator** (uses the UP and adds or removes keys: the permissions LUKSO's own

@@ -65,3 +65,13 @@ test("unknown fields, such as a recovery choice, are dropped", () => {
   const s = base(); s.chainintegrateRecovery = true;
   assert.strictEqual(R.parse(s).request.chainintegrateRecovery, undefined);
 });
+
+test("cleaning is stable, so the signed message is the same on both sides", () => {
+  const once = R.parse(base()).request;
+  const twice = R.parse(JSON.parse(JSON.stringify(once))).request;
+  assert.deepStrictEqual(twice, once);
+  assert.strictEqual(R.signingMessage(twice), R.signingMessage(once));
+  assert.match(R.signingMessage(once), /^ChainIntegrate account request\n0x[0-9a-f]{64}$/);
+  assert.strictEqual(R.signingMessage({ ...once, salt: "0x" + "11".repeat(32) }), R.signingMessage(once));
+  assert.notStrictEqual(R.signingMessage({ ...once, profile: { ...once.profile, name: "Other" } }), R.signingMessage(once));
+});

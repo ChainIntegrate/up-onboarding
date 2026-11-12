@@ -2,8 +2,8 @@
 
 The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
 later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
-words. **Status: 0.1, first version: creates the access, the backup copy and the restore. Signing for
-ChainIntegrate's services comes next.**
+words. **Status: 0.2: the access, the backup copy, the restore, and the creation of the account with an
+invitation code. Signing for ChainIntegrate's services comes next.**
 
 ## What the client sees
 
@@ -15,14 +15,18 @@ ChainIntegrate's services comes next.**
 4. **Check the backup copy**: the client loads the file back and types its password. A wrong password or the
    backup of another access is refused. Only now is the access saved on the computer: a setup cannot end with
    a backup that does not open.
-5. **Ready**: the computer's *code* (the key's address) to copy, or the "Complete your account" button that
-   opens the client's page (`web/index.html`) with the code filled in (`config.js`, `accountPage`, once the
-   page is published); a name for the computer; "Check the backup copy", "Create a new backup copy" (unlocked
-   with the computer's lock or password); "Remove the access from this computer", only after confirming the
-   backup is at hand.
+5. **Create your account**: the invitation code, the name, a description and a picture (optional), with the
+   reminder that the profile is public. The extension unlocks the key, signs the request
+   (`UPRequest.signingMessage`) and sends it to the creation service (`config.js`, `service`), on the network the
+   service announces (`/api/health`); the service's refusals are told in plain words. About a minute later:
+   "Your account is ready", with the name, the picture and a link to the public profile.
+6. **Ready**: the account; this computer's code and name; "Check the backup copy", "Create a new backup copy"
+   (unlocked with the computer's lock or password); "Remove the access from this computer", only after
+   confirming the backup is at hand.
 
 **Restore**: on a new computer, or after reinstalling, the backup file and its password give back the same
-access with the same code; then the client protects it on that computer (step 2).
+access with the same code; then the client protects it on that computer (step 2), and the extension asks the
+service which account has this key (`/api/lookup`), so the account comes back too.
 
 ## How it works
 
@@ -38,8 +42,8 @@ access with the same code; then the client protects it on that computer (step 2)
   wiped right after; until the backup is checked nothing is stored.
 - ethers 6.13.4 is included (`vendor/`, MIT; an extension cannot load code from a server); a unit test checks
   it is byte for byte the file the web pages load from cdnjs.
-- Permissions: `storage` only. No host permissions, no content scripts: the extension reads and sends nothing
-  on the web.
+- Permissions: `storage`, and `account.chainintegrate.it` (the creation service) as its only host. No content
+  scripts: the extension reads nothing on the web and sends only the account request and the lookup.
 
 ## Build, install, test
 

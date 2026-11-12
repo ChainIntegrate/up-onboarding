@@ -10,6 +10,7 @@
 <script src="config.js"></script>
 <script src="lib/ui.js"></script>
 <script src="shared/keystore.js"></script>
+<script src="shared/request.js"></script>
 <script src="passkey.js"></script>
 <style>
   /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
@@ -98,6 +99,9 @@
   .choice small { display: block; color: var(--text-dim); margin: 4px 0 0 24px; font-size: 12.5px; line-height: 1.5; }
   .msg { font-size: 13.5px; margin-top: 10px; white-space: pre-wrap; }
   .lead { font-size: 14px; line-height: 1.55; }
+  a.ui-link { display: inline-block; margin-top: 10px; color: var(--accent); font-weight: 600; text-decoration: none; }
+  #accountCard img { width: 64px; height: 64px; object-fit: cover; border-radius: 50%; }
+  #accountCard b { font-size: 16px; }
   button.danger:disabled { background: var(--disabled); color: var(--text-dim); }
 </style>
 </head>
@@ -180,15 +184,39 @@
 
 <!-- Ready -->
 <div class="screen" id="sMain" hidden>
+  <div class="panel" id="pCreate" hidden>
+    <h2 data-i18n="createTitle">Crea il tuo account</h2>
+    <div class="lead" data-i18n-html="createHtml"></div>
+    <label for="invite" data-i18n="inviteLabel">Codice di invito</label>
+    <input type="text" id="invite" maxlength="20" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX" style="font-family:monospace; letter-spacing:0.05em;">
+    <label for="pName" data-i18n="nameLabel">Nome (persona o azienda)</label>
+    <input type="text" id="pName" maxlength="64" autocomplete="organization">
+    <label for="pDesc" data-i18n="descLabel">Descrizione (facoltativa)</label>
+    <textarea id="pDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal; min-height:70px;" data-i18n-placeholder="descPh"></textarea>
+    <label for="pAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
+    <input type="file" id="pAvatar" accept="image/png,image/jpeg,image/webp,image/gif">
+    <div class="img-prev" id="avatarPrev"></div>
+    <div class="note" style="margin-top:12px;" data-i18n-html="publicNote"></div>
+    <div id="createPwBox" hidden>
+      <label for="createPw" data-i18n="unlockPwLabel">Password di questo computer</label>
+      <input type="password" id="createPw" autocomplete="current-password">
+    </div>
+    <button id="createBtn" type="button" data-i18n="createBtn">Crea il mio account</button>
+    <div class="msg" id="createMsg"></div>
+  </div>
+  <div class="panel" id="pAccount" hidden>
+    <h2 data-i18n="accountTitle">Il tuo account</h2>
+    <div class="img-prev" id="accountCard"></div>
+    <div class="lead" style="margin-top:10px;" data-i18n-html="accountReadyHtml"></div>
+    <a id="profileLink" class="ui-link" href="#" target="_blank" rel="noopener" data-i18n="profileLink">Vedi il tuo profilo pubblico</a>
+  </div>
   <div class="panel">
-    <h2 data-i18n="mainTitle">Il tuo accesso è pronto</h2>
+    <h2 data-i18n="deviceTitle">Questo computer</h2>
     <div class="lead" data-i18n-html="codeHtml"></div>
     <div class="code" id="code"></div>
     <button id="copyCode" class="secondary" type="button" data-i18n="copyBtn">Copia il codice</button>
     <label for="devName" data-i18n="devNameLabel">Nome di questo computer (lo vedrai nel tuo account)</label>
     <input type="text" id="devName" maxlength="64" autocomplete="off" data-i18n-placeholder="devNamePh">
-    <button id="accountBtn" type="button" data-i18n="accountBtn">Completa il tuo account</button>
-    <div class="note" id="noPage" style="margin-top:10px;" data-i18n="noPageNote" hidden></div>
   </div>
   <div class="panel">
     <h2 data-i18n="bkTitle">Copia di backup</h2>

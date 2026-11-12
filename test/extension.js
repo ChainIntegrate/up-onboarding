@@ -12,6 +12,7 @@ const path = require("path");
 const { chromium } = require("playwright");
 const { ethers } = require("ethers");
 const K = require("../shared/keystore.js");
+const UPRequest = require("../shared/request.js");
 
 const EXT = path.join(__dirname, "..", "extension");
 const OUT = path.join(__dirname, "out");
@@ -55,7 +56,7 @@ async function verify(page, file, pw) {
   let { ctx, page } = await launch();
   for (const lang of ["it", "en"]) {
     if ((await page.evaluate(() => document.documentElement.lang)) !== lang) await page.click("#langToggle");
-    const words = await page.evaluate(() => { document.querySelectorAll(".screen").forEach((s) => { s.hidden = false; }); const t = document.body.innerText + "\n" + [...document.querySelectorAll("[placeholder]")].map((e) => e.placeholder).join("\n"); document.querySelectorAll(".screen").forEach((s) => { s.hidden = s.id !== "sWelcome"; }); return t; });
+    const words = await page.evaluate(() => { document.querySelectorAll(".screen, .screen .panel").forEach((s) => { s.hidden = false; }); const t = document.body.innerText + "\n" + [...document.querySelectorAll("[placeholder]")].map((e) => e.placeholder).join("\n"); document.querySelectorAll(".screen").forEach((s) => { s.hidden = s.id !== "sWelcome"; }); document.querySelectorAll(".screen .panel[id]").forEach((p) => { p.hidden = true; }); return t; });
     const manifest = JSON.parse(fs.readFileSync(path.join(EXT, "manifest.json"))).description;
     const hit = (words + "\n" + manifest).match(BANNED);
     check(!hit, `the extension in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
@@ -83,14 +84,38 @@ async function verify(page, file, pw) {
   const code = (await page.textContent("#code")).trim();
   check(code === bk.key.address, "the code shown is the backup's address");
   await page.fill("#devName", "PC ufficio"); await page.dispatchEvent("#devName", "change");
-  await ctx.route("https://account.chainintegrate.it/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "ok" }));
   await page.waitForFunction(async () => (await chrome.storage.local.get("account")).account.name === "PC ufficio");
-  const [popup] = await Promise.all([ctx.waitForEvent("page"), page.click("#accountBtn")]);
-  await popup.waitForURL(/account\.chainintegrate\.it/);
-  const opened = new URL(popup.url());
-  check(opened.origin === "https://account.chainintegrate.it" && opened.searchParams.get("code") === code && opened.searchParams.get("name") === "PC ufficio",
-    "\"Complete your account\" opens the account page with the code and the name");
-  await popup.close();
+
+  // ---- the account, created by the service (answered here: the service itself is test/creator.js)
+  check(await page.isVisible("#pCreate") && !(await page.isVisible("#pAccount")), "a new access offers to create the account");
+  await ctx.route("https://account.chainintegrate.it/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"network":"lukso-testnet"}' }));
+  let seen = null, answer = { status: 409, body: { error: "invite_used" } };
+  await ctx.route("https://account.chainintegrate.it/api/create", async (r) => {
+    seen = JSON.parse(r.request().postData());
+    await r.fulfill({ status: answer.status, contentType: "application/json", body: JSON.stringify(answer.body) });
+  });
+  await page.fill("#invite", "ABCD-EFGH-JKMN"); await page.fill("#pName", "Rossi Srl"); await page.fill("#pDesc", "Vino toscano");
+  await page.setInputFiles("#pAvatar", path.join(__dirname, "..", "web", "icon-192.png"));
+  await page.waitForSelector("#avatarPrev img");
+  await page.fill("#createPw", PW + "x"); await page.click("#createBtn");
+  await page.waitForFunction(() => !document.querySelector("#createBtn").disabled);
+  check(/sbagliata/.test(await msg(page, "createMsg")) && seen === null, "a wrong password sends nothing" + ` [${await msg(page, "createMsg")}]`);
+  await page.fill("#createPw", PW); await page.click("#createBtn");
+  await page.waitForFunction(() => !document.querySelector("#createBtn").disabled);
+  check(/già stato usato/.test(await msg(page, "createMsg")), "the service's refusal is told in plain words");
+  const req = UPRequest.parse(seen.request);
+  check(req.errors.length === 0 && req.request.controllers.length === 1 && req.request.controllers[0].address === code && req.request.controllers[0].role === "admin" &&
+    req.request.controllers[0].name === "PC ufficio" && req.request.profile.name === "Rossi Srl" && !!req.request.images.avatar && req.request.network === "lukso-testnet",
+    "the request names this computer's key as administrator, with the profile, the picture and the service's network");
+  check(ethers.verifyMessage(UPRequest.signingMessage(req.request), seen.signature) === code && seen.invite === "ABCD-EFGH-JKMN", "the request is signed with this computer's key");
+  const UP = ethers.Wallet.createRandom().address;
+  answer = { status: 200, body: { up: UP, km: ethers.Wallet.createRandom().address, tx: "0x" + "ab".repeat(32), network: "lukso" } };
+  await page.fill("#createPw", PW); await page.click("#createBtn");
+  await visible(page, "pAccount");
+  const acc = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
+  check(acc.up === UP && acc.profileName === "Rossi Srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
+  check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
+  await ctx.unroute("https://account.chainintegrate.it/api/create");
   const stored = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
   const clear = ethers.hexlify(await K.open(bk.key, { password: BK })).slice(2);
   check(stored.record.address === code && stored.record.method === "password" && !JSON.stringify(stored).includes(clear), "the stored access is encrypted and holds no clear key");
@@ -113,6 +138,9 @@ async function verify(page, file, pw) {
 
   // ---- 2. restore on a new computer
   ({ ctx, page } = await launch());
+  const FOUND = ethers.Wallet.createRandom().address;
+  let asked = null;
+  await ctx.route("https://account.chainintegrate.it/api/lookup", async (r) => { asked = JSON.parse(r.request().postData()).address; await r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ up: FOUND, network: "lukso" }) }); });
   await page.click("#startRestore"); await visible(page, "sRestore");
   await page.setInputFiles("#restoreFile", file1); await page.fill("#restorePw", "sbagliata davvero");
   await page.click("#restoreBtn"); await page.waitForFunction(() => /sbagliata/.test(document.querySelector("#restoreMsg").textContent));
@@ -121,6 +149,8 @@ async function verify(page, file, pw) {
   await page.check("input[name=how][value=password]"); await page.fill("#devPw", PW); await page.fill("#devPw2", PW);
   await page.click("#protectBtn"); await visible(page, "sMain");
   check((await page.textContent("#code")).trim() === code, "the restored access has the same code");
+  await visible(page, "pAccount");
+  check(asked === code && (await page.evaluate(() => chrome.storage.local.get("account"))).account.up === FOUND, "after a restore the account is found again by its key");
   await ctx.close();
 
   // ---- 3. setup with the computer's lock (virtual authenticator with PRF)

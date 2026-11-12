@@ -8,7 +8,7 @@
 // - on the new UP, a device key can update LSP3Profile but cannot add a controller; an administrator can;
 // - the LYX step funds each key; the request file is saved and loads back;
 // - IPFS mode (Pinata answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
-// - the client's page uses no crypto term, in Italian or in English, and its request loads in the operator's page.
+// - the client's page uses no crypto term, in Italian or in English.
 "use strict";
 const { spawn } = require("child_process");
 const http = require("http");
@@ -131,35 +131,20 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await again.close();
     await page.screenshot({ path: path.join(OUT, "desktop.png"), fullPage: true });
 
-    // ---- the client's page: no crypto words, its request reaches the operator's page
+    // ---- the client's page: no crypto words, in either language
     const client = await newPage(browser, operator);
-    await client.goto(`http://127.0.0.1:${PORT}/index.html?code=${k1}&name=PC%20ufficio`);
+    await client.goto(`http://127.0.0.1:${PORT}/index.html`);
     const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|gas|lyx\w*|lukso|ethereum|ether|eth|bitcoin|btc|nft\w*|ipfs|universal profile|up|web3|smart contract|chiav[ei] privat[ae]|private key|seed|mining|minare|transazion[ei]|transactions?|on-?chain|dapp|ledger|metamask)\b/i;
     for (const lang of ["it", "en"]) {
       if ((await client.evaluate(() => document.documentElement.lang)) !== lang) await client.click("#langToggle");
-      await client.evaluate(() => document.querySelectorAll(".ui-more").forEach((b) => b.click()));
+      await client.evaluate(() => document.querySelectorAll("details").forEach((d) => { d.open = true; }));
       const words = await client.evaluate(() => [document.title, document.body.innerText,
-        ...[...document.querySelectorAll("[placeholder]")].map((e) => e.placeholder),
         ...[...document.querySelectorAll("meta[name=description], meta[property^=og]")].map((m) => m.content)].join("\n"));
       const hit = words.match(BANNED);
       check(!hit, `the client's page in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
+      check(/backup/i.test(words) && /(ChainIntegrate)/.test(words), `the client's page in ${lang} explains the backup copy`);
     }
-    await client.click("#saveBtn");
-    check(/❌/.test(await client.textContent("#log")), "the client's page does not save a request without a name");
-    await client.fill("#pName", "Mario Rossi");
-    await client.fill("#pLinks", "Sito | https://www.rossi.it");
-    await client.click("#addCtrl");
-    await client.locator(".ctrl-row").nth(1).locator(".c-addr").fill(k2);
-    const [cdl] = await Promise.all([client.waitForEvent("download"), client.click("#saveBtn")]);
-    const clientReq = path.join(OUT, "client-request.json"); await cdl.saveAs(clientReq);
-    const creq = JSON.parse(fs.readFileSync(clientReq));
-    check(creq.network === "lukso" && creq.chainintegrateRecovery === undefined && creq.controllers.length === 2 && creq.controllers[0].name === "PC ufficio", "the client's request holds the devices");
-    const op = await newPage(browser, operator);
-    await op.goto(`http://127.0.0.1:${PORT}/operator.html`);
-    await op.setInputFiles("#draftFile", clientReq);
-    await op.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 2);
-    check((await op.inputValue("#pName")) === "Mario Rossi", "the operator's page loads the client's request");
-    await client.close(); await op.close();
+    await client.close();
 
     // ---- IPFS mode, phone width
     const phone = await newPage(browser, operator, { viewport: { width: 390, height: 900 } });

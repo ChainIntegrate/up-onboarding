@@ -2,12 +2,13 @@
   "manifest_version": 3,
   "name": "ChainIntegrate Account",
   "short_name": "ChainIntegrate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Il tuo accesso all'account ChainIntegrate su questo computer. / Your access to your ChainIntegrate account on this computer.",
   "minimum_chrome_version": "121",
   "icons": { "16": "img/icon-16.png", "32": "img/icon-32.png", "48": "img/icon-48.png", "128": "img/icon-128.png" },
   "action": { "default_title": "ChainIntegrate Account", "default_icon": { "16": "img/icon-16.png", "32": "img/icon-32.png" } },
   "background": { "service_worker": "background.js" },
   "permissions": ["storage"],
+  "host_permissions": ["https://account.chainintegrate.it/*"],
   "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" }
 }

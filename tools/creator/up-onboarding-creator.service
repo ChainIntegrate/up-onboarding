@@ -1,0 +1,22 @@
+# /etc/systemd/system/up-onboarding-creator.service
+[Unit]
+Description=ChainIntegrate account creation service (up-onboarding)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=up-onboarding
+Group=up-onboarding
+WorkingDirectory=/var/www/up-onboarding/tools/creator
+Environment=CREATOR_CONFIG=/etc/up-onboarding/config.json
+ExecStart=/usr/bin/node creator.js serve
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/up-onboarding
+
+[Install]
+WantedBy=multi-user.target

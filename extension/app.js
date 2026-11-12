@@ -50,14 +50,39 @@
       verifyHtml: "Per essere sicuri che la copia funzioni, <b>caricala qui</b> dal posto in cui l'hai salvata e scrivi la sua password.",
       verifyBtn: "Controlla",
       downloadAgainBtn: "Scaricala di nuovo",
-      mainTitle: "Il tuo accesso è pronto",
-      codeHtml: "Questo è il <b>codice</b> di questo computer. Non è segreto: mandalo a ChainIntegrate, o usa il pulsante qui sotto per completare il tuo account.",
+      createTitle: "Crea il tuo account",
+      createHtml: "Il tuo accesso è pronto. Ora crea l'account con il <b>codice di invito</b> che ti ha dato ChainIntegrate: ci vuole circa un minuto.",
+      inviteLabel: "Codice di invito",
+      nameLabel: "Nome (persona o azienda)",
+      descLabel: "Descrizione (facoltativa)",
+      descPh: "Chi sei, cosa fai",
+      avatarLabel: "Immagine o logo (facoltativo)",
+      imgRemove: "Togli",
+      imgBad: "❌ Questa immagine non si riesce a leggere: prova con un file JPG o PNG.",
+      publicNote: "<b>Il profilo è pubblico</b>: chiunque può vederlo. Non inserire dati che vuoi tenere riservati. Potrai modificarlo in seguito, ma le versioni precedenti restano consultabili.",
+      createBtn: "Crea il mio account",
+      noInvite: "❌ Scrivi il codice di invito.",
+      noName: "❌ Scrivi il nome.",
+      creating: "Sto creando il tuo account: ci vuole circa un minuto. Non chiudere questa pagina.",
+      err_invite_invalid: "❌ Il codice di invito non è valido. Controllalo, o chiedine uno a ChainIntegrate.",
+      err_invite_used: "❌ Questo codice di invito è già stato usato.",
+      err_invite_expired: "❌ Il codice di invito è scaduto: chiedine uno nuovo a ChainIntegrate.",
+      err_rate_limited: "❌ Troppe richieste in poco tempo: riprova tra un minuto.",
+      err_daily_limit: "❌ Oggi sono stati creati molti account: riprova domani, o scrivi a ChainIntegrate.",
+      err_unavailable: "❌ Il servizio non è disponibile in questo momento: riprova tra qualche minuto.",
+      err_bad_request: "❌ Alcuni dati non vanno bene: controlla il nome, la descrizione e l'immagine.",
+      err_failed: (v) => `❌ Qualcosa non è andato a buon fine. Scrivi a ChainIntegrate indicando questo riferimento: ${v.ref || "—"}`,
+      err_network: "❌ Non riesco a raggiungere ChainIntegrate: controlla la connessione a internet e riprova.",
+      created: "✅ Il tuo account è pronto.",
+      accountTitle: "Il tuo account",
+      accountReadyHtml: "Puoi usarlo con i servizi di ChainIntegrate. Ricorda: la <b>copia di backup</b> è l'unico modo per rientrare se perdi questo computer.",
+      profileLink: "Vedi il tuo profilo pubblico",
+      deviceTitle: "Questo computer",
+      codeHtml: "Il <b>codice</b> di questo computer. Non è segreto: ti serve solo se ChainIntegrate te lo chiede.",
       copyBtn: "Copia il codice",
       copied: "✅ Codice copiato.",
       devNameLabel: "Nome di questo computer (lo vedrai nel tuo account)",
       devNamePh: "es. PC ufficio",
-      accountBtn: "Completa il tuo account",
-      noPageNote: "Manda il codice a ChainIntegrate, all'indirizzo che ti abbiamo indicato o su Telegram.",
       bkTitle: "Copia di backup",
       bkChecked: (v) => `✅ Copia di backup controllata il ${v.date}.`,
       checkBackupBtn: "Controlla la copia di backup",
@@ -117,14 +142,39 @@
       verifyHtml: "To be sure the copy works, <b>load it here</b> from where you saved it and type its password.",
       verifyBtn: "Check",
       downloadAgainBtn: "Download it again",
-      mainTitle: "Your access is ready",
-      codeHtml: "This is this computer's <b>code</b>. It is not secret: send it to ChainIntegrate, or use the button below to complete your account.",
+      createTitle: "Create your account",
+      createHtml: "Your access is ready. Now create the account with the <b>invitation code</b> ChainIntegrate gave you: it takes about a minute.",
+      inviteLabel: "Invitation code",
+      nameLabel: "Name (person or company)",
+      descLabel: "Description (optional)",
+      descPh: "Who you are, what you do",
+      avatarLabel: "Picture or logo (optional)",
+      imgRemove: "Remove",
+      imgBad: "❌ This picture cannot be read: try a JPG or PNG file.",
+      publicNote: "<b>The profile is public</b>: anyone can see it. Do not enter anything you want to keep private. You can change it later, but earlier versions remain viewable.",
+      createBtn: "Create my account",
+      noInvite: "❌ Type the invitation code.",
+      noName: "❌ Type the name.",
+      creating: "Creating your account: it takes about a minute. Do not close this page.",
+      err_invite_invalid: "❌ The invitation code is not valid. Check it, or ask ChainIntegrate for one.",
+      err_invite_used: "❌ This invitation code has already been used.",
+      err_invite_expired: "❌ The invitation code has expired: ask ChainIntegrate for a new one.",
+      err_rate_limited: "❌ Too many requests in a short time: try again in a minute.",
+      err_daily_limit: "❌ Many accounts were created today: try again tomorrow, or write to ChainIntegrate.",
+      err_unavailable: "❌ The service is not available right now: try again in a few minutes.",
+      err_bad_request: "❌ Some details are not right: check the name, the description and the picture.",
+      err_failed: (v) => `❌ Something went wrong. Write to ChainIntegrate with this reference: ${v.ref || "—"}`,
+      err_network: "❌ ChainIntegrate cannot be reached: check the internet connection and try again.",
+      created: "✅ Your account is ready.",
+      accountTitle: "Your account",
+      accountReadyHtml: "You can use it with ChainIntegrate's services. Remember: the <b>backup copy</b> is the only way back in if you lose this computer.",
+      profileLink: "See your public profile",
+      deviceTitle: "This computer",
+      codeHtml: "This computer's <b>code</b>. It is not secret: you need it only if ChainIntegrate asks for it.",
       copyBtn: "Copy the code",
       copied: "✅ Code copied.",
       devNameLabel: "Name of this computer (you will see it in your account)",
       devNamePh: "e.g. Office PC",
-      accountBtn: "Complete your account",
-      noPageNote: "Send the code to ChainIntegrate, at the address we gave you or on Telegram.",
       bkTitle: "Backup copy",
       bkChecked: (v) => `✅ Backup copy checked on ${v.date}.`,
       checkBackupBtn: "Check the backup copy",
@@ -319,8 +369,10 @@
     $("code").textContent = account.record.address;
     $("devName").value = account.name || "";
     $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
-    $("noPage").hidden = !!CONFIG.accountPage;
-    $("accountBtn").hidden = !CONFIG.accountPage;
+    const has = !!account.up;
+    $("pCreate").hidden = has; $("pAccount").hidden = !has;
+    $("createPwBox").hidden = has || account.record.method !== "password";
+    if (has) renderAccount(); else findAccount();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true;
   }
@@ -329,12 +381,98 @@
   });
   const oneLine = (v) => String(v || "").replace(/\s+/g, " ").trim().slice(0, 64);
   $("devName").addEventListener("change", async () => { await save({ ...account, name: oneLine($("devName").value) }); });
-  $("accountBtn").addEventListener("click", () => {
-    const u = new URL(CONFIG.accountPage);
-    u.searchParams.set("code", account.record.address);
-    if (account.name) u.searchParams.set("name", account.name);
-    u.searchParams.set("lang", LANG);
-    window.open(u.href, "_blank", "noopener");
+  // ---- the account: created by ChainIntegrate's service with an invitation code (tools/creator)
+  let avatar = null; // { dataUrl, w, h }, at most 512 px
+  function loadImage(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("image")); i.src = src; }); }
+  async function resize(src, max) {
+    const img = await loadImage(src);
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    c.getContext("2d").drawImage(img, 0, 0, w, h);
+    let dataUrl = c.toDataURL("image/webp", 0.85);
+    if (!dataUrl.startsWith("data:image/webp")) dataUrl = c.toDataURL("image/jpeg", 0.85);
+    return { dataUrl, w, h };
+  }
+  function showAvatar() {
+    const box = $("avatarPrev"); box.innerHTML = "";
+    if (!avatar) return;
+    const img = document.createElement("img"); img.src = avatar.dataUrl; img.alt = "";
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "secondary"; rm.style.cssText = "width:auto; margin:0; padding:6px 10px; font-size:12px;"; rm.textContent = t("imgRemove");
+    rm.addEventListener("click", () => { avatar = null; $("pAvatar").value = ""; showAvatar(); });
+    box.append(img, rm);
+  }
+  $("pAvatar").addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try {
+      const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      avatar = await resize(src, 512);
+    } catch (e) { avatar = null; ev.target.value = ""; say("createMsg", t("imgBad"), "line-err"); }
+    showAvatar();
+  });
+
+  // After a restore (or if the creation answer was lost), the account this key belongs to is asked to the service.
+  let lookedUp = false;
+  async function findAccount() {
+    if (lookedUp || !CONFIG.lookup) return;
+    lookedUp = true;
+    try {
+      const res = await fetch(CONFIG.lookup, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: account.record.address }) });
+      if (!res.ok) return;
+      const b = await res.json();
+      if (!b.up || !ethers.isAddress(b.up) || account.up) return;
+      await save({ ...account, up: ethers.getAddress(b.up), network: b.network || "lukso" });
+      await showMain();
+    } catch (e) { /* offline: the client can still create or try later */ }
+  }
+
+  function renderAccount() {
+    const card = $("accountCard"); card.innerHTML = "";
+    if (account.picture) { const img = document.createElement("img"); img.src = account.picture; img.alt = ""; card.appendChild(img); }
+    const b = document.createElement("b"); b.textContent = account.profileName || ""; card.appendChild(b);
+    $("profileLink").href = CONFIG.profileBase + account.up + (account.network === "lukso-testnet" ? "?network=testnet" : "");
+  }
+
+  $("createBtn").addEventListener("click", async () => {
+    if (!$("invite").value.trim()) { say("createMsg", t("noInvite"), "line-err"); return; }
+    if (!$("pName").value.trim()) { say("createMsg", t("noName"), "line-err"); return; }
+    busy(true, "createMsg");
+    let network;
+    try { network = (await (await fetch(CONFIG.health)).json()).network; } catch (e) { network = null; }
+    if (!UPRequest.NETWORKS.includes(network)) { say("createMsg", t("err_network"), "line-err"); busy(false); return; }
+    const { request, errors } = UPRequest.create({
+      network,
+      profile: { name: $("pName").value, description: $("pDesc").value, tags: [], links: [] },
+      images: { avatar, cover: null },
+      controllers: [{ address: account.record.address, name: account.name || t("devNamePh").replace(/^(es\.|e\.g\.)\s*/, ""), role: "admin" }],
+    });
+    if (errors.length) { say("createMsg", t("err_bad_request"), "line-err"); busy(false); return; }
+    let secret = null;
+    try {
+      // The request is signed with this computer's key, unlocked as usual: the service creates the account only
+      // for a key its owner holds.
+      const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password: $("createPw").value };
+      const signature = await K.withKey(account.record, unlock, (sk) => sk.sign(ethers.hashMessage(UPRequest.signingMessage(request))).serialized);
+      $("createPw").value = "";
+      say("createMsg", t("creating"), "line-dim");
+      let res, body;
+      try {
+        const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 300000);
+        res = await fetch(CONFIG.service, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invite: $("invite").value.trim(), request, signature }), signal: ctl.signal });
+        clearTimeout(timer);
+        body = await res.json().catch(() => ({}));
+      } catch (e) { throw Object.assign(new Error(t("err_network")), { shown: true }); }
+      if (!res.ok) {
+        const key = "err_" + (body.error || "unavailable");
+        const msg = body.error === "failed" ? t("err_failed", { ref: (body.tx || "").slice(0, 18) }) : I18N[LANG][key] ? t(key) : t("err_unavailable");
+        throw Object.assign(new Error(msg), { shown: true });
+      }
+      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
+      $("invite").value = ""; avatar = null; showAvatar();
+      await showMain();
+      say("mainMsg", t("created"), "line-ok");
+    } catch (e) { say("createMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
   });
 
   $("checkBackup").addEventListener("click", () => { endPending(); verifyMode = "check"; show("sVerify"); $("verifyAgain").hidden = true; });
