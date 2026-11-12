@@ -4,7 +4,10 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
-## In 0.3.0 (written and tested; released after the check on Testnet)
+## In 0.3.1 (released 2026-11-12)
+
+0.3.0 was the Testnet check of items 1-4 (`chaintest-tre`: name, picture and description shown on Universal
+Everything); 0.3.1 adds item 7, so the copy of 0.3.0 used for the check keeps matching its published SHA-256.
 
 1. **Removing the access: a confirmation step.** After the checkbox, a confirmation that names the account and says
    plainly it cannot be undone and that without the backup the account is lost; "Cancel" has the focus.
@@ -23,20 +26,15 @@ in the same batch. Remove an item when its release is done.
    delay, and shows the account as `#EOA` until then. The change stays (PNG and JPEG are the widest supported),
    but it is not a fix.
 
-**Check before the release**: on Testnet, one account with a transparent PNG logo and one with a photo, both shown
-with name and picture on Universal Everything; allow some minutes after the creation before judging (see item 4).
+**Checked** on Testnet before the release (`chaintest-tre`, 0.3.0); allow some minutes after a creation before
+judging what Universal Everything shows (item 4).
 
 ## Next
 
-7. **The computer's name** (2026-11-12, asked by the maintainer). Today the field "Name of this computer" is on the
-   ready screen; its value is written into the account (the controller's name, `UPWalletControllerName`) only at
-   the creation, and an empty field writes the placeholder's example ("PC ufficio", as on the first test account).
-   Changed after the creation it is kept on this computer only, although the label says "you will see it in your
-   account". To do:
-   - the computer's name in the "Create your account" form, next to the profile name, required, prefilled with
-     a sensible value ("Computer"), never the placeholder used as a value;
-   - after the creation, a label that says where the name is kept;
-   - changing it in the account later: a data write signed by the key (see item 8).
+7. **The computer's name** (in 0.3.1): in the "Create your account" form, next to the profile name, required,
+   prefilled with "Computer" (never the placeholder used as a value), written into the account at the creation;
+   the ready screen says the name written in the account. The field that kept a name on the computer only is
+   gone. Changing the name in the account later: item 8.
 8. **Changes to an existing account, gas paid by the service** (design): the computer's name, the profile (name,
    description, picture), a second device (the Android app, a second computer). Each is a data write through the
    account's Key Manager signed by one of its keys; the key holds no LYX, so the service would send it and pay

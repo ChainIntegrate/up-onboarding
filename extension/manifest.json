@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ChainIntegrate Account",
   "short_name": "ChainIntegrate",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAriIYhnkdPvpW4ry9pS+vZrbqjWGvhLU2vTUWMNbgh3W2LDmozt7oilmlbflOwMwk3dcgmEodgfiv8nU4vPmMW+T+9MSFHxGnjeElDdz1+1y0AxxBTiG/N5gPkFLfj+j02+OKwYWpwMJY4+ujSiKkTJcRA4fJSE5FK2oSUmjTt55/hV+FQ5cdkKkWMvtcC2WU+OEH8s9gIn6z54jI+yDUlUrbq+JSoRIuIugEjRzAtwLi6YfDvZLUn0unA8Peome164z2oCljuY8hwSV3wNWQ0hCVm4PPceRm4G1hFIMReojIcJUtcCj8M3iVU6muTVtp5y8mfW/aoa+EWswfREm7PQIDAQAB",
   "description": "Il tuo accesso all'account ChainIntegrate su questo computer. / Your access to your ChainIntegrate account on this computer.",
   "minimum_chrome_version": "121",

@@ -2,8 +2,8 @@
 
 The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
 later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
-words. **Status: 0.3: the access, the backup copy, the restore, and the creation of the account with an
-invitation code (profile name rule, PNG or JPEG picture, confirmation before removing the access). Signing for ChainIntegrate's services comes next.**
+words. **Status: 0.3.1: the access, the backup copy, the restore, and the creation of the account with an
+invitation code (profile name rule, the computer's name, PNG or JPEG picture, confirmation before removing the access). Signing for ChainIntegrate's services comes next.**
 
 ## What the client sees
 

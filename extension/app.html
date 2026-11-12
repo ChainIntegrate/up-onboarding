@@ -204,6 +204,9 @@
     <label for="pName" data-i18n="nameLabel">Nome del profilo</label>
     <input type="text" id="pName" maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="off" data-i18n-placeholder="namePh">
     <div class="note" id="nameHint" style="margin-top:6px;" data-i18n="nameHint"></div>
+    <label for="cName" data-i18n="cNameLabel">Nome di questo computer</label>
+    <input type="text" id="cName" maxlength="64" autocomplete="off">
+    <div class="note" style="margin-top:6px;" data-i18n="cNameHint"></div>
     <label for="pDesc" data-i18n="descLabel">Descrizione (facoltativa)</label>
     <textarea id="pDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal; min-height:70px;" data-i18n-placeholder="descPh"></textarea>
     <label for="pAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
@@ -228,8 +231,7 @@
     <div class="lead" data-i18n-html="codeHtml"></div>
     <div class="code" id="code"></div>
     <button id="copyCode" class="secondary" type="button" data-i18n="copyBtn">Copia il codice</button>
-    <label for="devName" data-i18n="devNameLabel">Nome di questo computer (lo vedrai nel tuo account)</label>
-    <input type="text" id="devName" maxlength="64" autocomplete="off" data-i18n-placeholder="devNamePh">
+    <div class="lead" id="devNameLine" style="margin-top:10px;" hidden></div>
   </div>
   <div class="panel">
     <h2 data-i18n="bkTitle">Copia di backup</h2>

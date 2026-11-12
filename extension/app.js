@@ -92,8 +92,11 @@
       codeHtml: "Il <b>codice</b> di questo computer. Non è segreto: ti serve solo se ChainIntegrate te lo chiede.",
       copyBtn: "Copia il codice",
       copied: "✅ Codice copiato.",
-      devNameLabel: "Nome di questo computer (lo vedrai nel tuo account)",
-      devNamePh: "es. PC ufficio",
+      cNameLabel: "Nome di questo computer",
+      cNameHint: "Viene scritto nel tuo account accanto a questo dispositivo, così lo riconosci (es. PC ufficio, Portatile di Anna).",
+      cNameDefault: "Computer",
+      noDevName: "❌ Scrivi un nome per questo computer.",
+      devNameLine: (v) => `Nel tuo account questo computer si chiama <b>${v.name}</b>.`,
       bkTitle: "Copia di backup",
       bkChecked: (v) => `✅ Copia di backup controllata il ${v.date}.`,
       checkBackupBtn: "Controlla la copia di backup",
@@ -198,8 +201,11 @@
       codeHtml: "This computer's <b>code</b>. It is not secret: you need it only if ChainIntegrate asks for it.",
       copyBtn: "Copy the code",
       copied: "✅ Code copied.",
-      devNameLabel: "Name of this computer (you will see it in your account)",
-      devNamePh: "e.g. Office PC",
+      cNameLabel: "Name of this computer",
+      cNameHint: "It is written in your account next to this device, so you recognise it (e.g. Office PC, Anna's laptop).",
+      cNameDefault: "Computer",
+      noDevName: "❌ Type a name for this computer.",
+      devNameLine: (v) => `In your account this computer is called <b>${v.name}</b>.`,
       bkTitle: "Backup copy",
       bkChecked: (v) => `✅ Backup copy checked on ${v.date}.`,
       checkBackupBtn: "Check the backup copy",
@@ -399,7 +405,10 @@
   async function showMain() {
     show("sMain");
     $("code").textContent = account.record.address;
-    $("devName").value = account.name || "";
+    // The computer's name as written in the account at its creation (BACKLOG item 7); unknown after a restore.
+    const esc = (v) => String(v || "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    $("devNameLine").hidden = !(account.up && account.nameInAccount);
+    if (account.up && account.nameInAccount) $("devNameLine").innerHTML = t("devNameLine", { name: esc(account.nameInAccount) });
     $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
     const has = !!account.up;
     $("pCreate").hidden = has; $("pAccount").hidden = !has;
@@ -413,7 +422,7 @@
     try { await navigator.clipboard.writeText(account.record.address); say("mainMsg", t("copied"), "line-ok"); } catch (e) { /* select by hand */ }
   });
   const oneLine = (v) => String(v || "").replace(/\s+/g, " ").trim().slice(0, 64);
-  $("devName").addEventListener("change", async () => { await save({ ...account, name: oneLine($("devName").value) }); });
+
   // ---- the account: created by ChainIntegrate's service with an invitation code (tools/creator)
   let avatar = null; // { dataUrl, w, h }, at most 512 px
   function loadImage(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("image")); i.src = src; }); }
@@ -443,6 +452,7 @@
   // The form as new: also the file field, so the same picture chosen again is seen (BACKLOG item 3).
   function resetCreateForm() {
     avatar = null; $("pAvatar").value = ""; showAvatar(); syncName();
+    if (!$("cName").value.trim()) $("cName").value = (account && account.name) || t("cNameDefault");
   }
   // The name: lowercase as it is typed; the rule of shared/request.js shown under the field and on the button.
   function syncName() {
@@ -494,6 +504,8 @@
     if (!$("invite").value.trim()) { say("createMsg", t("noInvite"), "line-err"); return; }
     if (!$("pName").value.trim()) { say("createMsg", t("noName"), "line-err"); return; }
     if (!UPRequest.NAME_RE.test($("pName").value)) { say("createMsg", t("nameBad"), "line-err"); return; }
+    const devName = oneLine($("cName").value);
+    if (!devName) { say("createMsg", t("noDevName"), "line-err"); return; }
     busy(true, "createMsg");
     let network;
     try { network = (await (await fetch(CONFIG.health)).json()).network; } catch (e) { network = null; }
@@ -502,7 +514,7 @@
       network,
       profile: { name: $("pName").value, description: $("pDesc").value, tags: [], links: [] },
       images: { avatar, cover: null },
-      controllers: [{ address: account.record.address, name: account.name || t("devNamePh").replace(/^(es\.|e\.g\.)\s*/, ""), role: "admin" }],
+      controllers: [{ address: account.record.address, name: devName, role: "admin" }],
     });
     if (errors.length) { say("createMsg", errors.includes("profile.nameRule") ? t("nameBad") : t("err_bad_request"), "line-err"); busy(false); return; }
     let secret = null;
@@ -526,7 +538,7 @@
         const msg = body.error === "failed" ? t("err_failed", { ref: (body.tx || "").slice(0, 18) }) : I18N[LANG][key] ? t(key) : t("err_unavailable");
         throw Object.assign(new Error(msg), { shown: true });
       }
-      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
+      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
       $("invite").value = ""; $("pName").value = ""; $("pDesc").value = ""; resetCreateForm();
       await showMain();
       say("mainMsg", t("created"), "line-ok");

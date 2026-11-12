@@ -124,8 +124,8 @@ async function verify(page, file, pw) {
   await visible(page, "sMain");
   const code = (await page.textContent("#code")).trim();
   check(code === bk.key.address, "the code shown is the backup's address");
-  await page.fill("#devName", "PC ufficio"); await page.dispatchEvent("#devName", "change");
-  await page.waitForFunction(async () => (await chrome.storage.local.get("account")).account.name === "PC ufficio");
+  check((await page.inputValue("#cName")) === "Computer" && !(await page.isVisible("#devNameLine")), "the computer's name is in the creation form, prefilled");
+  await page.fill("#cName", "PC ufficio");
 
   // ---- the account, created by the service (answered here: the service itself is test/creator.js)
   check(await page.isVisible("#pCreate") && !(await page.isVisible("#pAccount")), "a new access offers to create the account");
@@ -170,6 +170,7 @@ async function verify(page, file, pw) {
   await page.fill("#createPw", PW); await page.click("#createBtn");
   await visible(page, "pAccount");
   const acc = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
+  check(acc.nameInAccount === "PC ufficio" && (await page.isVisible("#devNameLine")) && /PC ufficio/.test(await page.textContent("#devNameLine")), "after the creation the computer's name written in the account is shown");
   check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
   check((await page.inputValue("#pAvatar")) === "" && (await page.inputValue("#pName")) === "", "after the creation the form is empty, the picture field too (the same file can be chosen again)");
