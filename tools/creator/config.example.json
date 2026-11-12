@@ -6,7 +6,7 @@
   "ipfsApi": "http://127.0.0.1:5001",
   "dataDir": "/var/lib/up-onboarding",
   "host": "127.0.0.1",
-  "port": 8787,
+  "port": 8811,
   "maxPerDay": 20,
   "perIpPerMinute": 1,
   "maxControllers": 5,

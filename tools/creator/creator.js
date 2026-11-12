@@ -48,7 +48,7 @@ function loadConfig() {
     network: c.network, rpc: c.rpc, chainId: Number(c.chainId),
     gasKeyFile: abs(c.gasKeyFile), dataDir: abs(c.dataDir),
     ipfsApi: c.ipfsApi, ipfsAuthFile: c.ipfsAuthFile ? abs(c.ipfsAuthFile) : null,
-    host: c.host || "127.0.0.1", port: Number(c.port || 8787),
+    host: c.host || "127.0.0.1", port: Number(c.port || 8811),
     maxPerDay: Number(c.maxPerDay ?? 20), perIpPerMinute: Number(c.perIpPerMinute ?? 1),
     maxControllers: Number(c.maxControllers ?? 5), inviteDays: Number(c.inviteDays ?? 30),
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),

@@ -39,7 +39,7 @@ runs next to them, from the same clone.
 ## The creation service (once)
 
 The service (`tools/creator`) runs from the same clone, as its own system user, on this machine only
-(127.0.0.1:8787); nginx passes `/api/` to it. It needs Node.js 20 or later (`node -v`).
+(127.0.0.1:8811; 8787 and 8788 are Cross_Chain's relayer and sponsor service on the same server); nginx passes `/api/` to it. It needs Node.js 20 or later (`node -v`).
 
 1. **User, folders, dependencies**:
 
