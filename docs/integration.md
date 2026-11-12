@@ -8,8 +8,10 @@ daily cap for the whole service. The gas-cylinder-registry demo uses the owner s
 owner comes after the drivers' app is published.
 
 Done: the relay in the account service (section 6) for the account's own changes (profile, the signer's name),
-tested on a local chain with LUKSO's Key Manager. Next: the extension's account changes over the relay, the
-catalog, the page provider and the signing window.
+tested on a local chain with LUKSO's Key Manager; a new profile stored on IPFS on request of a key of the account
+(`/api/profile`, keeping the current picture when no new one is given); in the extension, "Change the profile" and
+"this computer's name" over the relay. Next: the catalog, the page provider and the signing window. The live test
+on mainnet is made with the released 0.4.0 (no development builds handed out).
 
 ## 1. The goal
 

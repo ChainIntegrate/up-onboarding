@@ -170,6 +170,7 @@ function makeService(cfg) {
     for (const [kind, name] of [["avatar", "profile-image"], ["cover", "background-image"]]) {
       const im = imgs[kind];
       if (!im) continue;
+      if (Array.isArray(im.entries)) { images[kind] = im.entries.length ? { entries: im.entries } : null; continue; }
       const bytes = dataUrlBytes(im.dataUrl), type = dataUrlType(im.dataUrl);
       images[kind] = { bytes, width: im.w, height: im.h, url: await pin(cfg, bytes, `${name}.${EXT[type]}`, type) };
     }
@@ -318,6 +319,22 @@ function makeService(cfg) {
   // A new profile on IPFS for an existing account, asked by one of its keys; the extension then writes its value
   // with the relay. Counted with the relay's operations (daily cap).
   const UP_GETDATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)"]);
+  // The current profile's picture entries, read from the account and the IPFS node, checked against the hash written
+  // on the account: [] when there is none or it cannot be read.
+  async function currentPictures(account) {
+    try {
+      const value = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [UPDeploy.LSP3_KEY]) }))[0];
+      const b = ethers.getBytes(value);
+      if (b.length < 40 || ethers.hexlify(b.slice(0, 8)) !== "0x00006f357c6a0020") return [];
+      const hash = ethers.hexlify(b.slice(8, 40)), cid = ethers.toUtf8String(b.slice(40)).replace(/^ipfs:\/\//, "");
+      const res = await fetch(cfg.ipfsApi.replace(/\/+$/, "") + "/api/v0/cat?arg=" + encodeURIComponent(cid), { method: "POST", headers: cfg.ipfsAuthFile ? { Authorization: secret(cfg.ipfsAuthFile) } : {}, signal: AbortSignal.timeout(20000) });
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (!res.ok || ethers.keccak256(bytes) !== hash) return [];
+      const list = (JSON.parse(ethers.toUtf8String(bytes)).LSP3Profile || {}).profileImage;
+      return Array.isArray(list) ? list.slice(0, 4).filter((e) => e && typeof e.url === "string" && /^ipfs:\/\//.test(e.url)) : [];
+    } catch (e) { return []; }
+  }
+
   async function handleProfile(body, ip) {
     rateLimitRelay(ip);
     const { update, errors } = UPRequest.profileUpdate((body && body.update) || {});
@@ -329,8 +346,10 @@ function makeService(cfg) {
     const perms = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [permKey]) }))[0];
     if (!perms || perms === "0x" || BigInt(perms) === 0n) throw new HttpError(400, "bad_signature");
     if (store.relayToday() >= cfg.maxRelayPerDay) throw new HttpError(429, "daily_limit");
+    let images = update.images;
+    if (update.keepPicture) images = { avatar: { entries: await currentPictures(account) }, cover: null };
     let pinned;
-    try { pinned = await pinProfile(update.profile, update.images); }
+    try { pinned = await pinProfile(update.profile, images); }
     catch (e) { console.error("profile pin failed:", e.message); throw new HttpError(503, "unavailable"); }
     store.relayLog({ account, signer, ops: ["pin"], url: pinned.url, ok: true });
     return { value: pinned.value, url: pinned.url };

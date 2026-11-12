@@ -35,14 +35,24 @@ async function waitFor(url, body) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "creator-"));
   const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore" });
   const pins = [];
-  // Kubo's /api/v0/add, as the node answers it: one JSON line per file.
+  // Kubo's /api/v0/add (one JSON line per file) and /api/v0/cat, as the node answers them; the files are kept.
+  const ipfsFiles = new Map();
   const ipfs = http.createServer((req, res) => {
     const chunks = []; req.on("data", (c) => chunks.push(c));
     req.on("end", () => {
       const u = new URL(req.url, "http://x");
-      pins.push({ path: u.pathname, pin: u.searchParams.get("pin"), cid: u.searchParams.get("cid-version"), auth: req.headers.authorization, size: Buffer.concat(chunks).length });
+      if (u.pathname === "/api/v0/cat") {
+        const f = ipfsFiles.get(u.searchParams.get("arg"));
+        res.writeHead(f ? 200 : 404); return res.end(f || "");
+      }
+      const body = Buffer.concat(chunks);
+      const boundary = "--" + String(req.headers["content-type"]).split("boundary=")[1];
+      const start = body.indexOf("\r\n\r\n") + 4, end = body.indexOf("\r\n" + boundary, start);
+      pins.push({ path: u.pathname, pin: u.searchParams.get("pin"), cid: u.searchParams.get("cid-version"), auth: req.headers.authorization, size: body.length });
+      const hash = "bafybeigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest" + String(pins.length).padStart(2, "0");
+      ipfsFiles.set(hash, body.slice(start, end));
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ Name: "f", Hash: "bafybeigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest" + String(pins.length).padStart(2, "0"), Size: "1" }) + "\n");
+      res.end(JSON.stringify({ Name: "f", Hash: hash, Size: "1" }) + "\n");
     });
   }).listen(IPFS);
   let svc;
@@ -56,7 +66,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", dataDir: "data",
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 5, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 6, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -150,6 +160,12 @@ async function waitFor(url, body) {
     check(pp.status === 200 && /^ipfs:\/\//.test(pp.body.url) && pins.length === pinsBefore + 2, "profile: a key of the account has the new profile and picture stored");
     rr = await relay(admin, UPRelay.setProfile(pp.body.value));
     check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === pp.body.value.toLowerCase(), "profile: its value is written with the relay");
+    const jsonAt = (url) => JSON.parse(ipfsFiles.get(url.replace("ipfs://", "")).toString("utf8")).LSP3Profile;
+    const pictureBefore = jsonAt(pp.body.url).profileImage;
+    const keep = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Solo la descrizione cambia", tags: [], links: [] }, images: { avatar: null, cover: null }, keepPicture: true }).update;
+    pp = await profilePost({ update: keep, signature: await admin.signMessage(UPRequest.updateMessage(keep)) });
+    check(pp.status === 200 && jsonAt(pp.body.url).description === "Solo la descrizione cambia" && JSON.stringify(jsonAt(pp.body.url).profileImage) === JSON.stringify(pictureBefore) && pictureBefore.length === 1,
+      "profile: an update without a new picture keeps the current one (read back with its hash)");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("x"))]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a key cannot rename another key");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", ["0x4b80742de2bf82acb3630000" + stranger.address.slice(2).toLowerCase(), ethers.zeroPadValue("0x7f3f06", 32)]));

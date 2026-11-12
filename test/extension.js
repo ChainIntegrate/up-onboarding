@@ -13,6 +13,7 @@ const { chromium } = require("playwright");
 const { ethers } = require("ethers");
 const K = require("../shared/keystore.js");
 const UPRequest = require("../shared/request.js");
+const UPRelay = require("../shared/relay.js");
 
 const EXT = path.join(__dirname, "..", "extension");
 const OUT = path.join(__dirname, "out");
@@ -174,6 +175,30 @@ async function verify(page, file, pw) {
   check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
   check((await page.inputValue("#pAvatar")) === "" && (await page.inputValue("#pName")) === "", "after the creation the form is empty, the picture field too (the same file can be chosen again)");
+
+  // ---- changes to the account over the relay (the service answered here; the service itself: test/creator.js)
+  const KMADDR = ethers.Wallet.createRandom().address;
+  const sent = [];
+  await ctx.route("https://account.chainintegrate.it/api/relay/nonce", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ account: UP, keyManager: KMADDR, nonce: "7", chainId: 42 }) }));
+  await ctx.route("https://account.chainintegrate.it/api/relay", (r) => { sent.push(["relay", JSON.parse(r.request().postData())]); r.fulfill({ status: 200, contentType: "application/json", body: '{"tx":"0x01"}' }); });
+  await ctx.route("https://account.chainintegrate.it/api/profile", (r) => { sent.push(["profile", JSON.parse(r.request().postData())]); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ value: "0x00006f357c6a0020" + "11".repeat(32) + Buffer.from("ipfs://bafkreigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest01").toString("hex"), url: "ipfs://x" }) }); });
+  await page.click("#editBox summary");
+  check((await page.inputValue("#eName")) === "rossi-srl" && (await page.inputValue("#eDesc")) === "Vino toscano" && (await page.inputValue("#rName")) === "PC ufficio", "the edit form is prefilled with the account's profile and this computer's name");
+  await page.fill("#rName", "Portatile Simone"); await page.fill("#editPw", PW); await page.click("#rNameBtn");
+  await page.waitForFunction(() => /✅/.test(document.querySelector("#editMsg").textContent), null, { timeout: 30000 });
+  const rel = sent.find((x) => x[0] === "relay")[1];
+  const relDigest = UPRelay.digest({ chainId: 42, keyManager: KMADDR, nonce: 7n, validity: BigInt(rel.validity), payload: rel.payload });
+  check(ethers.recoverAddress(relDigest, rel.signature) === code && UPRelay.check(rel.payload, { signer: code }).items[0].name === "Portatile Simone" && rel.account === UP,
+    "renaming this computer: the LSP25 request is signed by this computer's key for the account's Key Manager");
+  check((await page.evaluate(() => chrome.storage.local.get("account"))).account.nameInAccount === "Portatile Simone", "the new name is remembered");
+  sent.length = 0;
+  await page.fill("#eDesc", "Vino toscano, dal 1950"); await page.fill("#editPw", PW); await page.click("#eProfileBtn");
+  await page.waitForFunction(() => /Profilo aggiornato/.test(document.querySelector("#editMsg").textContent), null, { timeout: 30000 });
+  const prof = sent.find((x) => x[0] === "profile")[1];
+  check(ethers.verifyMessage(UPRequest.updateMessage(prof.update), prof.signature) === code && prof.update.profile.description === "Vino toscano, dal 1950" && prof.update.keepPicture === true,
+    "updating the profile: the request to store it is signed by this computer's key; no new picture keeps the current one");
+  const rel2 = sent.find((x) => x[0] === "relay")[1];
+  check(UPRelay.check(rel2.payload, { signer: code }).items[0].op === "profile", "then the new profile is written with the relay");
   await ctx.unroute("https://account.chainintegrate.it/api/create");
   const stored = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
   const clear = ethers.hexlify(await K.open(bk.key, { password: BK })).slice(2);

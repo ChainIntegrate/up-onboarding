@@ -123,12 +123,14 @@
 
   // A profile update (a new LSP3Profile for an existing account): the same checks as at the creation, on the
   // profile and the images only. { update: { account, profile, images }, errors }.
-  function profileUpdate({ account, profile, images }) {
+  // keepPicture: no new picture, the current one stays (the service takes it from the current profile).
+  function profileUpdate({ account, profile, images, keepPicture }) {
     const { request, errors } = clean({ network: NETWORKS[0], profile, images,
       controllers: [{ address: "0x0000000000000000000000000000000000000001", role: "admin" }] }, false);
     const errs = errors.filter((e) => e.startsWith("profile") || e.startsWith("images"));
     if (typeof account !== "string" || !ethers.isAddress(account)) errs.push("account");
-    return { update: errs.includes("account") ? null : { account: ethers.getAddress(account), profile: request.profile, images: request.images }, errors: errs };
+    const keep = keepPicture === true && !request.images.avatar;
+    return { update: errs.includes("account") ? null : { account: ethers.getAddress(account), profile: request.profile, images: request.images, keepPicture: keep }, errors: errs };
   }
   // The message a key of the account signs (personal_sign) to have the service store a new profile on IPFS.
   const updateMessage = (update) => `ChainIntegrate profile update\n${ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(update)))}`;

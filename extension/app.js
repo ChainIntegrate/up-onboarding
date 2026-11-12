@@ -92,6 +92,17 @@
       codeHtml: "Il <b>codice</b> di questo computer. Non è segreto: ti serve solo se ChainIntegrate te lo chiede.",
       copyBtn: "Copia il codice",
       copied: "✅ Codice copiato.",
+      editTitle: "Modifica il profilo o il nome di questo computer",
+      editNote: "Le modifiche vengono scritte nel tuo account: le conferma questo computer, il costo lo copre ChainIntegrate. <b>Il profilo è pubblico</b>, e le versioni precedenti restano consultabili. Universal Everything mostra le modifiche dopo qualche minuto.",
+      eProfileBtn: "Aggiorna il profilo",
+      rNameBtn: "Cambia il nome nell'account",
+      keepPicture: "Nessuna nuova immagine: resta quella di adesso.",
+      profileUpdated: "✅ Profilo aggiornato. Universal Everything lo mostra dopo qualche minuto.",
+      nameUpdated: (v) => `✅ Nel tuo account questo computer ora si chiama ${v.name}.`,
+      updating: "Sto scrivendo la modifica nel tuo account: ci vuole circa mezzo minuto. Non chiudere questa pagina.",
+      err_refused: "❌ Il tuo account non ha accettato la modifica. Scrivi a ChainIntegrate.",
+      err_unknown_account: "❌ Questo account non è stato creato con ChainIntegrate: le modifiche da qui non sono possibili.",
+      err_not_allowed: "❌ Questa modifica non è permessa.",
       cNameLabel: "Nome di questo computer",
       cNameHint: "Viene scritto nel tuo account accanto a questo dispositivo, così lo riconosci (es. PC ufficio, Portatile di Anna).",
       cNameDefault: "Computer",
@@ -201,6 +212,17 @@
       codeHtml: "This computer's <b>code</b>. It is not secret: you need it only if ChainIntegrate asks for it.",
       copyBtn: "Copy the code",
       copied: "✅ Code copied.",
+      editTitle: "Change the profile or this computer's name",
+      editNote: "Changes are written into your account: this computer confirms them, ChainIntegrate covers the cost. <b>The profile is public</b>, and earlier versions remain viewable. Universal Everything shows the changes after a few minutes.",
+      eProfileBtn: "Update the profile",
+      rNameBtn: "Change the name in the account",
+      keepPicture: "No new picture: the current one stays.",
+      profileUpdated: "✅ Profile updated. Universal Everything shows it after a few minutes.",
+      nameUpdated: (v) => `✅ In your account this computer is now called ${v.name}.`,
+      updating: "Writing the change into your account: it takes about half a minute. Do not close this page.",
+      err_refused: "❌ Your account did not accept the change. Write to ChainIntegrate.",
+      err_unknown_account: "❌ This account was not created with ChainIntegrate: changes from here are not possible.",
+      err_not_allowed: "❌ This change is not allowed.",
       cNameLabel: "Name of this computer",
       cNameHint: "It is written in your account next to this device, so you recognise it (e.g. Office PC, Anna's laptop).",
       cNameDefault: "Computer",
@@ -262,7 +284,7 @@
   function say(id, text, cls) { const m = $(id); m.textContent = text; m.className = "msg " + (cls || ""); }
   function busy(on, id) {
     document.querySelectorAll("button").forEach((b) => { if (b.id !== "removeBtn") b.disabled = on; });
-    if (!on) { $("removeBtn").disabled = !$("removeAck").checked; syncName(); }
+    if (!on) { $("removeBtn").disabled = !$("removeAck").checked; syncName(); syncEditName(); }
     if (on && id) say(id, t("working"), "line-dim");
   }
   function endPending() { if (pending && pending.privateKey) K.wipe(pending.privateKey); pending = null; }
@@ -413,7 +435,7 @@
     const has = !!account.up;
     $("pCreate").hidden = has; $("pAccount").hidden = !has;
     $("createPwBox").hidden = has || account.record.method !== "password";
-    if (has) renderAccount(); else findAccount();
+    if (has) { renderAccount(); prefillEdit(); } else findAccount();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
     if (!has) resetCreateForm();
@@ -538,7 +560,7 @@
         const msg = body.error === "failed" ? t("err_failed", { ref: (body.tx || "").slice(0, 18) }) : I18N[LANG][key] ? t(key) : t("err_unavailable");
         throw Object.assign(new Error(msg), { shown: true });
       }
-      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
+      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, profileDesc: request.profile.description, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
       $("invite").value = ""; $("pName").value = ""; $("pDesc").value = ""; resetCreateForm();
       await showMain();
       say("mainMsg", t("created"), "line-ok");
@@ -595,6 +617,7 @@
     $("langToggle").textContent = t("langToggleBtn");
     if (latest) showUpdate();
     if (account && !account.up) { syncName(); showAvatar(); }
+    if (account && account.up) { syncEditName(); showEditAvatar(); }
     if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
@@ -636,6 +659,105 @@
     window.scrollTo(0, 0);
     return false;
   }
+
+  // ---- changes to the account (profile, this computer's name), gas paid by the service (LSP25, shared/relay.js)
+  let editAvatar = null;
+  function prefillEdit() {
+    $("eName").value = account.profileName || ""; $("eDesc").value = account.profileDesc || "";
+    editAvatar = null; $("eAvatar").value = ""; showEditAvatar(); syncEditName();
+    $("rName").value = account.nameInAccount || account.name || "";
+    $("editPwBox").hidden = account.record.method !== "password";
+  }
+  function showEditAvatar() {
+    const box = $("ePrev"); box.innerHTML = "";
+    if (!editAvatar) { const n = document.createElement("span"); n.textContent = t("keepPicture"); box.appendChild(n); return; }
+    const img = document.createElement("img"); img.src = editAvatar.dataUrl; img.alt = "";
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "secondary"; rm.style.cssText = "width:auto; margin:0; padding:6px 10px; font-size:12px;"; rm.textContent = t("imgRemove");
+    rm.addEventListener("click", () => { editAvatar = null; $("eAvatar").value = ""; showEditAvatar(); });
+    box.append(img, rm);
+  }
+  function syncEditName() {
+    const v = $("eName").value, ok = UPRequest.NAME_RE.test(v);
+    $("eNameHint").textContent = !v ? t("nameHint") : ok ? t("nameOk") : t("nameBad");
+    $("eNameHint").className = "note " + (!v ? "" : ok ? "line-ok" : "line-err");
+    $("eProfileBtn").disabled = !ok;
+  }
+  $("eName").addEventListener("input", () => {
+    const el = $("eName"), pos = el.selectionStart, low = el.value.toLowerCase();
+    if (low !== el.value) { el.value = low; el.setSelectionRange(pos, pos); }
+    syncEditName();
+  });
+  $("eAvatar").addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try {
+      const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      editAvatar = await resize(src, 512);
+    } catch (e) { editAvatar = null; ev.target.value = ""; say("editMsg", t("imgBad"), "line-err"); }
+    showEditAvatar();
+  });
+
+  const postJson = async (url, body) => {
+    let res, b;
+    try { res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); b = await res.json().catch(() => ({})); }
+    catch (e) { throw Object.assign(new Error(t("err_network")), { shown: true }); }
+    if (!res.ok) {
+      const key = "err_" + (b.error || "unavailable");
+      const msg = b.error === "failed" ? t("err_failed", { ref: (b.tx || "").slice(0, 18) })
+        : b.error === "bad_request" && Array.isArray(b.problems) && b.problems.includes("profile.nameRule") ? t("nameBad")
+        : I18N[LANG][key] ? t(key) : t("err_unavailable");
+      throw Object.assign(new Error(msg), { shown: true });
+    }
+    return b;
+  };
+  // One operation on the account: the nonce from the service, the LSP25 hash signed by this computer's key, sent.
+  async function relaySend(sk, payload) {
+    const signer = account.record.address;
+    const n = await postJson(CONFIG.relayNonce, { account: account.up, signer });
+    const now = Math.floor(Date.now() / 1000);
+    const validity = UPRelay.validity(now - 30, now + 600);
+    const digest = UPRelay.digest({ chainId: n.chainId, keyManager: n.keyManager, nonce: BigInt(n.nonce), validity, payload });
+    return postJson(CONFIG.relay, { account: account.up, nonce: n.nonce, validity: validity.toString(), payload, signature: sk.sign(digest).serialized });
+  }
+  // The key unlocked once (computer's lock or password) for the whole change, then wiped.
+  async function withUnlocked(fn) {
+    if (!(await guard("editMsg"))) return;
+    busy(true, "editMsg");
+    let secret = null;
+    try {
+      const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password: $("editPw").value };
+      await K.withKey(account.record, unlock, async (sk) => { say("editMsg", t("updating"), "line-dim"); await fn(sk); });
+      $("editPw").value = "";
+    } catch (e) { say("editMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
+  }
+
+  $("rNameBtn").addEventListener("click", async () => {
+    const name = oneLine($("rName").value);
+    if (!name) { say("editMsg", t("noDevName"), "line-err"); return; }
+    await withUnlocked(async (sk) => {
+      await relaySend(sk, UPRelay.setName(account.record.address, name));
+      await save({ ...account, name, nameInAccount: name });
+      await showMain(); $("editBox").open = true;
+      say("editMsg", t("nameUpdated", { name }), "line-ok");
+    });
+  });
+
+  $("eProfileBtn").addEventListener("click", async () => {
+    if (!UPRequest.NAME_RE.test($("eName").value)) { say("editMsg", t("nameBad"), "line-err"); return; }
+    const { update, errors } = UPRequest.profileUpdate({ account: account.up, profile: { name: $("eName").value, description: $("eDesc").value, tags: [], links: [] },
+      images: { avatar: editAvatar, cover: null }, keepPicture: !editAvatar });
+    if (errors.length) { say("editMsg", errors.includes("profile.nameRule") ? t("nameBad") : t("err_bad_request"), "line-err"); return; }
+    const picture = editAvatar ? (await resize(editAvatar.dataUrl, 128)).dataUrl : account.picture;
+    await withUnlocked(async (sk) => {
+      // The service stores the new profile on IPFS (asked by this key), then the key writes its value.
+      const signature = sk.sign(ethers.hashMessage(UPRequest.updateMessage(update))).serialized;
+      const stored = await postJson(CONFIG.profile, { update, signature });
+      await relaySend(sk, UPRelay.setProfile(stored.value));
+      await save({ ...account, profileName: update.profile.name, profileDesc: update.profile.description, picture });
+      await showMain(); $("editBox").open = true;
+      say("editMsg", t("profileUpdated"), "line-ok");
+    });
+  });
 
   // ---- updates: the service announces the latest version (the one in its clone of the repository)
   const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };

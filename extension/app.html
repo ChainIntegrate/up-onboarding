@@ -11,6 +11,7 @@
 <script src="lib/ui.js"></script>
 <script src="shared/keystore.js"></script>
 <script src="shared/request.js"></script>
+<script src="shared/relay.js"></script>
 <script src="passkey.js"></script>
 <style>
   /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
@@ -225,6 +226,27 @@
     <div class="img-prev" id="accountCard"></div>
     <div class="lead" style="margin-top:10px;" data-i18n-html="accountReadyHtml"></div>
     <a id="profileLink" class="ui-link" href="#" target="_blank" rel="noopener" data-i18n="profileLink">Vedi il tuo profilo pubblico</a>
+    <details id="editBox" style="margin-top:14px;">
+      <summary data-i18n="editTitle" style="cursor:pointer; font-weight:600;">Modifica il profilo o il nome di questo computer</summary>
+      <div class="note" style="margin-top:10px;" data-i18n-html="editNote"></div>
+      <label for="eName" data-i18n="nameLabel">Nome del profilo</label>
+      <input type="text" id="eName" maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="off">
+      <div class="note" id="eNameHint" style="margin-top:6px;"></div>
+      <label for="eDesc" data-i18n="descLabel">Descrizione (facoltativa)</label>
+      <textarea id="eDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal; min-height:70px;"></textarea>
+      <label for="eAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
+      <input type="file" id="eAvatar" accept="image/png,image/jpeg,image/webp,image/gif">
+      <div class="img-prev" id="ePrev"></div>
+      <div id="editPwBox" hidden>
+        <label for="editPw" data-i18n="unlockPwLabel">Password di questo computer</label>
+        <input type="password" id="editPw" autocomplete="current-password">
+      </div>
+      <button id="eProfileBtn" type="button" data-i18n="eProfileBtn">Aggiorna il profilo</button>
+      <label for="rName" data-i18n="cNameLabel">Nome di questo computer</label>
+      <input type="text" id="rName" maxlength="64" autocomplete="off">
+      <button id="rNameBtn" class="secondary" type="button" data-i18n="rNameBtn">Cambia il nome nell'account</button>
+      <div class="msg" id="editMsg"></div>
+    </details>
   </div>
   <div class="panel">
     <h2 data-i18n="deviceTitle">Questo computer</h2>

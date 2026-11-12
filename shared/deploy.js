@@ -62,12 +62,15 @@
   function profileValue(bytes, url) {
     return ethers.concat(["0x0000", "0x6f357c6a", "0x0020", ethers.keccak256(bytes), ethers.toUtf8Bytes(url)]);
   }
+  // An image entry; `im.entries` keeps the entries of the current profile as they are (a profile update that
+  // keeps the picture).
   const imageEntry = (im) => ({ width: im.width, height: im.height, url: im.url, verification: { method: "keccak256(bytes)", data: ethers.keccak256(im.bytes) } });
+  const imageList = (im) => (!im ? [] : Array.isArray(im.entries) ? im.entries : [imageEntry(im)]);
   // The LSP3Profile JSON (a string) of a request's profile.
   function lsp3Json(profile, { avatar = null, cover = null } = {}) {
     return JSON.stringify({ LSP3Profile: {
       name: profile.name, description: profile.description, tags: profile.tags, links: profile.links,
-      profileImage: avatar ? [imageEntry(avatar)] : [], backgroundImage: cover ? [imageEntry(cover)] : [], avatar: [],
+      profileImage: imageList(avatar), backgroundImage: imageList(cover), avatar: [],
     } });
   }
 
