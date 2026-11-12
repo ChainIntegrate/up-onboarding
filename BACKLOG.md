@@ -26,6 +26,23 @@ in the same batch. Remove an item when its release is done.
 **Check before the release**: on Testnet, one account with a transparent PNG logo and one with a photo, both shown
 with name and picture on Universal Everything; allow some minutes after the creation before judging (see item 4).
 
+## Next
+
+7. **The computer's name** (2026-11-12, asked by the maintainer). Today the field "Name of this computer" is on the
+   ready screen; its value is written into the account (the controller's name, `UPWalletControllerName`) only at
+   the creation, and an empty field writes the placeholder's example ("PC ufficio", as on the first test account).
+   Changed after the creation it is kept on this computer only, although the label says "you will see it in your
+   account". To do:
+   - the computer's name in the "Create your account" form, next to the profile name, required, prefilled with
+     a sensible value ("Computer"), never the placeholder used as a value;
+   - after the creation, a label that says where the name is kept;
+   - changing it in the account later: a data write signed by the key (see item 8).
+8. **Changes to an existing account, gas paid by the service** (design): the computer's name, the profile (name,
+   description, picture), a second device (the Android app, a second computer). Each is a data write through the
+   account's Key Manager signed by one of its keys; the key holds no LYX, so the service would send it and pay
+   (LSP25 `executeRelayCall`, signed by the key, sent by the service's wallet), with limits like the creation's.
+   One mechanism for all of them, designed and tested once.
+
 ## Under investigation
 
 5. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,
