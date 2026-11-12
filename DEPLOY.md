@@ -95,7 +95,7 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    cd /var/www/up-onboarding/tools/creator
    sudo cp up-onboarding-alert@.service up-onboarding-creator-check.service up-onboarding-creator-check.timer /etc/systemd/system/
    sudo systemctl daemon-reload && sudo systemctl enable --now up-onboarding-creator-check.timer
-   sudo -u up-onboarding env $(sudo cat /etc/up-onboarding/smtp.env | grep -v '^#' | xargs) node alert.js test   # a test e-mail
+   sudo systemd-run --wait --pipe -p User=up-onboarding -p EnvironmentFile=/etc/up-onboarding/smtp.env -p WorkingDirectory=/var/www/up-onboarding/tools/creator /usr/bin/node alert.js test   # a test e-mail, with the service's settings
    ```
 
 6. **nginx**: the site file has the `/api/` location; copy it again and reload:
