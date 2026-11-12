@@ -17,9 +17,13 @@ in the same batch. Remove an item when its release is done.
    shown again; "No picture" is written when there is none.
 4. **PNG or JPEG, never WebP**: PNG when the picture has transparent pixels (a logo), JPEG otherwise, in the
    extension and the operator's page; the service refuses WebP (an older extension gets "check the picture").
+   *Correction, 2026-11-12:* WebP was not the cause. `chaintest2`, with the same WebP picture, is shown with name,
+   picture and description some minutes later: Universal Everything processes a new profile's picture with a
+   delay, and shows the account as `#EOA` until then. The change stays (PNG and JPEG are the widest supported),
+   but it is not a fix.
 
 **Check before the release**: on Testnet, one account with a transparent PNG logo and one with a photo, both shown
-with name and picture on Universal Everything.
+with name and picture on Universal Everything; allow some minutes after the creation before judging (see item 4).
 
 ## Under investigation
 
@@ -27,7 +31,8 @@ with name and picture on Universal Everything.
    `0xd7a1Fc3D859c4a414075d029a9851B3c081635E6`, name `"Account_Chain_Test"`). `creator.js inspect`: the
    LSP3Profile value is right (VerifiableURI, keccak256 utf8), the JSON and the image are on the IPFS node and are
    served with the right hashes by LUKSO's gateway (`api.universalprofile.cloud`), the one Universal Everything
-   uses. Likely cause: the WebP picture (item 4), not the name.
+   uses. Not the WebP picture (item 4: a delay). Still open: is it shown now (a delay too), or is the name the
+   cause (capitals, underscores)?
 6. **The second account shows no profile picture** on Universal Everything (screenshot of 2026-11-12): checked,
    no picture reached the service (`0 profile image(s)`); LUKSO's index has the account as `chaintest#A9a9`.
    See item 3.
