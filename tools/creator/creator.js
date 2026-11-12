@@ -38,6 +38,7 @@ const { ethers } = require("ethers");
 globalThis.ethers = ethers;
 const UPRequest = require("../../shared/request.js");
 const UPDeploy = require("../../shared/deploy.js");
+const UPCatalog = require("../../shared/catalog.js");
 const UPIpfs = require("../../shared/ipfs.js");
 const UPRelay = require("../../shared/relay.js");
 
@@ -248,8 +249,8 @@ function makeService(cfg) {
   }
 
   // ---- operations on an account, gas paid by the service (LSP25 executeRelayCall; shared/relay.js)
-  // Only accounts this service created; only what UPRelay.check allows (the profile, the signer's own name; the
-  // projects' catalog later); simulated before sending, so a call the account's Key Manager or the target contract
+  // Only accounts this service created; only what UPRelay.check allows (the profile, the signer's own name, the
+  // calls in the projects' catalog, with its on-chain checks); simulated before sending, so a call the account's Key Manager or the target contract
   // would refuse costs nothing; a daily cap for the whole service, against a fault that repeats.
   const recentRelays = new Map();
   function rateLimitRelay(ip) {
@@ -276,6 +277,7 @@ function makeService(cfg) {
     return { account, keyManager, nonce: nonce.toString(), chainId: cfg.chainId };
   }
 
+  const opName = (i) => (i.op === "project" ? `${i.project}:${i.fn.split("(")[0]}` : i.op);
   async function handleRelay(body, ip) {
     rateLimitRelay(ip);
     const { account, keyManager } = await knownAccount(body);
@@ -289,8 +291,9 @@ function makeService(cfg) {
     if (start > now + 60n || end <= now || end > now + 3600n) throw new HttpError(400, "bad_request", { problems: ["validity"] });
     const digest = UPRelay.digest({ chainId: cfg.chainId, keyManager, nonce, validity, value: 0n, payload });
     const signer = ethers.recoverAddress(digest, signature);
-    const allowed = UPRelay.check(payload, { signer });
+    const allowed = UPRelay.check(payload, { signer, chainId: cfg.chainId });
     if (!allowed.ok) throw new HttpError(400, "not_allowed", { reason: allowed.error });
+    if (!(await UPCatalog.verifyNeeds(provider, allowed.needs))) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
     const data = UPRelay.KM.encodeFunctionData("executeRelayCall", [signature, nonce, validity, payload]);
     const run = queue.then(async () => {
       if (store.relayToday() >= cfg.maxRelayPerDay) { console.error("RELAY DAILY LIMIT reached"); throw new HttpError(429, "daily_limit"); }
@@ -307,8 +310,8 @@ function makeService(cfg) {
       const tx = await wallet.sendTransaction({ to: keyManager, data, gasLimit: (gas * 13n) / 10n });
       const rc = await waitReceipt(provider, tx.hash, cfg.confirmSeconds * 1000);
       const ok = !!rc && rc.status === 1;
-      store.relayLog({ account, signer, ops: allowed.items.map((i) => i.op), tx: tx.hash, ok });
-      console.log(`relay ${account} ${allowed.items.map((i) => i.op).join("+")} tx ${tx.hash} ${ok ? "ok" : "FAILED"}`);
+      store.relayLog({ account, signer, ops: allowed.items.map(opName), tx: tx.hash, ok });
+      console.log(`relay ${account} ${allowed.items.map(opName).join("+")} tx ${tx.hash} ${ok ? "ok" : "FAILED"}`);
       if (!ok) throw new HttpError(502, "failed", { tx: tx.hash });
       return { tx: tx.hash, ops: allowed.items };
     });

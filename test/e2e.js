@@ -64,7 +64,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore" });
+  const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore", detached: true });
   const web = serveWeb();
   let browser;
   try {
@@ -172,7 +172,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await phone.screenshot({ path: path.join(OUT, "phone.png"), fullPage: true });
   } finally {
     if (browser) await browser.close();
-    web.close(); node.kill();
+    web.close(); try { process.kill(-node.pid); } catch (e) { node.kill(); } // npx and the node it starts
   }
   console.log(failures ? `${failures} check(s) failed` : "all checks passed");
   process.exit(failures ? 1 : 0);

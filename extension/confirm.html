@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<script src="lib/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChainIntegrate Account</title>
+<link rel="icon" href="img/icon-32.png">
+<script src="vendor/ethers-6.13.4.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="lib/ui.js"></script>
+<script src="lib/integrity.js"></script>
+<script src="shared/keystore.js"></script>
+<script src="shared/catalog.js"></script>
+<script src="shared/relay.js"></script>
+<script src="passkey.js"></script>
+<style>
+  :root {
+    --bg: #f7f7f7; --panel: #ffffff; --border: #dde3e6; --field: #fbfcfc; --chip: #e8eef1; --disabled: #c5ced3;
+    --text: #1b1e21; --text-dim: #5b6b74; --brand: #22b8c9; --slate: #6090a2; --accent: #0e7f8c; --btn: #0e7f8c;
+    --ok: #1a8a4a; --warn: #a8650a; --err: #c93535;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0 auto; padding: 18px 18px 24px; max-width: 520px; }
+  .top { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 3px solid var(--brand); margin-bottom: 16px; }
+  .top img { height: 34px; border-radius: 6px; background: #f7f7f7; }
+  .top .who { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+  .top .who b { color: var(--text); }
+  #langToggle { margin-left: auto; width: auto; background: var(--chip); color: var(--text); padding: 6px 10px; font-size: 12px; margin-top: 0; border: 1px solid var(--border); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; overflow-wrap: anywhere; }
+  h1 { font-size: 17px; margin: 0 0 10px; }
+  .site { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+  .site b { color: var(--text); font-family: monospace; font-size: 13px; }
+  ul.what { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.55; }
+  ul.what li + li { margin-top: 6px; color: var(--text-dim); font-size: 13px; }
+  .note { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin-top: 10px; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 12px 0 6px; }
+  input { width: 100%; background: var(--field); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; font-family: inherit; }
+  button { width: 100%; background: var(--btn); color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+  button:disabled { background: var(--disabled); cursor: not-allowed; }
+  button.secondary { background: var(--chip); color: var(--text); }
+  button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; }
+  .msg { font-size: 13.5px; margin-top: 10px; white-space: pre-wrap; }
+  .line-ok { color: var(--ok); } .line-err { color: var(--err); } .line-dim { color: var(--text-dim); }
+  .warn { border: 2px solid var(--err); }
+</style>
+</head>
+<body>
+<div class="top">
+  <img src="img/logo.png" alt="ChainIntegrate">
+  <div class="who"><b>ChainIntegrate Account</b><br><span id="acct"></span></div>
+  <button id="langToggle" type="button">English</button>
+</div>
+<div class="panel" id="box">
+  <h1 id="title"></h1>
+  <div class="site" id="site"></div>
+  <ul class="what" id="what"></ul>
+  <div class="note" id="note"></div>
+  <div id="pwBox" hidden>
+    <label for="pw" id="pwLabel"></label>
+    <input type="password" id="pw" autocomplete="current-password">
+  </div>
+  <div class="row">
+    <button id="cancel" class="secondary" type="button"></button>
+    <button id="ok" type="button"></button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+<script src="confirm.js"></script>
+</body>
+</html>

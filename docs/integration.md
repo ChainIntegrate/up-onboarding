@@ -7,11 +7,13 @@ Supplier Trust and TraceabilityRegistry require a membership token): only a simu
 daily cap for the whole service. The gas-cylinder-registry demo uses the owner script; the extension as its
 owner comes after the drivers' app is published.
 
-Done: the relay in the account service (section 6) for the account's own changes (profile, the signer's name),
-tested on a local chain with LUKSO's Key Manager; a new profile stored on IPFS on request of a key of the account
-(`/api/profile`, keeping the current picture when no new one is given); in the extension, "Change the profile" and
-"this computer's name" over the relay. Next: the catalog, the page provider and the signing window. The live test
-on mainnet is made with the released 0.4.0 (no development builds handed out).
+Done (0.4.0): the relay in the account service (section 6), for the account's own changes (profile, the signer's
+name) and for the calls of the projects' catalog, with the catalog's on-chain checks, tested on a local chain with
+LUKSO's Key Manager; the catalog (`shared/catalog.js`, section 5) of TraceabilityRegistry and Supplier Trust (sign-in
+messages and transactions) and of the gas cylinder registry (EIP-712, not served until its site and factory are set);
+the page provider (EIP-6963, `extension/provider.js` and `bridge.js`), the confirmation window (`confirm.html`) and
+"Connected sites" in the extension's page. Next: the projects' pages offer the extension (in their repositories,
+BACKLOG item 12); the release; the live test on mainnet with the released 0.4.0 (no development builds handed out).
 
 ## 1. The goal
 
@@ -95,6 +97,8 @@ The same mechanism serves the extension's own changes to the account (backlog it
 name, a second device.
 
 ## 7. Phases
+
+Phases 1 to 3 were joined in 0.4.0 (maintainer's decision, 2026-11-12).
 
 1. **0.4.0: the access and signatures.** Content script and EIP-6963 provider on `*.chainintegrate.it`; site
    permission once per site; the signing window; SIWE messages and EIP-712 typed data from the catalog. The

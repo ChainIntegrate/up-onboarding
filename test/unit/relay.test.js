@@ -21,7 +21,8 @@ test("refused", () => {
   assert.strictEqual(R.check(name(signer, ""), { signer }).error, "name_value");
   assert.strictEqual(R.check(name(signer, " spazi "), { signer }).error, "name_value");
   assert.strictEqual(R.check(profile("https://example.com/x.json"), { signer }).error, "profile_value");
-  assert.strictEqual(R.check(R.UP.encodeFunctionData("execute", [0, other, 1, "0x"]), { signer }).error, "not_in_catalog");
+  assert.strictEqual(R.check(R.UP.encodeFunctionData("execute", [0, other, 1, "0x"]), { signer }).error, "payload");
+  assert.strictEqual(R.check(R.UP.encodeFunctionData("execute", [0, other, 0, "0x12345678"]), { signer, chainId: 42 }).error, "not_in_catalog");
   assert.strictEqual(R.check("0x12345678", { signer }).error, "payload");
 });
 

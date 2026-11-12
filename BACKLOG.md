@@ -41,9 +41,9 @@ judging what Universal Everything shows (item 4).
    (LSP25 `executeRelayCall`, signed by the key, sent by the service's wallet), with limits like the creation's.
    One mechanism for all of them, designed and tested once.
 
-9. **The privacy notice from the extension** (2026-11-12): `web/privacy.html` is published and linked from the
-   client's page; the extension's footer links it in the next version (and the notice is updated when the extension
-   starts talking to the ChainIntegrate services, 0.4.0).
+9. **The privacy notice from the extension** (2026-11-12; *done in 0.4.0*): `web/privacy.html` is published and
+   linked from the client's page and from the extension's footer; updated for 0.4.0 (the relay, the projects' sites,
+   LUKSO's public node).
 
 10. **Device keys cannot use the relay** (2026-11-12): the "device" permissions (`UPDeploy.DEVICE_PERMS`, as
     Cross_Chain's "Authorize a device") lack EXECUTE_RELAY_CALL, which LSP25 requires. Today every extension key is
@@ -63,6 +63,17 @@ judging what Universal Everything shows (item 4).
     - on a restore, the address in the file first (confirmed with the service when it answers: if the service
       knows another account for the key, its answer wins and a new copy is required), the service as a fallback;
     - the account's address shown and copiable on the ready screen.
+
+12. **The projects' pages offer ChainIntegrate Account** (2026-11-12; in each project's repository). The extension
+    announces itself with EIP-6963 on the projects' sites; TraceabilityRegistry and Supplier Trust still look only for
+    `window.lukso` and WalletConnect. Each page adds an EIP-6963 listener and offers "ChainIntegrate Account" next to
+    the others; nothing else changes (same messages, same calls). Supplier Trust's sign-in names the domain from its
+    backend: it must be the page's own host, or the extension refuses it (`other_site`).
+
+13. **The gas cylinder registry in the catalog** (2026-11-12): its owner operations (EIP-712 `SetOperator`,
+    `SetData`, `TransferOwnership`, `AcceptOwnership`) are in `shared/catalog.js`, refused until its site and
+    `GasCylinderRegistryFactory` address are written there (decided in that project's conversation, after the
+    drivers' app is published). Then: a release of the extension.
 
 ## Under investigation
 

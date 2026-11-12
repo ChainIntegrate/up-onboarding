@@ -1,6 +1,6 @@
 // End-to-end test of the creation service (tools/creator) on a local chain.
 //
-// A Hardhat node with LUKSO Testnet's chainId and LUKSO's contracts (as test/e2e.js), the IPFS node's API answered locally,
+// A Hardhat node with LUKSO's chainId (42) and LUKSO's contracts (as test/e2e.js), the IPFS node's API answered locally,
 // the service started as on the server. Checked: an unknown code, a request signed by a key that is not one of
 // its administrators and an invalid request are refused; a good request creates the account, which is then read
 // back with its keys and permissions; the code cannot be used twice; a revoked code is refused; the per-IP and
@@ -33,7 +33,7 @@ async function waitFor(url, body) {
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "creator-"));
-  const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore" });
+  const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore", detached: true, env: { ...process.env, CHAIN_ID: "42" } });
   const pins = [];
   // Kubo's /api/v0/add (one JSON line per file) and /api/v0/cat, as the node answers them; the files are kept.
   const ipfsFiles = new Map();
@@ -58,15 +58,15 @@ async function waitFor(url, body) {
   let svc;
   try {
     await waitFor(RPC, '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}');
-    const prov = new ethers.JsonRpcProvider(RPC, 4201, { staticNetwork: true });
+    const prov = new ethers.JsonRpcProvider(RPC, 42, { staticNetwork: true });
     const fixtures = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/lukso-contracts.json")));
     for (const [addr, v] of Object.entries(fixtures)) if (addr.startsWith("0x")) await prov.send("hardhat_setCode", [addr, v.code]);
     const gas = ethers.Wallet.createRandom();
     await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("10").toString(16)]);
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
-    const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", dataDir: "data",
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 6, relayPerIpPerMinute: 100 };
+    const config = { network: "lukso", rpc: RPC, chainId: 42, gasKeyFile: "gas-key", dataDir: "data",
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 7, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -80,7 +80,7 @@ async function waitFor(url, body) {
     };
     const admin = ethers.Wallet.createRandom(), device = ethers.Wallet.createRandom(), stranger = ethers.Wallet.createRandom();
     const avatar = "data:image/png;base64," + fs.readFileSync(path.join(__dirname, "..", "web", "icon-192.png")).toString("base64");
-    const { request } = UPRequest.create({ network: "lukso-testnet",
+    const { request } = UPRequest.create({ network: "lukso",
       profile: { name: "rossi-srl", description: "Vino", tags: ["vino"], links: [{ title: "Sito", url: "https://www.rossi.it" }] },
       images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null },
       controllers: [{ address: admin.address, name: "PC ufficio", role: "admin" }, { address: device.address, name: "Telefono", role: "device" }] });
@@ -103,7 +103,7 @@ async function waitFor(url, body) {
     const webp = { ...request, images: { avatar: { dataUrl: "data:image/webp;base64,UklGRiQAAABXRUJQ", w: 1, h: 1 }, cover: null } };
     r = await post({ invite: code, request: webp, signature: await sign(admin, webp) });
     check(r.status === 400 && r.body.problems.includes("images.avatar"), "a WebP picture is refused");
-    const bad = { ...request, network: "lukso" };
+    const bad = { ...request, network: "lukso-testnet" };
     r = await post({ invite: code, request: bad, signature: await sign(admin, bad) });
     check(r.status === 400 && r.body.problems.includes("network"), "a request for another network is refused");
 
@@ -125,7 +125,7 @@ async function waitFor(url, body) {
     const look = async (address) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/lookup`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.9.9.9" }, body: JSON.stringify({ address }) }); return { status: x.status, body: await x.json() }; };
     const created = r.body.up;
     let l = await look(device.address);
-    check(l.status === 200 && l.body.up === created && l.body.network === "lukso-testnet", "an account is found by one of its keys");
+    check(l.status === 200 && l.body.up === created && l.body.network === "lukso", "an account is found by one of its keys");
     l = await look(stranger.address);
     check(l.status === 404, "a key with no account is not found");
     // ---- relay: operations on the account, gas paid by the service (LSP25)
@@ -171,7 +171,23 @@ async function waitFor(url, body) {
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", ["0x4b80742de2bf82acb3630000" + stranger.address.slice(2).toLowerCase(), ethers.zeroPadValue("0x7f3f06", 32)]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: adding a controller is not allowed");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("execute", [0, stranger.address, ethers.parseEther("1"), "0x"]));
-    check(rr.status === 400 && rr.body.reason === "not_in_catalog", "relay: a transfer from the account is refused (not in the catalog)");
+    check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a transfer from the account is refused (not in the catalog)");
+    // ---- the projects' catalog (shared/catalog.js): stand-ins at the projects' addresses on LUKSO
+    const RET_TRUE = "0x600160005260206000f3", RET_FALSE = "0x600060005260206000f3"; // any call answers true / false
+    const TRACE_FACTORY = "0x54C3A7C31C4eCA1f1997f5E6f19197f3A82b88a3", SUPPLIER = "0xFa143308D85b81Ed57547049F4A7718c3117A064";
+    const REG = ethers.Wallet.createRandom().address;
+    await prov.send("hardhat_setCode", [SUPPLIER, "0x00"]); await prov.send("hardhat_setCode", [REG, "0x00"]);
+    await prov.send("hardhat_setCode", [TRACE_FACTORY, RET_FALSE]);
+    const lots = new ethers.Interface(["function mintRawMaterialLotBatch(bytes32[],bytes[],uint256[])"]).encodeFunctionData("mintRawMaterialLotBatch", [[ethers.ZeroHash], ["0x"], [1]]);
+    rr = await relay(admin, UPRelay.projectCall(REG, lots));
+    check(rr.status === 400 && rr.body.reason === "not_a_project_contract", "catalog: a registry the project's factory does not know is refused before sending");
+    await prov.send("hardhat_setCode", [TRACE_FACTORY, RET_TRUE]);
+    rr = await relay(admin, UPRelay.projectCall(REG, lots));
+    check(rr.status === 200 && rr.body.ops[0].project === "traceability" && rr.body.ops[0].target === REG, "catalog: a registry made by the factory: the account's call is sent, the service pays");
+    rr = await relay(admin, UPRelay.projectCall(SUPPLIER, new ethers.Interface(["function setTierLimits(address,uint8,uint256,uint256,bool,uint256,bool)"]).encodeFunctionData("setTierLimits", [admin.address, 1, 1, 1, true, 1, true])));
+    check(rr.status === 400 && rr.body.reason === "not_in_catalog", "catalog: ChainIntegrate's administration is refused");
+    const relayLog = fs.readFileSync(path.join(dir, "data", "relay.jsonl"), "utf8");
+    check(/traceability:mintRawMaterialLotBatch/.test(relayLog), "catalog: the relay log names the project and the operation");
     rr = await relay(stranger, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(stranger.address), ethers.hexlify(ethers.toUtf8Bytes("intruso"))]));
     check(rr.status === 422 && rr.body.error === "refused", "relay: a key that is not the account's is refused before sending (no gas spent)");
     rr = await relay(device, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("Telefono 2"))]));
@@ -245,7 +261,7 @@ async function waitFor(url, body) {
     check(left < ethers.parseEther("0.001") && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee");
   } finally {
     if (svc) svc.kill();
-    node.kill(); ipfs.close();
+    try { process.kill(-node.pid); } catch (e) { node.kill(); } ipfs.close(); // npx and the node it starts
   }
   console.log(failures ? `${failures} check(s) failed` : "all checks passed");
   process.exit(failures ? 1 : 0);

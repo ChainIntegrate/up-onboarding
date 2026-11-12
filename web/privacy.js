@@ -10,7 +10,7 @@
     it: {
       pageTitle: "Informativa sulla privacy — ChainIntegrate Account",
       h1: "Informativa sulla privacy",
-      subtitle: "Ultimo aggiornamento: 12 novembre 2026 (estensione 0.3.1). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
+      subtitle: "Ultimo aggiornamento: 12 novembre 2026 (estensione 0.4.0). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
       langToggleBtn: "English",
       s1t: "1 · In breve",
       s1: `<ul>
@@ -25,12 +25,14 @@
       s3: `Nella memoria dell'estensione, sul computer:<ul>
         <li>la chiave del tuo accesso, solo cifrata (con il blocco del computer o con la password che hai scelto), e il suo indirizzo pubblico (il "codice del dispositivo");</li>
         <li>l'indirizzo del tuo account, il nome del profilo, una miniatura dell'immagine, il nome del computer e la data dell'ultimo controllo della copia di backup;</li>
+        <li>i siti dei progetti ChainIntegrate a cui hai collegato l'account (si scollegano dalla pagina dell'estensione);</li>
         <li>la lingua e il tema scelti.</li>
       </ul>Questi dati non vengono inviati a ChainIntegrate e si cancellano con "Togli l'accesso da questo computer" o disinstallando l'estensione. La copia di backup è un file che salvi dove vuoi tu: non passa da ChainIntegrate.`,
       s4t: "4 · Cosa riceve ChainIntegrate",
       s4: `<ul>
         <li><b>Quando crei l'account</b>, l'estensione manda al servizio di account.chainintegrate.it: il codice di invito, il nome, la descrizione e l'immagine del profilo, il nome del computer, il codice del dispositivo e la firma della richiesta. Il servizio li usa solo per creare l'account e li scrive nel registro pubblico (punto 5).</li>
         <li><b>Quando ripristini l'accesso</b> su un altro computer, l'estensione chiede al servizio quale account corrisponde al codice del dispositivo.</li>
+        <li><b>Quando modifichi l'account</b> (profilo, nome del computer) <b>o confermi un'operazione</b> su un sito di un progetto ChainIntegrate, l'estensione manda al servizio l'indirizzo dell'account, il codice del dispositivo, l'operazione firmata e, per il profilo, il nuovo profilo da salvare. Il servizio la controlla, la invia pagandone il costo e annota account, codice del dispositivo, tipo di operazione, riferimento e data, per i limiti giornalieri e per poter rispondere a una tua segnalazione. Le operazioni restano comunque visibili nel registro pubblico (punto 5).</li>
         <li><b>A ogni apertura</b>, l'estensione chiede al sito qual è l'ultima versione disponibile e l'elenco delle impronte dei suoi file, per controllare di non essere stata modificata.</li>
         <li><b>L'indirizzo IP</b>: il servizio lo usa per limitare le richieste ripetute, in memoria per al massimo un minuto, senza salvarlo; il server web lo registra come per ogni sito (punto 6).</li>
       </ul>`,
@@ -47,7 +49,7 @@
       </ul>Il nome, la descrizione e l'immagine non vengono conservati dal servizio oltre la creazione: restano solo nel registro pubblico (punto 5).`,
       s7t: "7 · Con chi parlano l'estensione e il servizio",
       s7: `<ul>
-        <li><b>L'estensione</b> si collega solo ad account.chainintegrate.it. Il link "Vedi il tuo profilo pubblico" apre Universal Everything nel browser, solo se lo premi.</li>
+        <li><b>L'estensione</b> si collega ad account.chainintegrate.it. Sulle pagine dei progetti ChainIntegrate (per esempio traceability.chainintegrate.it) si fa trovare dalla pagina; il sito vede l'indirizzo del tuo account solo dopo che lo hai collegato, e riceve solo le firme che confermi tu nella finestra dell'estensione. Per quelle pagine legge la rete pubblica dal nodo pubblico di LUKSO (rpc.mainnet.lukso.network), che vede l'indirizzo IP. Su ogni altro sito l'estensione non fa nulla. Il link "Vedi il tuo profilo pubblico" apre Universal Everything nel browser, solo se lo premi.</li>
         <li><b>GitHub</b> (GitHub, Inc.), da cui scarichi l'estensione: vede l'indirizzo IP di chi scarica.</li>
         <li><b>Il servizio</b> usa i nodi pubblici della rete LUKSO per leggere e scrivere il registro, e il nodo IPFS di ChainIntegrate per archiviare profilo e immagine. Questi vedono l'indirizzo IP del server di ChainIntegrate, non il tuo.</li>
         <li><b>La posta elettronica</b> del servizio manda avvisi tecnici solo a ChainIntegrate (servizio fermo, saldo basso): non contiene i tuoi dati.</li>
@@ -61,7 +63,7 @@
     en: {
       pageTitle: "Privacy policy — ChainIntegrate Account",
       h1: "Privacy policy",
-      subtitle: "Last updated: 12 November 2026 (extension 0.3.1). Covers the ChainIntegrate Account extension and the account creation service at account.chainintegrate.it.",
+      subtitle: "Last updated: 12 November 2026 (extension 0.4.0). Covers the ChainIntegrate Account extension and the account creation service at account.chainintegrate.it.",
       langToggleBtn: "Italiano",
       s1t: "1 · In short",
       s1: `<ul>
@@ -76,12 +78,14 @@
       s3: `In the extension's storage, on the computer:<ul>
         <li>the key of your access, only encrypted (with the computer's lock or the password you chose), and its public address (the "device code");</li>
         <li>your account's address, the profile name, a thumbnail of the picture, the computer's name and the date of the last check of the backup copy;</li>
+        <li>the sites of ChainIntegrate's projects you connected the account to (disconnected from the extension's page);</li>
         <li>the language and theme you chose.</li>
       </ul>This data is not sent to ChainIntegrate and is deleted with "Remove the access from this computer" or by uninstalling the extension. The backup copy is a file you save where you like: it does not go through ChainIntegrate.`,
       s4t: "4 · What ChainIntegrate receives",
       s4: `<ul>
         <li><b>When you create the account</b>, the extension sends the service at account.chainintegrate.it: the invitation code, the profile's name, description and picture, the computer's name, the device code and the request's signature. The service uses them only to create the account and writes them in the public record (section 5).</li>
         <li><b>When you restore the access</b> on another computer, the extension asks the service which account matches the device code.</li>
+        <li><b>When you change the account</b> (profile, computer's name) <b>or confirm an operation</b> on a site of a ChainIntegrate project, the extension sends the service the account's address, the device code, the signed operation and, for the profile, the new profile to store. The service checks it, sends it paying its cost and notes account, device code, kind of operation, reference and date, for the daily limits and to answer a report of yours. The operations are anyway visible in the public record (section 5).</li>
         <li><b>Each time it opens</b>, the extension asks the site for the latest version and the list of its files' fingerprints, to check it has not been modified.</li>
         <li><b>The IP address</b>: the service uses it to limit repeated requests, in memory for at most one minute, without saving it; the web server logs it as every site does (section 6).</li>
       </ul>`,
@@ -98,7 +102,7 @@
       </ul>The name, description and picture are not kept by the service after the creation: they stay only in the public record (section 5).`,
       s7t: "7 · Who the extension and the service talk to",
       s7: `<ul>
-        <li><b>The extension</b> connects only to account.chainintegrate.it. The "See your public profile" link opens Universal Everything in the browser, only if you press it.</li>
+        <li><b>The extension</b> connects to account.chainintegrate.it. On the pages of ChainIntegrate's projects (for example traceability.chainintegrate.it) the page can find it; the site sees your account's address only after you connected it, and receives only the signatures you confirm in the extension's window. For those pages it reads the public network from LUKSO's public node (rpc.mainnet.lukso.network), which sees the IP address. On any other site the extension does nothing. The "See your public profile" link opens Universal Everything in the browser, only if you press it.</li>
         <li><b>GitHub</b> (GitHub, Inc.), where you download the extension: it sees the IP address of whoever downloads.</li>
         <li><b>The service</b> uses public nodes of the LUKSO network to read and write the record, and ChainIntegrate's IPFS node to store the profile and picture. They see the IP address of ChainIntegrate's server, not yours.</li>
         <li><b>The service's e-mail</b> sends technical alerts only to ChainIntegrate (service down, low balance): they hold none of your data.</li>

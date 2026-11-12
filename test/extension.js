@@ -208,6 +208,96 @@ async function verify(page, file, pw) {
     "updating the profile: the request to store it is signed by this computer's key; no new picture keeps the current one");
   const rel2 = sent.find((x) => x[0] === "relay")[1];
   check(UPRelay.check(rel2.payload, { signer: code }).items[0].op === "profile", "then the new profile is written with the relay");
+  // ---- a project's page (provider.js, bridge.js, background.js, confirm.js); the network and the service answered here
+  const REG = ethers.Wallet.createRandom().address, NOTREG = ethers.Wallet.createRandom().address;
+  const PROJ = "https://traceability.chainintegrate.it";
+  const SITE_HTML = "<!doctype html><title>project</title><script>window.got = []; window.addEventListener('eip6963:announceProvider', (e) => window.got.push(e.detail)); window.dispatchEvent(new Event('eip6963:requestProvider'));</script>";
+  await ctx.route(PROJ + "/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
+  await ctx.route("https://other.chainintegrate.it/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
+  const IS_REG = new ethers.Interface(["function isRegistry(address) view returns (bool)"]);
+  await ctx.route("https://rpc.mainnet.lukso.network/**", (r) => {
+    const q = JSON.parse(r.request().postData());
+    let result = "0x10";
+    if (q.method === "eth_call") { const a = IS_REG.decodeFunctionData("isRegistry", q.params[0].data)[0]; result = ethers.zeroPadValue(a === REG ? "0x01" : "0x00", 32); }
+    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: q.id, result }) });
+  });
+  const site = await ctx.newPage();
+  site.on("pageerror", (e) => check(false, "site page error: " + e.message));
+  await site.goto(PROJ + "/app.html");
+  await site.waitForFunction(() => window.got.length > 0, null, { timeout: 10000 });
+  check(await site.evaluate(() => window.got[0].info.name === "ChainIntegrate Account" && window.got[0].info.rdns === "it.chainintegrate.account" && /^data:image\/png;base64,/.test(window.got[0].info.icon) && !window.ethereum && !window.lukso),
+    "a project's page finds the extension with EIP-6963 (and nothing is set as window.ethereum or window.lukso)");
+  const ask = (method, params) => site.evaluate(([m, p]) => window.got[0].provider.request({ method: m, params: p }).then((r) => ({ r }), (e) => ({ e: { code: e.code, message: e.message } })), [method, params]);
+  check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10", "the page reads the network through the extension");
+  check((await ask("eth_accounts", [])).r.length === 0 && (await ask("personal_sign", ["0x01", UP])).e.code === 4100, "before connecting, no address and no signature");
+  // connect: the confirmation window, Cancel focused
+  let pop = ctx.waitForEvent("page");
+  let pending = ask("eth_requestAccounts", []);
+  let w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  check((await w.evaluate(() => document.activeElement.id)) === "cancel" && /traceability\.chainintegrate\.it/.test(await w.textContent("#site")), "connecting opens the extension's window, naming the site, with Cancel focused");
+  await w.click("#ok");
+  check(JSON.stringify((await pending).r) === JSON.stringify([UP]) && JSON.stringify((await ask("eth_accounts", [])).r) === JSON.stringify([UP]), "once connected the site sees the account's address");
+  // a sign-in message of the project
+  const siwe = "traceability.chainintegrate.it wants you to sign in with your Ethereum account:\n" + UP + "\n\n" +
+    "[IT] Firma di conferma dalla tua Universal Profile: non si tratta di un pagamento, non costa nulla e non scrive niente sulla blockchain. Serve solo a dimostrare che sei davvero tu a chiedere questa operazione. [EN] Confirmation signature from your Universal Profile: it is not a payment, costs nothing and writes nothing on the blockchain. It only proves it's really you asking for this. [Operazione / Operation: Caricamento documento / Upload document]\n\n" +
+    "URI: " + PROJ + "\nVersion: 1\nChain ID: 42\nNonce: " + "cd".repeat(32) + "\nIssued At: " + new Date().toISOString() + "\nResources:\n- " + PROJ + "/how-it-works.html";
+  pop = ctx.waitForEvent("page");
+  pending = ask("personal_sign", [ethers.hexlify(ethers.toUtf8Bytes(siwe)), UP]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  check(/caricare un documento/.test(await w.textContent("#what")) && await w.isVisible("#pw"), "a sign-in message is shown in plain words, with the password field");
+  await w.fill("#pw", PW); await w.click("#ok");
+  const sig = (await pending).r;
+  check(!!sig && ethers.recoverAddress(ethers.hashMessage(siwe), sig) === code, "the message is signed with this computer's key");
+  const before = ctx.pages().length;
+  check((await ask("personal_sign", [ethers.hexlify(ethers.toUtf8Bytes("Sign this to win")), UP])).e.code === 4100 && ctx.pages().length === before, "a message outside the catalog is refused, without a window");
+  // an operation, sent through the service
+  const TR = new ethers.Interface(["function mintRawMaterialLotBatch(bytes32[],bytes[],uint256[])"]);
+  const lots = TR.encodeFunctionData("mintRawMaterialLotBatch", [[ethers.ZeroHash, ethers.id("2")], ["0x", "0x"], [1, 2]]);
+  sent.length = 0;
+  pop = ctx.waitForEvent("page");
+  pending = ask("eth_sendTransaction", [{ from: UP, to: REG, data: lots }]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  check(/2 lotti di materia prima/.test(await w.textContent("#what")) && /ChainIntegrate/.test(await w.textContent("#note")), "an operation is described from its own data, and says who pays");
+  await w.fill("#pw", PW); await w.click("#ok");
+  check((await pending).r === "0x01", "the page receives the operation's reference");
+  const op = sent.find((x) => x[0] === "relay")[1];
+  const opDigest = UPRelay.digest({ chainId: 42, keyManager: KMADDR, nonce: 7n, validity: BigInt(op.validity), payload: op.payload });
+  const opCheck = UPRelay.check(op.payload, { signer: code, chainId: 42 });
+  check(ethers.recoverAddress(opDigest, op.signature) === code && opCheck.ok && opCheck.items[0].project === "traceability" && opCheck.items[0].target === REG, "the operation is the account's call to the registry, signed by this computer's key");
+  // a registry the project did not create: refused in the window
+  pop = ctx.waitForEvent("page");
+  pending = ask("eth_sendTransaction", [{ from: UP, to: NOTREG, data: lots }]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  await w.fill("#pw", PW); await w.click("#ok");
+  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")), "a registry not created by the project's factory is refused");
+  await w.close();
+  // cancel
+  pop = ctx.waitForEvent("page");
+  pending = ask("eth_sendTransaction", [{ from: UP, to: REG, data: lots }]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  await w.click("#cancel");
+  check((await pending).e.code === 4001, "Cancel answers the page that the request was cancelled");
+  pop = ctx.waitForEvent("page");
+  pending = ask("eth_sendTransaction", [{ from: UP, to: REG, data: lots }]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  await w.close();
+  check((await pending).e.code === 4001, "closing the window cancels too");
+  const admin = new ethers.Interface(["function setRegistryAdmin(address)"]).encodeFunctionData("setRegistryAdmin", [UP]);
+  check((await ask("eth_sendTransaction", [{ from: UP, to: REG, data: admin }])).e.code === 4100, "ChainIntegrate's administration is refused, without a window");
+  // a subdomain that is not a project
+  const otherSite = await ctx.newPage();
+  await otherSite.goto("https://other.chainintegrate.it/");
+  await otherSite.waitForTimeout(800);
+  check(await otherSite.evaluate(() => window.got.length === 0), "on a subdomain that is not a project the extension does not announce itself");
+  await otherSite.close();
+  // the site listed in the extension's page, and disconnected from there
+  await page.reload(); await visible(page, "sitesBox");
+  check(/traceability\.chainintegrate\.it/.test(await page.textContent("#sitesList")), "the extension's page lists the connected site");
+  await page.click("#sitesList button");
+  await page.waitForFunction(() => /Nessun sito/.test(document.querySelector("#sitesList").textContent));
+  check((await ask("eth_accounts", [])).r.length === 0, "disconnected, the site no longer sees the address");
+  await site.close();
+
   await ctx.unroute("https://account.chainintegrate.it/api/create");
   const stored = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
   const clear = ethers.hexlify(await K.open(bk.key, { password: BK })).slice(2);

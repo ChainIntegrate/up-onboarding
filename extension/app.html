@@ -9,6 +9,7 @@
 <script src="vendor/ethers-6.13.4.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="lib/ui.js"></script>
+<script src="lib/integrity.js"></script>
 <script src="shared/keystore.js"></script>
 <script src="shared/request.js"></script>
 <script src="shared/relay.js"></script>
@@ -263,6 +264,11 @@
       <button id="rNameBtn" class="secondary" type="button" data-i18n="rNameBtn">Cambia il nome nell'account</button>
       <div class="msg" id="editMsg"></div>
     </details>
+  </div>
+  <div class="panel" id="sitesBox" hidden>
+    <h2 data-i18n="sitesTitle">Siti collegati</h2>
+    <div class="note" data-i18n="sitesNote"></div>
+    <div id="sitesList"></div>
   </div>
   <div class="panel">
     <h2 data-i18n="deviceTitle">Questo computer</h2>

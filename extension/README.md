@@ -2,8 +2,10 @@
 
 The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
 later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
-words. **Status: 0.3.1: the access, the backup copy, the restore, and the creation of the account with an
-invitation code (profile name rule, the computer's name, PNG or JPEG picture, confirmation before removing the access). Signing for ChainIntegrate's services comes next.**
+words. **Status: 0.4.0: the access, the backup copy (required again after the creation, naming the account), the
+restore, the creation of the account with an invitation code, changes to the profile and to this computer's name,
+and the access to ChainIntegrate's projects: their pages find the extension, each request is confirmed in its own
+window (sign-in messages, typed data, operations sent by ChainIntegrate's service, which pays their cost).**
 
 ## What the client sees
 
@@ -36,6 +38,13 @@ service which account has this key (`/api/lookup`), so the account comes back to
   `npm run sync`): a secp256k1 key created on the computer, stored in `chrome.storage.local` only encrypted
   (AES-256-GCM; from the passkey's PRF value through HKDF-SHA256, or from the password through PBKDF2-SHA256
   with 600,000 rounds). The backup file is the same key encrypted with the backup password.
+- The projects' pages (`../docs/integration.md`): `provider.js` (in the page, EIP-6963, holds nothing),
+  `bridge.js` (isolated world, forwards), `background.js` (serves only the sites of the catalog,
+  `shared/catalog.js`, by the origin Chrome gives; reads go to LUKSO's public node; anything else opens
+  `confirm.html`), `confirm.js` (checks the request against the catalog again, describes it, unlocks the key, signs
+  or sends through the service's relay, answers the page's tab; closing the window cancels).
+- `lib/integrity.js`: the extension's files against the SHA-256 published for its version; the key is not
+  unlocked when one differs (in the page and in the confirmation window).
 - `passkey.js`: the passkey through WebAuthn's PRF extension; the passkey belongs to the extension's id. Where
   the authenticator gives no PRF value, the page asks for a password instead.
 - The private key is in memory only while it is needed (creating the backup, sealing it on the computer) and

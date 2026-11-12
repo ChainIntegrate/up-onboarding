@@ -145,7 +145,11 @@
       leaveWarning: "La configurazione non è finita: se chiudi ora, dovrai ricominciare.",
       backupFileName: "chainintegrate-copia-di-backup",
       backupLabel: (v) => `Copia di backup ChainIntegrate, ${v.date}`,
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a>`,
+      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
+      sitesTitle: "Siti collegati",
+      sitesNote: "I siti dei progetti ChainIntegrate a cui hai collegato il tuo account: vedono il suo indirizzo e possono chiederti conferme. Ogni operazione la confermi tu, ogni volta, in una finestra di questa estensione.",
+      sitesNone: "Nessun sito collegato.",
+      siteRemove: "Scollega",
     },
     en: {
       h1: "Your ChainIntegrate access",
@@ -272,7 +276,11 @@
       leaveWarning: "Setup is not finished: if you close now, you will have to start again.",
       backupFileName: "chainintegrate-backup-copy",
       backupLabel: (v) => `ChainIntegrate backup copy, ${v.date}`,
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a>`,
+      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
+      sitesTitle: "Connected sites",
+      sitesNote: "The sites of ChainIntegrate's projects you connected your account to: they see its address and may ask you for confirmations. You confirm every operation yourself, each time, in a window of this extension.",
+      sitesNone: "No site connected.",
+      siteRemove: "Disconnect",
     },
   };
   const t = (k, v) => { const x = I18N[LANG][k] ?? I18N.it[k]; return typeof x === "function" ? x(v || {}) : x; };
@@ -448,6 +456,24 @@
   });
 
   // ---- ready
+  // ---- the projects' sites connected to the account (background.js, confirm.js)
+  async function renderSites() {
+    const sites = (await chrome.storage.local.get("sites")).sites || {};
+    const list = $("sitesList"); list.innerHTML = "";
+    const mine = Object.entries(sites).filter(([, v]) => account && account.up && v.account === account.up);
+    if (!mine.length) { list.appendChild(Object.assign(document.createElement("div"), { className: "lead", textContent: t("sitesNone") })); return; }
+    for (const [origin] of mine) {
+      const row = document.createElement("div"); row.className = "ctrl-row"; row.style.cssText = "display:flex; gap:10px; align-items:center; margin-top:8px;";
+      const name = Object.assign(document.createElement("span"), { className: "lead", textContent: new URL(origin).host }); name.style.flex = "1";
+      const b = Object.assign(document.createElement("button"), { type: "button", className: "secondary", textContent: t("siteRemove") }); b.style.width = "auto";
+      b.addEventListener("click", async () => {
+        const all = (await chrome.storage.local.get("sites")).sites || {};
+        delete all[origin]; await chrome.storage.local.set({ sites: all }); renderSites();
+      });
+      row.append(name, b); list.appendChild(row);
+    }
+  }
+
   async function showMain() {
     if (account.up && !account.backupHasAccount) {
       show("sNeedBackup");
@@ -465,6 +491,7 @@
     $("pCreate").hidden = has; $("pAccount").hidden = !has;
     $("createPwBox").hidden = has || account.record.method !== "password";
     if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else findAccount();
+    $("sitesBox").hidden = !has; if (has) renderSites();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
     if (!has) resetCreateForm();
@@ -659,7 +686,7 @@
   $("removeCancel").addEventListener("click", () => { $("removeConfirm").hidden = true; $("removeAck").checked = false; $("removeBtn").disabled = true; });
   $("removeYes").addEventListener("click", async () => {
     if (!$("removeAck").checked || $("removeConfirm").hidden) return;
-    await store.del(); account = null; endPending();
+    await store.del(); await chrome.storage.local.remove("sites"); account = null; endPending();
     $("removeConfirm").hidden = true;
     show("sWelcome");
   });
@@ -678,33 +705,11 @@
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
 
-  // ---- integrity (Cross_Chain audit EXT-06): Chrome does not check an extension loaded from a folder, so the
-  // extension compares its own code (html, js, json) with the SHA-256 that ChainIntegrate's site publishes for this
-  // version, and refuses to unlock the key, or to read a backup and its password, when a file differs. It catches a
-  // corrupted, half-updated or crudely modified copy; code rewritten on purpose could also rewrite this check, so the
-  // complete protection is the Chrome Web Store (Chrome verifies its files) and tools/verify-extension.js from outside.
-  // When the list cannot be fetched (offline), the extension works and the check runs again at the next opening.
+  // ---- integrity (lib/integrity.js): the key is not unlocked when a file of the extension differs from the published one.
   const integrity = { state: "pending", bad: [] };
-  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
   async function checkIntegrity() {
-    let text;
-    try {
-      const res = await fetch(CONFIG.sums + chrome.runtime.getManifest().version + "/SHA256SUMS", { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      text = await res.text();
-    } catch (e) { integrity.state = "unknown"; return; }
-    const bad = [];
-    for (const line of text.split("\n")) {
-      const m = line.match(/^([0-9a-f]{64}) {2}chainintegrate-account\/(.+\.(?:js|html|json))$/);
-      if (!m) continue;
-      try {
-        const got = hex(await crypto.subtle.digest("SHA-256", await (await fetch(chrome.runtime.getURL(m[2]), { cache: "no-store" })).arrayBuffer()));
-        if (got !== m[1]) bad.push(m[2]);
-      } catch (e) { bad.push(m[2]); }
-    }
-    integrity.state = bad.length ? "bad" : "ok";
-    integrity.bad = bad;
-    if (bad.length) { $("integrityBox").hidden = false; $("integrityFiles").textContent = bad.join(", "); }
+    Object.assign(integrity, await Integrity.check());
+    if (integrity.state === "bad") { $("integrityBox").hidden = false; $("integrityFiles").textContent = integrity.bad.join(", "); }
   }
   const integrityReady = checkIntegrity();
   // true when the key may be used; otherwise says why, in the message box of the screen.

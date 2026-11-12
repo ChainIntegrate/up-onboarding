@@ -6,13 +6,14 @@
 //   UPRelay.digest({ chainId, keyManager, nonce, validity, value, payload })  the hash the key signs
 //   UPRelay.validity(start, end)                                              LSP25's two uint128 in one uint256
 //   UPRelay.decode(payload)                                                   { fn, keys, values } or { fn, call }
-//   UPRelay.check(payload, { signer })                                        { ok, items } or { ok: false, error }
+//   UPRelay.check(payload, { signer, chainId })                               { ok, items } or { ok: false, error }
 //
 // What may be sent (the rest is refused, whoever signs):
 //   - the profile: setData(LSP3Profile, a VerifiableURI with keccak256(utf8) and an ipfs:// URL);
 //   - the signer's own name on the account: setData(the name key of the signer, UTF-8 text, at most 64 chars);
 //   - setDataBatch made only of the two above.
-// Calls of ChainIntegrate's projects (execute) come with their catalog (docs/integration.md, section 5).
+//   - execute(CALL, target, 0, data) of a call in the catalog of ChainIntegrate's projects (shared/catalog.js); its
+//     on-chain checks (`needs`, e.g. "a registry made by the project's factory") are the caller's to make.
 //
 // LSP25 (LUKSO's lsp-smart-contracts, LSP25MultiChannelNonce): the signed hash is
 //   keccak256(0x19 0x00 ‖ keyManager ‖ abi.encodePacked(25, chainId, nonce, validityTimestamps, value, payload)),
@@ -75,10 +76,17 @@
   }
 
   // { ok: true, items: [{ op: "profile", url } | { op: "deviceName", name }] } or { ok: false, error }.
-  function check(payload, { signer }) {
+  function check(payload, { signer, chainId } = {}) {
     const d = decode(payload);
     if (!d) return { ok: false, error: "payload" };
-    if (d.fn === "execute") return { ok: false, error: "not_in_catalog" };
+    if (d.fn === "execute") {
+      const cat = catalog();
+      if (!cat || d.call.operation !== 0n) return { ok: false, error: "not_in_catalog" };
+      if (UP.encodeFunctionData("execute", [d.call.operation, d.call.target, d.call.value, d.call.data]).toLowerCase() !== String(payload).toLowerCase()) return { ok: false, error: "payload" };
+      const c = cat.call({ chainId, to: d.call.target, data: d.call.data, value: d.call.value });
+      if (!c.ok) return c;
+      return { ok: true, items: [{ op: "project", project: c.project, fn: c.fn, target: ethers.getAddress(d.call.target) }], needs: c.needs, said: c };
+    }
     if (!d.keys.length || d.keys.length > 4 || d.keys.length !== d.values.length) return { ok: false, error: "payload" };
     const items = [];
     const seen = new Set();
@@ -101,9 +109,18 @@
     return { ok: true, items };
   }
 
+  // shared/catalog.js: loaded next to this file (the extension's pages, the service).
+  function catalog() {
+    const g = typeof self !== "undefined" ? self : globalThis;
+    if (g.UPCatalog) return g.UPCatalog;
+    try { return typeof require === "function" ? require("./catalog.js") : null; } catch (e) { return null; }
+  }
+  // A call of a project's contract from the account.
+  const projectCall = (to, data) => UP.encodeFunctionData("execute", [0, ethers.getAddress(to), 0, data]);
+
   // The calls the extension sends for the account's own changes.
   const setProfile = (value) => UP.encodeFunctionData("setData", [LSP3_KEY, value]);
   const setName = (signer, name) => UP.encodeFunctionData("setData", [nameKey(ethers.getAddress(signer)), ethers.hexlify(ethers.toUtf8Bytes(name))]);
 
-  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue, setProfile, setName };
+  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue, setProfile, setName, projectCall };
 });
