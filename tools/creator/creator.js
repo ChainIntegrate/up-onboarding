@@ -314,6 +314,21 @@ async function main() {
         if (ok && !json) json = JSON.parse(ethers.toUtf8String(bytes));
       } catch (e) { console.log(`  FAIL ${name}: ${e.name === "TimeoutError" ? "timeout" : e.message}`); }
     }
+    // LUKSO's profile index (Envio), which Universal Everything reads: has it indexed this account, with which name?
+    const index = cfg.network === "lukso" ? "https://envio.lukso-mainnet.universal.tech/v1/graphql" : "https://envio.lukso-testnet.universal.tech/v1/graphql";
+    const gql = async (query, variables) => {
+      const r = await fetch(index, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ query, variables }), signal: AbortSignal.timeout(20000) });
+      return r.json();
+    };
+    try {
+      const byId = await gql("query($id: String!) { Profile(where: { id: { _eq: $id } }) { id name fullName } }", { id: ethers.getAddress(up).toLowerCase() });
+      console.log(`index ${index}\n  by address: ${JSON.stringify(byId.data ? byId.data.Profile : byId.errors && byId.errors[0] && byId.errors[0].message)}`);
+      if (json && json.LSP3Profile && json.LSP3Profile.name) {
+        const byName = await gql("query($search: String!) { search_profiles(args: { search: $search }, limit: 8) { id name fullName } }", { search: json.LSP3Profile.name });
+        const list = byName.data ? byName.data.search_profiles : null;
+        console.log(`  by name "${json.LSP3Profile.name}": ${list ? (list.some((x) => String(x.id).toLowerCase() === up.toLowerCase()) ? "found" : `not found (${list.length} other result(s))`) : JSON.stringify(byName.errors && byName.errors[0] && byName.errors[0].message)}`);
+      }
+    } catch (e) { console.log(`index ${index}: ${e.name === "TimeoutError" ? "timeout" : e.message}`); }
     if (!json) { console.log("the JSON could not be read with its hash anywhere"); return; }
     const p = json.LSP3Profile || {};
     console.log(`JSON: name "${p.name}", ${(p.profileImage || []).length} profile image(s), ${(p.backgroundImage || []).length} cover(s), ${(p.links || []).length} link(s)`);
