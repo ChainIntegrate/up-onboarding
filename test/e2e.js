@@ -153,7 +153,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await phone.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${ethers.Wallet.createRandom().address}`);
     await phone.fill("#pName", "Mario Rossi");
     await phone.setInputFiles("#pAvatar", pngPath);
-    await phone.check("#storeIpfs");
+    await phone.check("#storeIpfs"); await phone.fill("#ipfsApi", "https://ipfs.chainintegrate.it"); await phone.dispatchEvent("#ipfsApi", "change");
     await phone.click("#previewBtn"); await idle(phone);
     check(/ipfs:\/\/bafybei\w+test02/.test(await phone.textContent("#previewStatus")) && uploads === 2, "IPFS mode uploads the image and the JSON");
     check(!(await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)), "no horizontal scroll at phone width");
