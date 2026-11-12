@@ -16,6 +16,6 @@
   "devDependencies": {
     "ethers": "6.13.4",
     "hardhat": "2.29.2",
-    "playwright": "1.56.1"
+    "playwright": "1.63.0"
   }
 }
