@@ -1,6 +1,6 @@
 {
   "network": "lukso",
-  "rpc": "https://rpc.mainnet.lukso.network",
+  "rpcFile": "/etc/up-onboarding/rpc-url",
   "chainId": 42,
   "gasKeyFile": "/etc/up-onboarding/gas-key",
   "ipfsApi": "http://127.0.0.1:5001",
@@ -12,5 +12,8 @@
   "maxControllers": 5,
   "inviteDays": 30,
   "minBalance": "0.05",
-  "confirmSeconds": 180
+  "confirmSeconds": 180,
+  "maxRelayPerDay": 200,
+  "relayPerIpPerMinute": 20,
+  "rpcPerIpPerMinute": 120
 }

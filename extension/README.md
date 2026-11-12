@@ -40,7 +40,7 @@ service which account has this key (`/api/lookup`), so the account comes back to
   with 600,000 rounds). The backup file is the same key encrypted with the backup password.
 - The projects' pages (`../docs/integration.md`): `provider.js` (in the page, EIP-6963, holds nothing),
   `bridge.js` (isolated world, forwards), `background.js` (serves only the sites of the catalog,
-  `shared/catalog.js`, by the origin Chrome gives; reads go to LUKSO's public node; anything else opens
+  `shared/catalog.js`, by the origin Chrome gives; reads go to ChainIntegrate's node through the account service, `/api/rpc`, the node's key staying on the server, and to LUKSO's public node when it does not answer; anything else opens
   `confirm.html`), `confirm.js` (checks the request against the catalog again, describes it, unlocks the key, signs
   or sends through the service's relay, answers the page's tab; closing the window cancels).
 - `lib/integrity.js`: the extension's files against the SHA-256 published for its version; the key is not

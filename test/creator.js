@@ -65,7 +65,8 @@ async function waitFor(url, body) {
     await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("10").toString(16)]);
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
-    const config = { network: "lukso", rpc: RPC, chainId: 42, gasKeyFile: "gas-key", dataDir: "data",
+    fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
+    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data",
       ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 7, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
@@ -172,6 +173,20 @@ async function waitFor(url, body) {
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: adding a controller is not allowed");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("execute", [0, stranger.address, ethers.parseEther("1"), "0x"]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a transfer from the account is refused (not in the catalog)");
+    // ---- /api/rpc: the extension reads the network through the service (the node's URL stays in rpc-url)
+    const rpcPost = async (body, ip = "10.7.7.7") => { const x = await fetch(`http://127.0.0.1:${PORT}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": ip }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    let rp = await rpcPost({ jsonrpc: "2.0", id: 5, method: "eth_blockNumber", params: [] });
+    check(rp.status === 200 && rp.body.id === 5 && /^0x[0-9a-f]+$/.test(rp.body.result), "rpc: a reading is answered by the node");
+    rp = await rpcPost({ jsonrpc: "2.0", id: 6, method: "eth_call", params: [{ to: created, data: "0x8da5cb5b" }, "latest"] });
+    check(rp.status === 200 && ethers.isHexString(rp.body.result, 32), "rpc: a contract is read (the account's owner)");
+    rp = await rpcPost({ jsonrpc: "2.0", id: 7, method: "eth_sendRawTransaction", params: ["0x00"] });
+    check(rp.status === 400 && rp.body.reason === "rpc_method", "rpc: anything but reading is refused");
+    rp = await rpcPost([{ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }]);
+    check(rp.status === 400, "rpc: one call per request (no batches)");
+    rp = await rpcPost({ jsonrpc: "2.0", id: 8, method: "eth_getLogs", params: [{ address: created, fromBlock: "0x0", toBlock: "0x1000000" }] });
+    check(rp.status === 400 && rp.body.reason === "rpc_logs_range", "rpc: logs over too many blocks are refused");
+    rp = await rpcPost({ jsonrpc: "2.0", id: 9, method: "eth_getLogs", params: [{ address: created, fromBlock: "0x0", toBlock: "0x10" }] });
+    check(rp.status === 200 && Array.isArray(rp.body.result), "rpc: logs of one address over a few blocks are read");
     // ---- the projects' catalog (shared/catalog.js): stand-ins at the projects' addresses on LUKSO
     const RET_TRUE = "0x600160005260206000f3", RET_FALSE = "0x600060005260206000f3"; // any call answers true / false
     const TRACE_FACTORY = "0x54C3A7C31C4eCA1f1997f5E6f19197f3A82b88a3", SUPPLIER = "0xFa143308D85b81Ed57547049F4A7718c3117A064";

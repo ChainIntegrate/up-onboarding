@@ -287,13 +287,16 @@
     return fail("not_in_catalog");
   }
 
-  // The on-chain checks: each { factory, check: "isRegistry(address)", address } must answer true.
+  // The on-chain checks: each { factory, check: "isRegistry(address)", address } must answer true. false when one
+  // answers no (or the contract refuses the question); throws when the network cannot be read, so the caller can
+  // try another node or say so.
   async function verifyNeeds(provider, needs) {
     for (const n of needs || []) {
       const f = new ethers.Contract(n.factory, [`function ${n.check} view returns (bool)`], provider);
       let ok = false;
-      try { ok = await f.getFunction(n.check)(n.address); } catch (e) { ok = false; }
-      if (!ok) return false;
+      try { ok = await f.getFunction(n.check)(n.address); }
+      catch (e) { if (e && (e.code === "CALL_EXCEPTION" || e.code === "BAD_DATA")) ok = false; else throw e; }
+      if (ok !== true) return false;
     }
     return true;
   }

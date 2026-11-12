@@ -5,7 +5,7 @@
 //    installation, to start the setup.
 // 2. The requests of ChainIntegrate's projects' pages (provider.js → bridge.js → here). Only pages of a project in
 //    the catalog (shared/catalog.js), by the origin Chrome gives, not the page's word. Reading the network goes to
-//    LUKSO's public node; asking for the account's address, a signature or an operation opens the confirmation window
+//    ChainIntegrate's node through the account service (LUKSO's public node when it does not answer); asking for the account's address, a signature or an operation opens the confirmation window
 //    (confirm.html), which checks the request again, shows it in plain words and answers the page itself. Whatever
 //    is not in the catalog is refused here, without a window.
 "use strict";
@@ -53,12 +53,24 @@ async function info() {
 const local = async (k) => (await chrome.storage.local.get(k))[k];
 const session = chrome.storage.session;
 
-async function rpc(network, method, params) {
-  const res = await fetch(CONFIG.networks[network].rpc, { method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+// ChainIntegrate's node (through the account service) first; LUKSO's public node when it does not answer. An answer
+// of the node (a result, or an error such as a refused call) is the answer: only a missing one goes to the other.
+async function rpcAt(url, method, params) {
+  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(String(res.status));
   const b = await res.json();
   if (b.error) return { error: { code: Number.isInteger(b.error.code) ? b.error.code : -32603, message: String(b.error.message || "error"), data: b.error.data } };
+  if (!("result" in b)) throw new Error("no result");
   return { result: b.result };
+}
+async function rpc(network, method, params) {
+  const n = CONFIG.networks[network];
+  try { return await rpcAt(n.rpc, method, params); }
+  catch (e) {
+    if (!n.fallback) return { error: { code: -32603, message: "The network cannot be read now." } };
+    try { return await rpcAt(n.fallback, method, params); } catch (e2) { return { error: { code: -32603, message: "The network cannot be read now." } }; }
+  }
 }
 
 // What the window will do, checked here first so a request outside the catalog opens no window.

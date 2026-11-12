@@ -144,8 +144,11 @@
       }
       if ((await Integrity.check()).state === "bad") { say(t("integrity"), "line-err"); return; }
       if (said.needs && said.needs.length) {
-        const provider = new ethers.JsonRpcProvider(CONFIG.networks[req.network].rpc, req.chainId, { staticNetwork: true });
-        if (!(await UPCatalog.verifyNeeds(provider, said.needs))) { say(t("notProject"), "line-err"); await answer({ error: { code: 4100, message: "Not allowed by ChainIntegrate Account (not_a_project_contract)." } }); return; }
+        const net = CONFIG.networks[req.network];
+        const at = (url) => UPCatalog.verifyNeeds(new ethers.JsonRpcProvider(url, req.chainId, { staticNetwork: true, batchMaxCount: 1 }), said.needs);
+        let isProject;
+        try { isProject = await at(net.rpc); } catch (e) { if (!net.fallback) throw e; isProject = await at(net.fallback); }
+        if (!isProject) { say(t("notProject"), "line-err"); await answer({ error: { code: 4100, message: "Not allowed by ChainIntegrate Account (not_a_project_contract)." } }); return; }
       }
       say(t("unlocking"), "line-dim");
       const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password: $("pw").value };

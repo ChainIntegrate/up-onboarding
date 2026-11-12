@@ -215,12 +215,19 @@ async function verify(page, file, pw) {
   await ctx.route(PROJ + "/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
   await ctx.route("https://other.chainintegrate.it/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
   const IS_REG = new ethers.Interface(["function isRegistry(address) view returns (bool)"]);
-  await ctx.route("https://rpc.mainnet.lukso.network/**", (r) => {
+  // The network: ChainIntegrate's node through the service (/api/rpc), LUKSO's public node as the fallback.
+  const rpcSeen = { service: 0, lukso: 0 };
+  let serviceDown = false;
+  const answerRpc = (who) => (r) => {
+    rpcSeen[who]++;
+    if (who === "service" && serviceDown) return r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"upstream"}' });
     const q = JSON.parse(r.request().postData());
-    let result = "0x10";
+    let result = who === "service" ? "0x10" : "0x11";
     if (q.method === "eth_call") { const a = IS_REG.decodeFunctionData("isRegistry", q.params[0].data)[0]; result = ethers.zeroPadValue(a === REG ? "0x01" : "0x00", 32); }
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: q.id, result }) });
-  });
+  };
+  await ctx.route("https://account.chainintegrate.it/api/rpc", answerRpc("service"));
+  await ctx.route("https://rpc.mainnet.lukso.network/**", answerRpc("lukso"));
   const site = await ctx.newPage();
   site.on("pageerror", (e) => check(false, "site page error: " + e.message));
   await site.goto(PROJ + "/app.html");
@@ -228,7 +235,10 @@ async function verify(page, file, pw) {
   check(await site.evaluate(() => window.got[0].info.name === "ChainIntegrate Account" && window.got[0].info.rdns === "it.chainintegrate.account" && /^data:image\/png;base64,/.test(window.got[0].info.icon) && !window.ethereum && !window.lukso),
     "a project's page finds the extension with EIP-6963 (and nothing is set as window.ethereum or window.lukso)");
   const ask = (method, params) => site.evaluate(([m, p]) => window.got[0].provider.request({ method: m, params: p }).then((r) => ({ r }), (e) => ({ e: { code: e.code, message: e.message } })), [method, params]);
-  check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10", "the page reads the network through the extension");
+  check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10" && rpcSeen.lukso === 0, "the page reads the network through the extension, from ChainIntegrate's node");
+  serviceDown = true;
+  check((await ask("eth_blockNumber", [])).r === "0x11", "when ChainIntegrate's node does not answer, LUKSO's public node does");
+  serviceDown = false;
   check((await ask("eth_accounts", [])).r.length === 0 && (await ask("personal_sign", ["0x01", UP])).e.code === 4100, "before connecting, no address and no signature");
   // connect: the confirmation window, Cancel focused
   let pop = ctx.waitForEvent("page");
@@ -269,7 +279,7 @@ async function verify(page, file, pw) {
   pending = ask("eth_sendTransaction", [{ from: UP, to: NOTREG, data: lots }]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
   await w.fill("#pw", PW); await w.click("#ok");
-  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")), "a registry not created by the project's factory is refused");
+  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")) && rpcSeen.lukso === 1, "a registry not created by the project's factory is refused (checked on ChainIntegrate's node)");
   await w.close();
   // cancel
   pop = ctx.waitForEvent("page");

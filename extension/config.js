@@ -14,9 +14,11 @@ const CONFIG = {
   // the extension checks its own files against them before unlocking the key.
   sums: "https://account.chainintegrate.it/extension/",
   profileBase: "https://universaleverything.io/",
-  // The networks an account may be on: the chain id the projects' pages see, LUKSO's public node for what they read.
+  // The networks an account may be on: the chain id the projects' pages see, and where reading the network goes.
+  // On LUKSO, ChainIntegrate's own node through the account service (/api/rpc: the node's access key stays on the
+  // server), LUKSO's public node when it does not answer.
   networks: {
-    lukso: { chainId: 42, rpc: "https://rpc.mainnet.lukso.network" },
+    lukso: { chainId: 42, rpc: "https://account.chainintegrate.it/api/rpc", fallback: "https://rpc.mainnet.lukso.network" },
     "lukso-testnet": { chainId: 4201, rpc: "https://rpc.testnet.lukso.network" },
   },
 };

@@ -70,7 +70,9 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 
 | Key | |
 |---|---|
-| `network`, `rpc`, `chainId` | `lukso` (42) or `lukso-testnet` (4201) and an RPC of that network |
+| `network`, `chainId` | `lukso` (42) or `lukso-testnet` (4201) |
+| `rpcFile` or `rpc` | the network's node. `rpcFile`: a file (one line, mode 640, group `up-onboarding`) with the URL of ChainIntegrate's node, `https://rpc.chainintegrate.it/rpc/<key>`, with an access key for this service only; its URL is never logged or sent in alerts. `rpc`: a plain URL (LUKSO's public node, tests) |
+| `rpcPerIpPerMinute` | `/api/rpc`, the extension's reading of the network through this service (only reading methods, one call per request; logs over at most 100,000 blocks and one address): per-address limit (120) |
 | `gasKeyFile` | the gas wallet's private key, one line, mode 600: a wallet used only for this, with little LYX |
 | `ipfsApi` | the IPFS node's write API, `http://<node>:5001`: the same value as `IPFS_API_URL` in the other ChainIntegrate backends on this server (traceability-registry, supplier-trust-registry). The node's firewall accepts only allowed servers; no secret in the address |
 | `ipfsAuthFile` | optional: an `Authorization` header value, one line, mode 600, when the node's API is behind a proxy that asks for one |

@@ -66,8 +66,18 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo grep -rh --include=.env "^IPFS_API_URL=" /var/www /opt /home 2>/dev/null | sort -u
    ```
 
-4. **The configuration**: start on LUKSO Testnet (`"network": "lukso-testnet"`, `"rpc": "https://rpc.testnet.lukso.network"`,
-   `"chainId": 4201`), move to LUKSO when the test is good. The extension follows the service's network by itself.
+4. **The configuration**: LUKSO (`"network": "lukso"`, `"chainId": 42`) with ChainIntegrate's node: an access key
+   for this service only (made in the node's own conversation), its URL in a file that only the service reads. The
+   extension reads the network through the service (`/api/rpc`), so the key never leaves the server; it follows the
+   service's network by itself.
+
+   ```bash
+   sudo install -m 640 -o root -g up-onboarding /dev/null /etc/up-onboarding/rpc-url
+   sudo nano /etc/up-onboarding/rpc-url
+   ```
+
+   (one line: `https://rpc.chainintegrate.it/rpc/<key>`; `"rpcFile": "/etc/up-onboarding/rpc-url"` in the
+   configuration).
 
    ```bash
    sudo cp /var/www/up-onboarding/tools/creator/config.example.json /etc/up-onboarding/config.json

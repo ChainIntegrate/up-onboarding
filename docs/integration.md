@@ -12,7 +12,9 @@ name) and for the calls of the projects' catalog, with the catalog's on-chain ch
 LUKSO's Key Manager; the catalog (`shared/catalog.js`, section 5) of TraceabilityRegistry and Supplier Trust (sign-in
 messages and transactions) and of the gas cylinder registry (EIP-712, not served until its site and factory are set);
 the page provider (EIP-6963, `extension/provider.js` and `bridge.js`), the confirmation window (`confirm.html`) and
-"Connected sites" in the extension's page. Next: the projects' pages offer the extension (in their repositories,
+"Connected sites" in the extension's page; the network read through the account service (`/api/rpc`) from
+ChainIntegrate's node, whose access key stays on the server (the extension is public code), LUKSO's public node as
+the fallback. Next: the projects' pages offer the extension (in their repositories,
 BACKLOG item 12); the release; the live test on mainnet with the released 0.4.0 (no development builds handed out).
 
 ## 1. The goal

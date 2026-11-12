@@ -48,11 +48,16 @@ function loadConfig() {
   const c = JSON.parse(fs.readFileSync(file, "utf8"));
   const base = path.dirname(file);
   const abs = (p) => (path.isAbsolute(p) ? p : path.join(base, p));
-  const need = ["network", "rpc", "chainId", "gasKeyFile", "ipfsApi", "dataDir"];
+  const need = ["network", "chainId", "gasKeyFile", "ipfsApi", "dataDir"];
   for (const k of need) if (c[k] === undefined) throw new Error(`config: ${k} is missing`);
+  // The node: `rpcFile`, a file holding its URL when the URL carries an access key (ChainIntegrate's node:
+  // https://rpc.chainintegrate.it/rpc/<key>), so the key is not in the configuration; else `rpc`.
+  if (c.rpc === undefined && c.rpcFile === undefined) throw new Error("config: rpc or rpcFile is missing");
+  const rpc = c.rpcFile ? fs.readFileSync(abs(c.rpcFile), "utf8").trim() : c.rpc;
+  if (!/^https?:\/\//.test(rpc)) throw new Error("config: the node's URL must start with http(s)://");
   if (!UPRequest.NETWORKS.includes(c.network)) throw new Error("config: network must be lukso or lukso-testnet");
   return {
-    network: c.network, rpc: c.rpc, chainId: Number(c.chainId),
+    network: c.network, rpc, rpcHost: new URL(rpc).host, chainId: Number(c.chainId),
     gasKeyFile: abs(c.gasKeyFile), dataDir: abs(c.dataDir),
     ipfsApi: c.ipfsApi, ipfsAuthFile: c.ipfsAuthFile ? abs(c.ipfsAuthFile) : null,
     host: c.host || "127.0.0.1", port: Number(c.port || 8811),
@@ -60,6 +65,7 @@ function loadConfig() {
     maxControllers: Number(c.maxControllers ?? 5), inviteDays: Number(c.inviteDays ?? 30),
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
+    rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
   };
 }
 const secret = (file) => fs.readFileSync(file, "utf8").trim();
@@ -293,7 +299,9 @@ function makeService(cfg) {
     const signer = ethers.recoverAddress(digest, signature);
     const allowed = UPRelay.check(payload, { signer, chainId: cfg.chainId });
     if (!allowed.ok) throw new HttpError(400, "not_allowed", { reason: allowed.error });
-    if (!(await UPCatalog.verifyNeeds(provider, allowed.needs))) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
+    let isProject;
+    try { isProject = await UPCatalog.verifyNeeds(provider, allowed.needs); } catch (e) { throw new HttpError(503, "unavailable"); }
+    if (!isProject) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
     const data = UPRelay.KM.encodeFunctionData("executeRelayCall", [signature, nonce, validity, payload]);
     const run = queue.then(async () => {
       if (store.relayToday() >= cfg.maxRelayPerDay) { console.error("RELAY DAILY LIMIT reached"); throw new HttpError(429, "daily_limit"); }
@@ -318,6 +326,40 @@ function makeService(cfg) {
     queue = run.catch(() => {});
     return run;
   }
+
+  // ---- reading the network for the extension (the projects' pages and the confirmation window): the extension is
+  // public code and cannot hold the node's access key, so it reads through here. Only reading methods, one call per
+  // request, small, limited per IP; nothing is logged.
+  const RPC_READ = new Set(["eth_chainId", "eth_blockNumber", "eth_call", "eth_estimateGas", "eth_gasPrice", "eth_feeHistory", "eth_maxPriorityFeePerGas",
+    "eth_getBalance", "eth_getCode", "eth_getStorageAt", "eth_getTransactionCount", "eth_getTransactionByHash", "eth_getTransactionReceipt",
+    "eth_getBlockByNumber", "eth_getBlockByHash", "eth_getLogs"]);
+  const MAX_LOG_BLOCKS = 100000n;
+  const recentRpc = new Map();
+  function logsFilterOk(f) {
+    if (!f || typeof f !== "object" || !f.address) return false;
+    if (f.blockHash) return f.fromBlock === undefined && f.toBlock === undefined;
+    try { const a = BigInt(f.fromBlock), b = BigInt(f.toBlock); return a <= b && b - a <= MAX_LOG_BLOCKS; } catch (e) { return false; }
+  }
+  async function handleRpc(body, ip) {
+    const now = Date.now();
+    const list = (recentRpc.get(ip) || []).filter((t) => now - t < 60000);
+    if (list.length >= cfg.rpcPerIpPerMinute) throw new HttpError(429, "rate_limited");
+    list.push(now); recentRpc.set(ip, list);
+    const id = body && (typeof body.id === "number" || typeof body.id === "string") ? body.id : 1;
+    if (!body || typeof body !== "object" || Array.isArray(body) || !RPC_READ.has(body.method) || !Array.isArray(body.params || []) || JSON.stringify(body).length > 16384)
+      throw new HttpError(400, "not_allowed", { reason: "rpc_method" });
+    const params = body.params || [];
+    if (body.method === "eth_getLogs" && !logsFilterOk(params[0])) throw new HttpError(400, "not_allowed", { reason: "rpc_logs_range" });
+    let b;
+    try {
+      const r = await fetch(cfg.rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: body.method, params }), signal: AbortSignal.timeout(15000) });
+      b = await r.json();
+    } catch (e) { throw new HttpError(502, "upstream"); }
+    if (b && b.error) return { jsonrpc: "2.0", id, error: { code: Number.isInteger(b.error.code) ? b.error.code : -32603, message: String(b.error.message || "error").slice(0, 300), ...(b.error.data !== undefined ? { data: b.error.data } : {}) } };
+    if (!b || !("result" in b)) throw new HttpError(502, "upstream");
+    return { jsonrpc: "2.0", id, result: b.result };
+  }
+  setInterval(() => { const now = Date.now(); for (const [ip, l] of recentRpc) if (!l.some((t) => now - t < 60000)) recentRpc.delete(ip); }, 30000).unref();
 
   // A new profile on IPFS for an existing account, asked by one of its keys; the extension then writes its value
   // with the relay. Counted with the relay's operations (daily cap).
@@ -358,7 +400,7 @@ function makeService(cfg) {
     return { value: pinned.value, url: pinned.url };
   }
 
-  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, wallet, provider, store };
+  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleRpc, wallet, provider, store };
 }
 
 // The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
@@ -379,7 +421,7 @@ function serve(cfg) {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
     if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
-    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile"];
+    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile", "/api/rpc"];
     if (req.method !== "POST" || !ROUTES.includes(url.pathname)) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
@@ -390,7 +432,7 @@ function serve(cfg) {
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (e) { return send(400, { error: "bad_request", problems: ["json"] }); }
       try {
-        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile }[url.pathname];
+        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/rpc": svc.handleRpc }[url.pathname];
         send(200, await handler(body, ip));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }

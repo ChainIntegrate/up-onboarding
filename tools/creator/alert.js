@@ -49,7 +49,7 @@ async function problems(cfg) {
     const balance = await provider.getBalance(w.address);
     // The floor plus about ten creations: time to top it up before the service starts refusing.
     if (balance < ethers.parseEther(cfg.minBalance) + ethers.parseEther("0.1")) out.push(`The gas wallet ${w.address} has ${ethers.formatEther(balance)} (${cfg.network}): top it up, the service refuses creations under ${cfg.minBalance}.`);
-  } catch (e) { out.push(`The network (${cfg.rpc}) cannot be read: ${e.shortMessage || e.message}.`); }
+  } catch (e) { out.push(`The network (node ${cfg.rpcHost}) cannot be read: ${e.shortMessage || e.message}.`); }
   try {
     const day = new Date().toISOString().slice(0, 10);
     const n = fs.readFileSync(path.join(cfg.dataDir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)).length;
