@@ -444,7 +444,7 @@ function makeService(cfg) {
 // The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
 // version still in development on main is never offered), and where to download it: the extension compares it
 // with its own and offers the update.
-const EXTENSION_DOWNLOAD = "https://github.com/ChainIntegrate/up-onboarding/releases/latest";
+const EXTENSION_DOWNLOAD = "https://github.com/ChainIntegrate/up-onboarding/releases/latest/download/chainintegrate-account.zip"; // the same link as the client page's "Install"
 function latestExtension() {
   try {
     const version = fs.readFileSync(path.join(__dirname, "..", "..", "web", "extension", "latest.txt"), "utf8").trim();
