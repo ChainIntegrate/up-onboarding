@@ -15,7 +15,10 @@
 // address was changed does not open. After opening, the key must give back the record's address.
 //
 // The backup file holds one password record, for the client to keep away from the device:
-//   { kind: "chainintegrate-up-key-backup", version: 1, created, name, key: <password record> }
+//   { kind: "chainintegrate-up-key-backup", version: 1, created, name, key: <password record>,
+//     account: { address, network } (optional) }
+// `account` names the account the key controls, in clear (public data, outside the encrypted record): a restore
+// finds the account from the file, without the service. It is not trusted for anything else.
 // A record of method "secret" is tied to the device and is never a backup.
 (function (root, factory) {
   const api = factory(root.ethers || (typeof require === "function" ? require("ethers").ethers : null), root.crypto && root.crypto.subtle ? root.crypto : require("crypto").webcrypto);
@@ -105,11 +108,22 @@
   }
 
   // The backup file of a password record; `name` is a label for the client ("Backup key, Rossi Srl").
-  function backupFile(record, { name = "" } = {}) {
+  const NETWORKS = ["lukso", "lukso-testnet"];
+  function checkAccount(a) {
+    if (a == null) return null;
+    if (typeof a !== "object" || !ethers.isAddress(a.address) || !NETWORKS.includes(a.network)) throw fail("BAD_BACKUP", "The account named in the backup is not valid.");
+    return { address: ethers.getAddress(a.address), network: a.network };
+  }
+  function backupFile(record, { name = "", account = null } = {}) {
     checkRecord(record);
     if (record.method !== "password") throw fail("NOT_PORTABLE", "Only a password-protected key can be a backup.");
-    return { kind: BACKUP_KIND, version: VERSION, created: new Date().toISOString(), name: String(name).slice(0, 64), key: record };
+    const file = { kind: BACKUP_KIND, version: VERSION, created: new Date().toISOString(), name: String(name).slice(0, 64), key: record };
+    const acc = checkAccount(account);
+    if (acc) file.account = acc;
+    return file;
   }
+  // The record and the account the file names (null when it names none).
+  function readBackupInfo(obj) { const record = readBackup(obj); return { record, account: checkAccount(obj.account) }; }
   function readBackup(obj) {
     if (!obj || obj.kind !== BACKUP_KIND || obj.version !== VERSION) throw fail("BAD_BACKUP", "Not a backup file of this format.");
     checkRecord(obj.key);
@@ -117,5 +131,5 @@
     return obj.key;
   }
 
-  return { VERSION, ROUNDS, MIN_PASSWORD, BACKUP_KIND, generate, sealWithPassword, sealWithSecret, open, withKey, backupFile, readBackup, wipe };
+  return { VERSION, ROUNDS, MIN_PASSWORD, BACKUP_KIND, generate, sealWithPassword, sealWithSecret, open, withKey, backupFile, readBackup, readBackupInfo, wipe };
 });

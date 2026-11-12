@@ -173,6 +173,7 @@
 <!-- The backup copy: download -->
 <div class="panel screen" id="sBackup" hidden>
   <h2 data-i18n="backupTitle">Crea la copia di backup</h2>
+  <div class="lead" id="backupAccountNote" hidden style="margin-bottom:10px;" data-i18n-html="backupAccountHtml"></div>
   <div class="lead" data-i18n-html="backupHtml"></div>
   <label for="bkPw" data-i18n="bkPwLabel">Password della copia di backup (almeno 12 caratteri)</label>
   <input type="password" id="bkPw" autocomplete="new-password">
@@ -193,6 +194,18 @@
   <button id="verifyBtn" type="button" data-i18n="verifyBtn">Controlla</button>
   <button id="verifyAgain" class="secondary" type="button" data-i18n="downloadAgainBtn">Scaricala di nuovo</button>
   <div class="msg" id="verifyMsg"></div>
+</div>
+
+<!-- The account exists but no backup copy names it yet: required before anything else -->
+<div class="panel screen" id="sNeedBackup" hidden>
+  <h2 data-i18n="needTitle">Ultimo passo: la copia di backup del tuo account</h2>
+  <div class="lead" data-i18n-html="needHtml"></div>
+  <div id="needPwBox" hidden>
+    <label for="needPw" data-i18n="unlockPwLabel">Password di questo computer</label>
+    <input type="password" id="needPw" autocomplete="current-password">
+  </div>
+  <button id="needBtn" type="button" data-i18n="needBtn">Crea la copia di backup</button>
+  <div class="msg" id="needMsg"></div>
 </div>
 
 <!-- Ready -->
@@ -224,6 +237,9 @@
   <div class="panel" id="pAccount" hidden>
     <h2 data-i18n="accountTitle">Il tuo account</h2>
     <div class="img-prev" id="accountCard"></div>
+    <div class="note" style="margin-top:10px;" data-i18n="accountAddrLabel">Indirizzo del tuo account</div>
+    <div class="code" id="accountAddr"></div>
+    <button id="copyAccount" class="secondary" type="button" data-i18n="copyAccountBtn">Copia l'indirizzo dell'account</button>
     <div class="lead" style="margin-top:10px;" data-i18n-html="accountReadyHtml"></div>
     <a id="profileLink" class="ui-link" href="#" target="_blank" rel="noopener" data-i18n="profileLink">Vedi il tuo profilo pubblico</a>
     <details id="editBox" style="margin-top:14px;">

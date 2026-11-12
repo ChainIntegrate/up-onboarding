@@ -55,3 +55,17 @@ test("backup file round trip", async () => {
   assert.throws(() => K.readBackup({ ...file, kind: "x" }), { code: "BAD_BACKUP" });
   assert.throws(() => K.readBackup({ ...file, key: { ...rec, kdf: { ...rec.kdf, rounds: 1000 } } }), { code: "BAD_RECORD" });
 });
+
+test("a backup file can name the account, in clear", async () => {
+  const k = K.generate();
+  const rec = await K.sealWithPassword(k.privateKey, PW);
+  const acct = { address: K.generate().address.toLowerCase(), network: "lukso" };
+  const file = JSON.parse(JSON.stringify(K.backupFile(rec, { name: "b", account: acct })));
+  const info = K.readBackupInfo(file);
+  assert.strictEqual(info.account.address, ethers.getAddress(acct.address));
+  assert.strictEqual(info.account.network, "lukso");
+  assert.deepStrictEqual(await K.open(info.record, { password: PW }), k.privateKey);
+  assert.strictEqual(K.readBackupInfo(K.backupFile(rec)).account, null);
+  assert.throws(() => K.readBackupInfo({ ...file, account: { address: "0x12", network: "lukso" } }), { code: "BAD_BACKUP" });
+  assert.throws(() => K.backupFile(rec, { account: { address: acct.address, network: "ethereum" } }), { code: "BAD_BACKUP" });
+});

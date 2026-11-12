@@ -50,15 +50,18 @@ judging what Universal Everything shows (item 4).
     an administrator, so it does not matter; before a phone (the Android app) is added as a device, give device
     keys EXECUTE_RELAY_CALL (new accounts) and decide how existing ones get it.
 
-11. **The backup copy names the account** (2026-11-12, asked by the maintainer). The backup holds only the key
+11. **The backup copy names the account** (2026-11-12, asked by the maintainer; *done in 0.4.0, required*). The backup holds only the key
     (encrypted) and its address: the account itself needs no backup (it lives on the network and the key controls
     it), but after a restore the extension finds which account through the service (`/api/lookup`). If the service
     were down or gone, the key would still work but the extension would not know its account. To do in 0.4.0:
     - a backup made after the creation also holds the account's address and network, in clear (public data,
       outside the encrypted part, not trusted for anything but finding the account; checked on-chain: the key must
       be among the account's controllers);
-    - after the creation, the extension offers to make a new backup copy (with the account), and says why;
-    - on a restore, the address in the file first, the service as a fallback;
+    - after the creation, a new backup copy naming the account is **required** (decided by the maintainer), as
+      at the first setup: made and checked before anything else; accounts created before 0.4.0 are brought to the
+      same required step; the earlier copy is not accepted in its place;
+    - on a restore, the address in the file first (confirmed with the service when it answers: if the service
+      knows another account for the key, its answer wins and a new copy is required), the service as a fallback;
     - the account's address shown and copiable on the ready screen.
 
 ## Under investigation

@@ -169,8 +169,17 @@ async function verify(page, file, pw) {
   const UP = ethers.Wallet.createRandom().address;
   answer = { status: 200, body: { up: UP, km: ethers.Wallet.createRandom().address, tx: "0x" + "ab".repeat(32), network: "lukso" } };
   await page.fill("#createPw", PW); await page.click("#createBtn");
+  // the required backup copy that names the account, right after the creation
+  await visible(page, "sBackup");
+  check(await page.isVisible("#backupAccountNote"), "after the creation a new backup copy is required, and the screen says why");
+  const fileAcc = await downloadBackup(page, "backup-account.json");
+  check(K.readBackupInfo(JSON.parse(fs.readFileSync(fileAcc))).account.address === UP, "the new backup copy names the account");
+  await verify(page, file1, BK);
+  check(/senza il tuo account/.test(await msg(page, "verifyMsg")) && !(await page.isVisible("#sMain")), "the earlier copy (without the account) is not accepted as the account's backup");
+  await verify(page, fileAcc, BK);
   await visible(page, "pAccount");
   const acc = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
+  check(acc.backupHasAccount === true && (await page.textContent("#accountAddr")).trim() === UP, "then the account is ready, its address shown");
   check(acc.nameInAccount === "PC ufficio" && (await page.isVisible("#devNameLine")) && /PC ufficio/.test(await page.textContent("#devNameLine")), "after the creation the computer's name written in the account is shown");
   check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
@@ -241,10 +250,21 @@ async function verify(page, file, pw) {
   check(true, "restore refuses a wrong password");
   await page.fill("#restorePw", BK); await page.click("#restoreBtn"); await visible(page, "sProtect");
   await page.check("input[name=how][value=password]"); await page.fill("#devPw", PW); await page.fill("#devPw2", PW);
-  await page.click("#protectBtn"); await visible(page, "sMain");
-  check((await page.textContent("#code")).trim() === code, "the restored access has the same code");
-  await visible(page, "pAccount");
-  check(asked === code && (await page.evaluate(() => chrome.storage.local.get("account"))).account.up === FOUND, "after a restore the account is found again by its key");
+  await page.click("#protectBtn");
+  await visible(page, "sNeedBackup");
+  check(asked === code && (await page.evaluate(() => chrome.storage.local.get("account"))).account.up === FOUND,
+    "restoring an earlier copy (without the account): the service finds the account by its key");
+  check(!(await page.isVisible("#sMain")), "and a backup copy naming the account is required before anything else");
+  await ctx.close();
+
+  // ---- 2b. restore from the copy that names the account, with the service unreachable
+  ({ ctx, page } = await launch());
+  await ctx.route("https://account.chainintegrate.it/api/lookup", (r) => r.abort());
+  await page.click("#startRestore"); await visible(page, "sRestore");
+  await page.setInputFiles("#restoreFile", fileAcc); await page.fill("#restorePw", BK); await page.click("#restoreBtn"); await visible(page, "sProtect");
+  await page.check("input[name=how][value=password]"); await page.fill("#devPw", PW); await page.fill("#devPw2", PW);
+  await page.click("#protectBtn"); await visible(page, "pAccount");
+  check((await page.textContent("#code")).trim() === code && (await page.textContent("#accountAddr")).trim() === UP, "restoring the copy that names the account finds it from the file, without the service");
   await ctx.close();
 
   // ---- 3. setup with the computer's lock (virtual authenticator with PRF)

@@ -92,6 +92,14 @@
       codeHtml: "Il <b>codice</b> di questo computer. Non è segreto: ti serve solo se ChainIntegrate te lo chiede.",
       copyBtn: "Copia il codice",
       copied: "✅ Codice copiato.",
+      backupAccountHtml: "<b>Il tuo account è pronto.</b> Ultimo passo, obbligatorio: una nuova copia di backup che contiene anche l'<b>indirizzo del tuo account</b>, così lo ritrovi anche senza ChainIntegrate. La copia di prima apre ancora l'accesso, ma tieni questa.",
+      needTitle: "Ultimo passo: la copia di backup del tuo account",
+      needHtml: "Il tuo account esiste, ma nessuna copia di backup contiene ancora il suo indirizzo. Creane una nuova: è obbligatoria, e ti fa ritrovare l'account anche senza ChainIntegrate. La copia di prima apre ancora l'accesso, ma tieni questa.",
+      needBtn: "Crea la copia di backup",
+      oldBackup: "❌ Questa è una copia di backup senza il tuo account (forse quella di prima): carica quella appena scaricata.",
+      accountAddrLabel: "Indirizzo del tuo account",
+      copyAccountBtn: "Copia l'indirizzo dell'account",
+      accountCopied: "✅ Indirizzo dell'account copiato.",
       editTitle: "Modifica il profilo o il nome di questo computer",
       editNote: "Le modifiche vengono scritte nel tuo account: le conferma questo computer, il costo lo copre ChainIntegrate. <b>Il profilo è pubblico</b>, e le versioni precedenti restano consultabili. Universal Everything mostra le modifiche dopo qualche minuto.",
       eProfileBtn: "Aggiorna il profilo",
@@ -212,6 +220,14 @@
       codeHtml: "This computer's <b>code</b>. It is not secret: you need it only if ChainIntegrate asks for it.",
       copyBtn: "Copy the code",
       copied: "✅ Code copied.",
+      backupAccountHtml: "<b>Your account is ready.</b> Last step, required: a new backup copy that also holds your <b>account's address</b>, so you find it again even without ChainIntegrate. The earlier copy still opens the access, but keep this one.",
+      needTitle: "Last step: your account's backup copy",
+      needHtml: "Your account exists, but no backup copy holds its address yet. Create a new one: it is required, and it lets you find the account again even without ChainIntegrate. The earlier copy still opens the access, but keep this one.",
+      needBtn: "Create the backup copy",
+      oldBackup: "❌ This backup copy does not hold your account (perhaps the earlier one): load the one you just downloaded.",
+      accountAddrLabel: "Your account's address",
+      copyAccountBtn: "Copy the account's address",
+      accountCopied: "✅ Account address copied.",
       editTitle: "Change the profile or this computer's name",
       editNote: "Changes are written into your account: this computer confirms them, ChainIntegrate covers the cost. <b>The profile is public</b>, and earlier versions remain viewable. Universal Everything shows the changes after a few minutes.",
       eProfileBtn: "Update the profile",
@@ -330,10 +346,11 @@
     if (!(await guard("restoreMsg"))) return;
     busy(true, "restoreMsg");
     try {
-      const rec = K.readBackup(await readJsonFile($("restoreFile")));
+      const info = K.readBackupInfo(await readJsonFile($("restoreFile")));
+      const rec = info.record;
       const privateKey = await K.open(rec, { password: $("restorePw").value });
       endPending();
-      pending = { mode: "restore", privateKey, address: rec.address };
+      pending = { mode: "restore", privateKey, address: rec.address, accountFromFile: info.account };
       $("restorePw").value = ""; $("restoreFile").value = "";
       show("sProtect");
     } catch (e) { say("restoreMsg", explain(e), "line-err"); } finally { busy(false); }
@@ -363,8 +380,11 @@
       $("devPw").value = ""; $("devPw2").value = "";
       pending.deviceRecord = record;
       if (pending.mode === "restore") {
-        // The backup has just been opened: it works.
-        await save({ record, name: "", created: new Date().toISOString(), backupCheckedAt: new Date().toISOString() });
+        // The backup has just been opened: it works. The account it names, if any, is taken from it (and confirmed
+        // with the service when it answers, see confirmAccount).
+        const fromFile = pending.accountFromFile;
+        await save({ record, name: "", created: new Date().toISOString(), backupCheckedAt: new Date().toISOString(),
+          ...(fromFile ? { up: fromFile.address, network: fromFile.network, backupHasAccount: true, accountFromFile: true } : {}) });
         endPending();
         await showMain();
       } else {
@@ -388,7 +408,8 @@
     try {
       const rec = await K.sealWithPassword(pending.privateKey, $("bkPw").value);
       $("bkPw").value = ""; $("bkPw2").value = "";
-      pending.backupJson = JSON.stringify(K.backupFile(rec, { name: t("backupLabel", { date: today() }) }), null, 2);
+      const acct = pending.withAccount && account && account.up ? { address: account.up, network: account.network || "lukso" } : null;
+      pending.backupJson = JSON.stringify(K.backupFile(rec, { name: t("backupLabel", { date: today() }), account: acct }), null, 2);
       download(pending.backupJson, `${t("backupFileName")}-${new Date().toISOString().slice(0, 10)}.json`);
       // The key is no longer needed: the backup is checked from the file, against the address.
       K.wipe(pending.privateKey); pending.privateKey = null;
@@ -406,16 +427,19 @@
     if (!(await guard("verifyMsg"))) return;
     busy(true, "verifyMsg");
     try {
-      const rec = K.readBackup(await readJsonFile($("verifyFile")));
+      const info = K.readBackupInfo(await readJsonFile($("verifyFile")));
+      const rec = info.record;
       const want = verifyMode === "check" || (pending && pending.mode === "renew") ? account.record.address : pending.address;
       if (rec.address !== want) throw Object.assign(new Error(t("otherBackup")), { shown: true });
+      const namesAccount = !!(account && account.up && info.account && info.account.address === ethers.getAddress(account.up));
+      if (pending && pending.withAccount && !namesAccount) throw Object.assign(new Error(t("oldBackup")), { shown: true });
       K.wipe(await K.open(rec, { password: $("verifyPw").value }));
       $("verifyPw").value = ""; $("verifyFile").value = "";
       const now = new Date().toISOString();
       if (verifyMode === "setup" && pending && pending.mode === "new") {
         await save({ record: pending.deviceRecord, name: "", created: now, backupCheckedAt: now });
       } else {
-        await save({ ...account, backupCheckedAt: now });
+        await save({ ...account, backupCheckedAt: now, ...(namesAccount ? { backupHasAccount: true } : {}) });
       }
       endPending();
       await showMain();
@@ -425,6 +449,11 @@
 
   // ---- ready
   async function showMain() {
+    if (account.up && !account.backupHasAccount) {
+      show("sNeedBackup");
+      $("needPwBox").hidden = account.record.method !== "password";
+      return;
+    }
     show("sMain");
     $("code").textContent = account.record.address;
     // The computer's name as written in the account at its creation (BACKLOG item 7); unknown after a restore.
@@ -435,7 +464,7 @@
     const has = !!account.up;
     $("pCreate").hidden = has; $("pAccount").hidden = !has;
     $("createPwBox").hidden = has || account.record.method !== "password";
-    if (has) { renderAccount(); prefillEdit(); } else findAccount();
+    if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else findAccount();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
     if (!has) resetCreateForm();
@@ -514,7 +543,23 @@
     } catch (e) { /* offline: the client can still create or try later */ }
   }
 
+  // An account taken from a backup file is confirmed with the service when it answers: a file changed by hand cannot
+  // tie the key to another account (the service knows which account each key was created with).
+  async function confirmAccount() {
+    try {
+      const res = await fetch(CONFIG.lookup, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: account.record.address }) });
+      if (!res.ok) return; // offline or unknown to the service: the file's account stays
+      const b = await res.json();
+      if (!b.up || !ethers.isAddress(b.up)) return;
+      if (ethers.getAddress(b.up) === ethers.getAddress(account.up)) { await save({ ...account, accountFromFile: false }); return; }
+      // The file named another account: the service's wins, and a new backup copy naming it is required.
+      await save({ ...account, up: ethers.getAddress(b.up), network: b.network || "lukso", accountFromFile: false, backupHasAccount: false });
+      await showMain();
+    } catch (e) { /* offline: try again at the next opening */ }
+  }
+
   function renderAccount() {
+    $("accountAddr").textContent = account.up;
     const card = $("accountCard"); card.innerHTML = "";
     if (account.picture) { const img = document.createElement("img"); img.src = account.picture; img.alt = ""; card.appendChild(img); }
     const b = document.createElement("b"); b.textContent = account.profileName || ""; card.appendChild(b);
@@ -544,7 +589,11 @@
       // The request is signed with this computer's key, unlocked as usual: the service creates the account only
       // for a key its owner holds.
       const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password: $("createPw").value };
-      const signature = await K.withKey(account.record, unlock, (sk) => sk.sign(ethers.hashMessage(UPRequest.signingMessage(request))).serialized);
+      // The key stays open until the required backup copy that names the account is made (right after).
+      const privateKey = await K.open(account.record, unlock);
+      endPending();
+      pending = { mode: "renew", privateKey, address: account.record.address, withAccount: true };
+      const signature = new ethers.SigningKey(ethers.hexlify(privateKey)).sign(ethers.hashMessage(UPRequest.signingMessage(request))).serialized;
       $("createPw").value = "";
       say("createMsg", t("creating"), "line-dim");
       let res, body;
@@ -562,28 +611,35 @@
       }
       await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, profileDesc: request.profile.description, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
       $("invite").value = ""; $("pName").value = ""; $("pDesc").value = ""; resetCreateForm();
-      await showMain();
-      say("mainMsg", t("created"), "line-ok");
-    } catch (e) { say("createMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
+      verifyMode = "setup";
+      show("sBackup");
+      $("backupAccountNote").hidden = false;
+    } catch (e) { endPending(); say("createMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
   });
 
   $("checkBackup").addEventListener("click", () => { endPending(); verifyMode = "check"; show("sVerify"); $("verifyAgain").hidden = true; });
 
   // A new backup copy needs the key: unlocked with the computer's lock or this computer's password.
-  async function startRenew(password) {
-    if (!(await guard("mainMsg"))) return;
-    busy(true, "mainMsg");
+  async function startRenew(password, msgId = "mainMsg") {
+    if (!(await guard(msgId))) return;
+    busy(true, msgId);
     let secret = null;
     try {
       const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password };
       const privateKey = await K.open(account.record, unlock);
       endPending();
-      pending = { mode: "renew", privateKey, address: account.record.address };
-      $("unlockPw").value = "";
+      pending = { mode: "renew", privateKey, address: account.record.address, withAccount: !!account.up };
+      $("unlockPw").value = ""; $("needPw").value = "";
+      $("backupAccountNote").hidden = true;
       verifyMode = "setup";
       show("sBackup");
-    } catch (e) { say("mainMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
+      $("backupAccountNote").hidden = msgId !== "needMsg";
+    } catch (e) { say(msgId, explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
   }
+  $("needBtn").addEventListener("click", () => startRenew($("needPw").value, "needMsg"));
+  $("copyAccount").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(account.up); say("mainMsg", t("accountCopied"), "line-ok"); } catch (e) { /* select by hand */ }
+  });
   $("newBackup").addEventListener("click", () => {
     if (account.record.method === "secret") startRenew();
     else { $("unlockBox").hidden = false; $("unlockPw").focus(); }
