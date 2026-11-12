@@ -17,7 +17,7 @@ chooses to make it a recovery administrator.
 | **Web page** | Creates the Universal Profile: profile, keys and permissions, one transaction to LUKSO's LSP23 factory sent and paid by the operator | [`web/`](web/) | working, tested on a local chain |
 | **Browser extension** | The client's keys on the computer: creates them, prepares the request for the operator, signs for ChainIntegrate's services. Separate from UP Wallet | [`extension/`](extension/) | design |
 | **Android app** | The same on the phone. Separate from UP Wallet for Android | [`android/`](android/) | design |
-| **Shared code** | Key storage, signing and the request format, used by both the extension and the app | [`shared/`](shared/) | design |
+| **Shared code** | The request file's format and checks, and the client's keys (created, kept encrypted, backed up), used by the page, the extension and the app | [`shared/`](shared/) | working, unit-tested |
 
 This project is separate from [Cross_Chain](https://github.com/ChainIntegrate/Cross_Chain) and its UP Wallet
 (the extension and the Android app), which serve people who already use crypto. The page reuses two small
@@ -60,7 +60,8 @@ LUKSO contracts used (same address on LUKSO and LUKSO Testnet; the page checks e
 ## Pages
 
 Every page is in Italian and English, with a toggle at the top (the choice is kept in the browser; `?lang=en`
-or `?lang=it` sets it from a link). Pages load only their own scripts and ethers 6.13.4 from cdnjs with its
+or `?lang=it` sets it from a link). The look is ChainIntegrate's logo: light grey, ink, teal and slate blue, with
+a dark theme on request (the button next to the language). Pages load only their own scripts and ethers 6.13.4 from cdnjs with its
 integrity hash, and never hold a private key.
 
 | Page | What it does |
@@ -71,15 +72,21 @@ integrity hash, and never hold a private key.
 
 ```bash
 npm install
+npx playwright install chromium
 npm test
 ```
 
-`test/e2e.js` starts a local Hardhat chain with LUKSO Testnet's chainId and LUKSO's own contracts at their
-official addresses (`test/fixtures/lukso-contracts.json`, bytecode from LUKSO's npm packages
-`@lukso/lsp-smart-contracts@0.14.0` and `@lukso/lsp23-contracts@0.15.0`), runs the page in Chromium with a
-test wallet, creates a UP and checks it: the page's own verification, a device key that can update the
-profile but cannot add a controller, an administrator that can, the LYX step, the request file, IPFS mode
-(Pinata answered locally), the language toggle and the layout at phone width.
+- `npm run test:unit` (`test/unit/`): the request file's checks, the key store (password and device secret,
+  wrong secrets, a record with a changed address, tampered ciphertext, the backup file) and that
+  `web/lib/shared/` is a copy of `shared/` (`npm run sync` updates it).
+- `npm run test:e2e` (`test/e2e.js`) starts a local Hardhat chain with LUKSO Testnet's chainId and LUKSO's own
+  contracts at their official addresses (`test/fixtures/lukso-contracts.json`, bytecode from LUKSO's npm
+  packages `@lukso/lsp-smart-contracts@0.14.0` and `@lukso/lsp23-contracts@0.15.0`), runs the page in Chromium
+  with a test wallet, creates a UP and checks it: the page's own verification, a device key that can update the
+  profile but cannot add a controller, an administrator that can, the LYX step, the request file saved and
+  loaded back, IPFS mode (Pinata answered locally), the language toggle and the layout at phone width.
+
+Both run on GitHub Actions at every push (`.github/workflows/test.yml`).
 
 ## License
 
@@ -88,7 +95,7 @@ repository and its licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Trademarks
 
-"ChainIntegrate", its logo and its banner are ChainIntegrate's and are **not** licensed under the MIT License.
+"ChainIntegrate" and its logo are ChainIntegrate's and are **not** licensed under the MIT License.
 You may use the code, but a copy or a modified version must not present itself as ChainIntegrate or as
 ChainIntegrate's service, and must not use its name or logo except to say, truthfully, that it is based on this
 project.

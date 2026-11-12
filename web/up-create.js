@@ -32,6 +32,13 @@
       draftSaved: "✅ Richiesta salvata.",
       draftLoaded: "✅ Richiesta caricata.",
       draftBad: (v) => `❌ File non valido: ${v.err}`,
+      draftIncomplete: (v) => `⚠️ La richiesta è incompleta o ha dati scartati: ${v.what}.`,
+      notARequest: "non è un file richiesta di questa pagina",
+      reqErr_object: "il file non contiene una richiesta", reqErr_kind: "tipo di file", reqErr_version: "versione del formato",
+      reqErr_network: "rete", reqErr_salt: "salt", reqErr_profile_name: "manca il nome", reqErr_profile_tags: "troppi tag",
+      reqErr_profile_links: "link non valido", reqErr_images_avatar: "immagine del profilo non valida", reqErr_images_cover: "copertina non valida",
+      reqErr_controllers: "troppe chiavi", reqErr_controllers_address: "indirizzo non valido", reqErr_controllers_duplicate: "indirizzo ripetuto",
+      reqErr_controllers_role: "ruolo non valido", reqErr_controllers_none: "nessuna chiave", reqErr_controllers_noAdmin: "nessun amministratore",
       panel2Title: "2 · Il profilo",
       nameLabel: "Nome (persona o società)",
       descLabel: "Descrizione",
@@ -127,6 +134,13 @@
       draftSaved: "✅ Request saved.",
       draftLoaded: "✅ Request loaded.",
       draftBad: (v) => `❌ Invalid file: ${v.err}`,
+      draftIncomplete: (v) => `⚠️ The request is incomplete or had data dropped: ${v.what}.`,
+      notARequest: "not a request file of this page",
+      reqErr_object: "the file holds no request", reqErr_kind: "file type", reqErr_version: "format version",
+      reqErr_network: "network", reqErr_salt: "salt", reqErr_profile_name: "the name is missing", reqErr_profile_tags: "too many tags",
+      reqErr_profile_links: "invalid link", reqErr_images_avatar: "invalid profile image", reqErr_images_cover: "invalid cover",
+      reqErr_controllers: "too many keys", reqErr_controllers_address: "invalid address", reqErr_controllers_duplicate: "repeated address",
+      reqErr_controllers_role: "invalid role", reqErr_controllers_none: "no keys", reqErr_controllers_noAdmin: "no administrator",
       panel2Title: "2 · The profile",
       nameLabel: "Name (person or company)",
       descLabel: "Description",
@@ -643,20 +657,32 @@
   });
 
   // ==================== REQUEST FILE ====================
-  $("saveDraft").addEventListener("click", () => {
-    const draft = {
-      kind: "chainintegrate-up-create", version: 1, network: net().key, salt,
-      profile: { name: $("pName").value, description: $("pDesc").value, tags: $("pTags").value, links: $("pLinks").value },
+  // The format and its checks are in shared/request.js (web/lib/shared/request.js), the same code the client's
+  // extension and app use to write it.
+  function formFields() {
+    const links = $("pLinks").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+      const cut = l.lastIndexOf("|");
+      return cut > 0 ? { title: l.slice(0, cut).trim(), url: l.slice(cut + 1).trim() } : { title: "", url: l };
+    });
+    return {
+      network: net().key, salt,
+      profile: { name: $("pName").value, description: $("pDesc").value, tags: $("pTags").value.split(","), links },
       images: { avatar: images.avatar, cover: images.cover },
-      controllers: readRows(),
+      controllers: readRows().filter((r) => r.address || r.name),
     };
-    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: "application/json" });
+  }
+  const problemList = (errors) => errors.map((e) => t("reqErr_" + e.split(".").filter((x) => !/^\d+$/.test(x)).join("_")) + (/\.(\d+)/.test(e) ? ` (${Number(e.match(/\.(\d+)/)[1]) + 1})` : "")).join("; ");
+
+  $("saveDraft").addEventListener("click", () => {
+    const { request, errors } = UPRequest.create(formFields());
+    const blob = new Blob([JSON.stringify(request, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
-    const slug = ($("pName").value || "profilo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "profilo";
+    const slug = (request.profile.name || "profilo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "profilo";
     a.href = URL.createObjectURL(blob); a.download = `up-request-${slug}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     log(t("draftSaved"), "line-ok");
+    if (errors.length) log(t("draftIncomplete", { what: problemList(errors) }), "line-warn");
   });
   $("loadDraft").addEventListener("click", () => $("draftFile").click());
   $("draftFile").addEventListener("change", async (ev) => {
@@ -664,25 +690,26 @@
     ev.target.value = "";
     if (!f) return;
     try {
-      const d = JSON.parse(await f.text());
-      if (!d || d.kind !== "chainintegrate-up-create" || d.version !== 1) throw new Error("not a request of this page");
-      if (NETS.some((n) => n.key === d.network)) netSel.value = d.network;
-      if (typeof d.salt === "string" && ethers.isHexString(d.salt, 32)) salt = d.salt;
-      const pr = d.profile || {};
-      $("pName").value = String(pr.name || ""); $("pDesc").value = String(pr.description || "");
-      $("pTags").value = String(pr.tags || ""); $("pLinks").value = String(pr.links || "");
+      if (f.size > 8 * 1024 * 1024) throw new Error("file too large");
+      const { request: d, errors } = UPRequest.parse(JSON.parse(await f.text()));
+      if (!d || errors.includes("kind") || errors.includes("version")) throw new Error(t("notARequest"));
+      if (d.network) netSel.value = d.network;
+      if (d.salt) salt = d.salt;
+      $("pName").value = d.profile.name; $("pDesc").value = d.profile.description;
+      $("pTags").value = d.profile.tags.join(", ");
+      $("pLinks").value = d.profile.links.map((l) => `${l.title} | ${l.url}`).join("\n");
       for (const kind of ["avatar", "cover"]) {
-        const im = d.images && d.images[kind];
         images[kind] = null;
-        // Only raster images, re-encoded here: the file's own data URL is never used as it is.
-        if (im && typeof im.dataUrl === "string" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(im.dataUrl)) images[kind] = await resize(im.dataUrl, kind === "avatar" ? 512 : 1200, 0.85);
+        // Re-encoded here: the file's own data URL is never used as it is.
+        if (d.images[kind]) { try { images[kind] = await resize(d.images[kind].dataUrl, kind === "avatar" ? 512 : 1200, 0.85); } catch (e) { errors.push("images." + kind); } }
         showImage(kind);
       }
       $("ctrlRows").innerHTML = "";
-      (Array.isArray(d.controllers) ? d.controllers : []).slice(0, 20).forEach((c) => addRow({ address: String(c.address || ""), name: String(c.name || ""), role: c.role === "device" ? "device" : "admin" }));
+      d.controllers.forEach((c) => addRow(c));
       if (!document.querySelector(".ctrl-row")) addRow();
       invalidate();
       log(t("draftLoaded"), "line-ok");
+      if (errors.length) log(t("draftIncomplete", { what: problemList(errors) }), "line-warn");
     } catch (e) { log(t("draftBad", { err: errText(e) }), "line-err"); }
   });
 

@@ -6,7 +6,7 @@
 // announced through EIP-6963 sends with the node's first account. Checked:
 // - the page creates the UP, and its own check after the transaction passes;
 // - on the new UP, a device key can update LSP3Profile but cannot add a controller; an administrator can;
-// - the LYX step funds each key; the request file round-trips;
+// - the LYX step funds each key; the request file is saved and loads back;
 // - IPFS mode (Pinata answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width.
 "use strict";
 const { spawn } = require("child_process");
@@ -120,6 +120,14 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     const reqPath = path.join(OUT, "request.json"); await dl.saveAs(reqPath);
     const req = JSON.parse(fs.readFileSync(reqPath));
     check(req.kind === "chainintegrate-up-create" && req.controllers.length === 3 && !!req.images.avatar, "the request file holds profile, image and keys");
+    const again = await newPage(browser, operator);
+    await again.goto(`http://127.0.0.1:${PORT}/up-create.html`);
+    await again.setInputFiles("#draftFile", reqPath);
+    await again.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 3);
+    check((await again.inputValue("#pName")) === "Cantina Esempio Srl" && (await again.inputValue("#pLinks")) === "Sito | https://www.esempio.it/" &&
+      (await again.locator(".ctrl-row").nth(2).locator(".c-role").inputValue()) === "device" && (await again.locator("#avatarPrev img").count()) === 1,
+      "a saved request loads back into the page");
+    await again.close();
     await page.screenshot({ path: path.join(OUT, "desktop.png"), fullPage: true });
 
     // ---- IPFS mode, phone width

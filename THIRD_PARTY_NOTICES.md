@@ -20,7 +20,7 @@ Playwright) are not included and keep their own licenses.
 
 ## Names and logos
 
-ChainIntegrate's name, logo and banner (`web/logo.png`, `web/banner.webp`, `web/icon-192.png`,
+ChainIntegrate's name and logo (`web/logo.png`, `web/icon-192.png`,
 `web/favicon.ico`, `web/og-image.jpg`) are not covered by the MIT License: see "Trademarks" in
 [README.md](README.md). LUKSO, Universal Profile and Universal Everything are names of their respective
 owners, used only to describe what this software works with.

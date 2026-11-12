@@ -1,25 +1,25 @@
-// Light / dark theme for the tool pages. Loaded in <head> so the saved choice applies before the
-// page paints. The pages define their dark colours as CSS variables on :root; the light theme
-// redefines the same variables on html[data-theme="light"], which wins over :root.
-// The choice is kept in this browser only (localStorage); without it the pages stay dark.
+// Light / dark theme of the pages. Loaded in <head> so the saved choice applies before the page paints.
+// The pages define ChainIntegrate's light look (from its logo) as CSS variables on :root; the dark theme
+// redefines the same variables on html[data-theme="dark"], which wins over :root.
+// The choice is kept in this browser only (localStorage); without it the pages are light.
 (function () {
-  const KEY = "ci-theme";
+  const KEY = "uponboarding.theme";
   const saved = (() => { try { return localStorage.getItem(KEY); } catch (e) { return null; } })();
   const root = document.documentElement;
-  root.setAttribute("data-theme", saved === "light" ? "light" : "dark");
+  root.setAttribute("data-theme", saved === "dark" ? "dark" : "light");
 
   const css = `
-html[data-theme="light"] {
-  --bg: #f3f4f7; --panel: #ffffff; --border: #d6dae2;
-  --text: #1b1f27; --text-dim: #5a6170;
-  --accent: #2f66f0; --ok: #1a8a4a; --warn: #a8650a; --err: #c93535;
-  --field: #f8f9fb; --chip: #e7e9ef; --disabled: #c4c9d3; --raised: #ffffff;
-  color-scheme: light;
+html[data-theme="dark"] {
+  --bg: #111517; --panel: #1a2023; --border: #2b353a; --field: #12171a; --chip: #25323a; --disabled: #3a464d; --raised: #1f272b;
+  --text: #e6ecee; --text-dim: #9aabb3;
+  --brand: #22b8c9; --slate: #8fb4c3; --accent: #4fd0de; --btn: #11808d;
+  --ok: #3fbf6f; --warn: #e0a83c; --err: #e05a5a;
+  color-scheme: dark;
 }
-html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
 html[data-theme="light"] button:disabled { color: var(--text-dim); }
-html[data-theme="light"] button.secondary, html[data-theme="light"] .lang-btn, html[data-theme="light"] #langToggle,
-html[data-theme="light"] .chip, html[data-theme="light"] .langbtn, html[data-theme="light"] .theme-btn { color: var(--text); }
+button.secondary, #langToggle, .theme-btn { color: var(--text); }
+.theme-btn { color: var(--text); }
 .theme-btn { width: auto !important; flex-shrink: 0; cursor: pointer; background: var(--chip); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 14px; line-height: 1.2; margin: 0; font-weight: 600; }
 .theme-wrap { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
