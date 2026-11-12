@@ -12,7 +12,8 @@ in the same batch. Remove an item when its release is done.
    end** (`UPRequest.NAME_RE`, error `profile.nameRule`). The extension lowercases as you type, shows the rule
    under the field and keeps the button off until the name holds; the service refuses a request that breaks it,
    whatever extension sent it; the operator's page checks it too. The label says the company's full name goes in
-   the description.
+   the description. Needed: a name with capitals and underscores leaves the profile anonymous on Universal
+   Everything (item 5).
 3. **The picture chosen again is sent**: the file field is cleared after each creation and whenever the form is
    shown again; "No picture" is written when there is none.
 4. **PNG or JPEG, never WebP**: PNG when the picture has transparent pixels (a logo), JPEG otherwise, in the
