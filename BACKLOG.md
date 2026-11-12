@@ -31,8 +31,9 @@ with name and picture on Universal Everything; allow some minutes after the crea
    `0xd7a1Fc3D859c4a414075d029a9851B3c081635E6`, name `"Account_Chain_Test"`). `creator.js inspect`: the
    LSP3Profile value is right (VerifiableURI, keccak256 utf8), the JSON and the image are on the IPFS node and are
    served with the right hashes by LUKSO's gateway (`api.universalprofile.cloud`), the one Universal Everything
-   uses. Not the WebP picture (item 4: a delay). Still open: is it shown now (a delay too), or is the name the
-   cause (capitals, underscores)?
+   uses. **Cause: the name.** More than 30 minutes later it is still `anonymous-profile#d7a1` (no name, no picture),
+   while `chaintest2`, with the same WebP picture file, is shown in full: the one difference is the name
+   (capitals, underscores). Item 2's rule is needed, not only a choice.
 6. **The second account shows no profile picture** on Universal Everything (screenshot of 2026-11-12): checked,
    no picture reached the service (`0 profile image(s)`); LUKSO's index has the account as `chaintest#A9a9`.
    See item 3.
