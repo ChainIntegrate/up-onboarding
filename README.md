@@ -53,8 +53,8 @@ What the creation writes, the same whether the service or the operator's page cr
    `LSP3Profile`, as Cross_Chain's "Authorize a device"). At least two administrators, kept in different places,
    are recommended; the page warns when there is only one.
 2. **The profile.** Name, description, tags, links, profile and cover image, as an LSP3Profile JSON stored
-   either on IPFS (through the operator's Pinata account; the JWT stays in the operator's browser and goes
-   only to Pinata) or inside the UP itself as a `data:` URL (no external service, small images, more gas).
+   either on ChainIntegrate's IPFS node (pinned through its API, served by `ipfs.chainintegrate.it`) or inside
+   the UP itself as a `data:` URL (no external service, small images, more gas).
 3. **The request file.** Everything on the page can be saved as a JSON file (public data only) and loaded
    again: the client can fill it in alone and send it, or the operator prepares it in more sessions.
 4. **Creation.** The operator connects their own wallet on LUKSO (any EIP-6963 wallet, or LUKSO's
@@ -124,7 +124,7 @@ npm run pack:extension   # the extension's zip, in dist/
   packages `@lukso/lsp-smart-contracts@0.14.0` and `@lukso/lsp23-contracts@0.15.0`), runs the page in Chromium
   with a test wallet, creates a UP and checks it: the page's own verification, a device key that can update the
   profile but cannot add a controller, an administrator that can, the LYX step, the request file saved and
-  loaded back, the client's page (no crypto term in Italian or English, its request loaded by the operator's page), IPFS mode (Pinata answered locally), the language toggle and the layout at phone width.
+  loaded back, the client's page (no crypto term in Italian or English, its request loaded by the operator's page), IPFS mode (the node's API answered locally), the language toggle and the layout at phone width.
 
 Both run on GitHub Actions at every push (`.github/workflows/test.yml`).
 

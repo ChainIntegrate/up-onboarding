@@ -3,7 +3,7 @@
   "rpc": "https://rpc.mainnet.lukso.network",
   "chainId": 42,
   "gasKeyFile": "/etc/up-onboarding/gas-key",
-  "pinataJwtFile": "/etc/up-onboarding/pinata-jwt",
+  "ipfsApi": "http://127.0.0.1:5001",
   "dataDir": "/var/lib/up-onboarding",
   "host": "127.0.0.1",
   "port": 8787,

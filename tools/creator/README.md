@@ -14,7 +14,7 @@ LUKSO's place. Node.js, one file (`creator.js`), ethers as its only dependency, 
    `maxControllers` keys, at least one administrator.
 4. **The signature**: `personal_sign` of `UPRequest.signingMessage(request)` by one of the request's
    administrator keys. An account is created only for keys their owner holds: never for a mistyped address.
-5. **Creation**, one at a time: the image and the profile to IPFS (Pinata, the service's own JWT); the LSP23 call
+5. **Creation**, one at a time: the image and the profile to ChainIntegrate's IPFS node (`shared/ipfs.js`, Kubo's `/api/v0/add`, pinned), served by its gateway `ipfs.chainintegrate.it`; the LSP23 call
    of `shared/deploy.js` with a random salt, sent by the gas wallet; refused while the wallet would fall under
    `minBalance`; the account read back (owner, Key Manager, keys, permissions, profile) once confirmed.
 6. **The code** becomes `used`, with the account's address. If something fails after the transaction was sent,
@@ -51,11 +51,12 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 |---|---|
 | `network`, `rpc`, `chainId` | `lukso` (42) or `lukso-testnet` (4201) and an RPC of that network |
 | `gasKeyFile` | the gas wallet's private key, one line, mode 600: a wallet used only for this, with little LYX |
-| `pinataJwtFile` | the Pinata JWT, one line, mode 600 |
+| `ipfsApi` | the IPFS node's API: `http://127.0.0.1:5001` when the node runs on this machine, else its address (the node must allow this server) |
+| `ipfsAuthFile` | optional: an `Authorization` header value, one line, mode 600, when the node's API is behind a proxy that asks for one |
 | `dataDir` | the codes (`invites.json`) and the log of created accounts (`created.jsonl`) |
 | `maxPerDay`, `perIpPerMinute`, `maxControllers`, `inviteDays` | 20, 1, 5, 30 |
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
 
 A creation costs about 0.01 LYX with the profile on IPFS. Installation: [../../DEPLOY.md](../../DEPLOY.md).
-Tests: `npm run test:creator` (a local chain with LUKSO's contracts, Pinata answered locally).
+Tests: `npm run test:creator` (a local chain with LUKSO's contracts, the IPFS API answered locally).

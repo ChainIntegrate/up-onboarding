@@ -2,7 +2,7 @@
 //
 // The page does what LUKSO's own profile creation does, with ChainIntegrate as the operator in the middle:
 // - the profile (name, description, tags, links, images) becomes an LSP3Profile JSON, stored on IPFS
-//   (through the operator's Pinata account) or inside the value itself as a data: URL;
+//   (ChainIntegrate's node, shared/ipfs.js) or inside the value itself as a data: URL;
 // - the client's keys (addresses only: the page never sees a private key) become the UP's controllers, as an
 //   administrator (the permissions LUKSO's extension gives its main controller) or as a device (the
 //   permissions of the Backup page's "Authorize a device");
@@ -67,9 +67,10 @@
       ctrlOneAdmin: "⚠️ Un solo amministratore: se quella chiave si perde, nessuno potrà più aggiungere o togliere chiavi. Meglio due, custoditi in posti diversi.",
       ctrlOk: (v) => `✅ ${v.n} chiav${v.n === 1 ? "e" : "i"}: ${v.a} amministrator${v.a === 1 ? "e" : "i"}, ${v.d} dispositiv${v.d === 1 ? "o" : "i"}.`,
       panel4Title: "4 · Dove salvare i dati del profilo",
-      storeIpfs: "<b>IPFS</b>, con il tuo account Pinata: immagini di buona qualità, come le crea LUKSO. Il JWT resta in questo browser e va solo a Pinata.",
-      jwtLabel: "JWT di Pinata (dell'operatore)",
-      rememberJwt: "Ricordalo in questo browser",
+      storeIpfs: "<b>IPFS</b>, sul nodo di ChainIntegrate (servito da ipfs.chainintegrate.it): immagini di buona qualità, come le crea LUKSO. Il nodo accetta caricamenti solo dagli indirizzi autorizzati e, dal browser, solo se la sua API permette questo sito (CORS).",
+      ipfsApiLabel: "API del nodo IPFS",
+      ipfsAuthLabel: "Autorizzazione (facoltativa)",
+      rememberJwt: "Ricorda l'API e l'autorizzazione in questo browser",
       storeChain: "<b>Sulla blockchain</b>, senza servizi esterni: il profilo e immagini piccole (96 px; copertina 320 px) dentro la UP. Più gas alla creazione; qualche app potrebbe non mostrare le immagini.",
       panel5Title: "5 · Crea la UP",
       deployNote: "Collega il <b>tuo</b> wallet su LUKSO (MetaMask o un altro wallet del browser, oppure l'estensione Universal Profile di LUKSO con la tua UP): paga il gas della creazione, circa un centesimo di LYX con i dati su IPFS. Poi \"Prepara e controlla\" calcola l'indirizzo della nuova UP e simula la transazione.",
@@ -84,8 +85,8 @@
       notPrepared: "Non ancora preparata.",
       preparing: "Preparo il profilo e calcolo l'indirizzo…",
       uploading: (v) => `Carico su IPFS: ${v.what}…`,
-      pinataNoJwt: "❌ Manca il JWT di Pinata (oppure scegli \"Sulla blockchain\").",
-      pinataFail: (v) => `❌ Caricamento su IPFS non riuscito: ${v.err}`,
+      ipfsNoApi: "❌ Manca l'indirizzo dell'API del nodo IPFS (oppure scegli \"Sulla blockchain\").",
+      ipfsFail: (v) => `❌ Caricamento su IPFS non riuscito: ${v.err}`,
       tooBig: (v) => `❌ I dati del profilo sono troppo grandi per la blockchain (${v.kb} kB, massimo ${v.max} kB): togli la copertina o usa IPFS.`,
       noName: "❌ Manca il nome del profilo.",
       badLink: (v) => `❌ Link non valido alla riga ${v.n}: serve \"titolo | https://…\".`,
@@ -169,9 +170,10 @@
       ctrlOneAdmin: "⚠️ Only one administrator: if that key is lost, nobody can add or remove keys any more. Better two, kept in different places.",
       ctrlOk: (v) => `✅ ${v.n} key${v.n === 1 ? "" : "s"}: ${v.a} administrator${v.a === 1 ? "" : "s"}, ${v.d} device${v.d === 1 ? "" : "s"}.`,
       panel4Title: "4 · Where to keep the profile data",
-      storeIpfs: "<b>IPFS</b>, with your Pinata account: good-quality images, as LUKSO creates them. The JWT stays in this browser and goes only to Pinata.",
-      jwtLabel: "Pinata JWT (the operator's)",
-      rememberJwt: "Remember it in this browser",
+      storeIpfs: "<b>IPFS</b>, on ChainIntegrate's node (served by ipfs.chainintegrate.it): good-quality images, as LUKSO creates them. The node accepts uploads only from its allowed addresses and, from a browser, only if its API allows this site (CORS).",
+      ipfsApiLabel: "IPFS node API",
+      ipfsAuthLabel: "Authorization (optional)",
+      rememberJwt: "Remember the API and the authorization in this browser",
       storeChain: "<b>On the blockchain</b>, with no external service: the profile and small images (96 px; cover 320 px) inside the UP. More gas at creation; some apps may not show the images.",
       panel5Title: "5 · Create the UP",
       deployNote: "Connect <b>your</b> wallet on LUKSO (MetaMask or another browser wallet, or LUKSO's Universal Profile extension with your UP): it pays the creation's gas, about a cent of LYX with the data on IPFS. Then \"Prepare and check\" computes the new UP's address and simulates the transaction.",
@@ -186,8 +188,8 @@
       notPrepared: "Not prepared yet.",
       preparing: "Preparing the profile and computing the address…",
       uploading: (v) => `Uploading to IPFS: ${v.what}…`,
-      pinataNoJwt: "❌ The Pinata JWT is missing (or choose \"On the blockchain\").",
-      pinataFail: (v) => `❌ Upload to IPFS failed: ${v.err}`,
+      ipfsNoApi: "❌ The IPFS node's API address is missing (or choose \"On the blockchain\").",
+      ipfsFail: (v) => `❌ Upload to IPFS failed: ${v.err}`,
       tooBig: (v) => `❌ The profile data is too large for the blockchain (${v.kb} kB, at most ${v.max} kB): remove the cover or use IPFS.`,
       noName: "❌ The profile name is missing.",
       badLink: (v) => `❌ Invalid link on line ${v.n}: \"title | https://…\" is needed.`,
@@ -392,31 +394,23 @@
 
   // ==================== STORAGE ====================
   const store = () => ($("storeIpfs").checked ? "ipfs" : "chain");
-  const JWT_KEY = "ci-up-create-pinata";
-  try { const j = localStorage.getItem(JWT_KEY); if (j) { $("pinataJwt").value = j; $("rememberJwt").checked = true; $("storeIpfs").checked = true; } } catch (e) { /* no storage */ }
+  const IPFS_KEY = "uponboarding.operator.ipfs";
+  try { const j = JSON.parse(localStorage.getItem(IPFS_KEY) || "null"); if (j) { $("ipfsApi").value = j.api || $("ipfsApi").value; $("ipfsAuth").value = j.auth || ""; $("rememberJwt").checked = true; $("storeIpfs").checked = true; } } catch (e) { /* no storage */ }
   function syncStore() {
     $("ipfsBox").style.display = store() === "ipfs" ? "" : "none";
-    try { if ($("rememberJwt").checked && $("pinataJwt").value.trim()) localStorage.setItem(JWT_KEY, $("pinataJwt").value.trim()); else localStorage.removeItem(JWT_KEY); } catch (e) { /* no storage */ }
+    try { if ($("rememberJwt").checked) localStorage.setItem(IPFS_KEY, JSON.stringify({ api: $("ipfsApi").value.trim(), auth: $("ipfsAuth").value.trim() })); else localStorage.removeItem(IPFS_KEY); } catch (e) { /* no storage */ }
   }
-  ["storeIpfs", "storeChain", "rememberJwt", "pinataJwt"].forEach((id) => $(id).addEventListener("change", () => { syncStore(); invalidate(); }));
+  ["storeIpfs", "storeChain", "rememberJwt", "ipfsApi", "ipfsAuth"].forEach((id) => $(id).addEventListener("change", () => { syncStore(); invalidate(); }));
 
   async function pin(bytes, filename, type, what) {
     const hash = ethers.keccak256(bytes);
     if (ipfsCache.has(hash)) return ipfsCache.get(hash);
-    const jwt = $("pinataJwt").value.trim();
-    if (!jwt) throw Object.assign(new Error(t("pinataNoJwt")), { shown: true });
+    const api = $("ipfsApi").value.trim();
+    if (!api) throw Object.assign(new Error(t("ipfsNoApi")), { shown: true });
     log(t("uploading", { what }), "line-dim");
-    const fd = new FormData();
-    fd.append("file", new Blob([bytes], { type }), filename);
-    fd.append("pinataMetadata", JSON.stringify({ name: filename }));
-    fd.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
-    let res;
-    try {
-      res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", { method: "POST", headers: { Authorization: "Bearer " + jwt }, body: fd });
-    } catch (e) { throw Object.assign(new Error(t("pinataFail", { err: errText(e) })), { shown: true }); }
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || !body.IpfsHash) throw Object.assign(new Error(t("pinataFail", { err: `HTTP ${res.status} ${body.error ? JSON.stringify(body.error) : ""}` })), { shown: true });
-    const url = "ipfs://" + body.IpfsHash;
+    let url;
+    try { url = await UPIpfs.add(api, bytes, { filename, type, auth: $("ipfsAuth").value.trim() }); }
+    catch (e) { throw Object.assign(new Error(t("ipfsFail", { err: errText(e) })), { shown: true }); }
     ipfsCache.set(hash, url);
     return url;
   }

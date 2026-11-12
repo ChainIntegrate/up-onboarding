@@ -57,11 +57,13 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo chown up-onboarding:up-onboarding /etc/up-onboarding/gas-key && sudo chmod 600 /etc/up-onboarding/gas-key
    ```
 
-3. **The Pinata JWT** (pinata.cloud, API Keys, a key allowed to pin files), one line:
+3. **The IPFS node**: the service adds and pins the images and profiles on ChainIntegrate's own node, through
+   its API (Kubo, `/api/v0/add`). In the configuration, `ipfsApi`: `http://127.0.0.1:5001` if the node runs on
+   this server, otherwise the node's API address, with this server among the node's allowed addresses. If the
+   API is behind a proxy that asks for a header, put its value in a file and name it in `ipfsAuthFile`:
 
    ```bash
-   sudo nano /etc/up-onboarding/pinata-jwt
-   sudo chown up-onboarding:up-onboarding /etc/up-onboarding/pinata-jwt && sudo chmod 600 /etc/up-onboarding/pinata-jwt
+   curl -s -X POST http://127.0.0.1:5001/api/v0/version      # on this server: the node answers with its version
    ```
 
 4. **The configuration**: start on LUKSO Testnet (`"network": "lukso-testnet"`, `"rpc": "https://rpc.testnet.lukso.network"`,
@@ -117,7 +119,7 @@ nginx on the machine itself with `--resolve`; from any other computer, drop `$R`
 ```bash
 R="--resolve account.chainintegrate.it:443:127.0.0.1 --resolve account.chainintegrate.it:80:127.0.0.1"
 curl -sI $R https://account.chainintegrate.it/ | grep -i -E "^HTTP|content-security-policy|strict-transport|x-frame"   # 200, connect-src 'none'
-curl -sI $R https://account.chainintegrate.it/operator.html | grep -i -E "^HTTP|connect-src|x-robots-tag"           # 200, LUKSO and Pinata only, noindex
+curl -sI $R https://account.chainintegrate.it/operator.html | grep -i -E "^HTTP|connect-src|x-robots-tag"           # 200, LUKSO and the IPFS node only, noindex
 for u in /.git/config /README.md; do curl -s $R -o /dev/null -w "$u %{http_code}\n" https://account.chainintegrate.it$u; done   # 404, 404
 curl -s $R -o /dev/null -w "%{http_code} %{redirect_url}\n" http://account.chainintegrate.it/                       # 301 to https
 sudo certbot renew --dry-run --cert-name account.chainintegrate.it
@@ -142,7 +144,7 @@ First deploy, 2026-11-12: every check as expected.
 - Content-Security-Policy: scripts only from the site and ethers 6.13.4 from cdnjs (the pages load it with its
   integrity hash). The client's page connects to nothing (`connect-src 'none'`): what the client types stays in
   the browser until they download the request. The operator's page may connect only to LUKSO's two RPCs and to
-  Pinata, and is not indexed (`X-Robots-Tag: noindex`, and `robots.txt`).
+  ChainIntegrate's IPFS node, and is not indexed (`X-Robots-Tag: noindex`, and `robots.txt`).
 - The web root is `web/`: the rest of the repository (tests, tools, the extension, `.git`) is never served.
 
 Written for the server's nginx 1.18 (no directive newer than it) and tested on nginx 1.24 with a local

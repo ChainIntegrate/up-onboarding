@@ -17,7 +17,7 @@
 //   signature: personal_sign of UPRequest.signingMessage(request) by one of its administrator keys, so an account
 //              is only created for keys their owner holds.
 // The service checks the code, the limits, the request and the signature; stores the images and the profile on
-// IPFS (Pinata); sends the LSP23 call of shared/deploy.js with a random salt; waits for it; reads the account
+// IPFS (ChainIntegrate's node, shared/ipfs.js); sends the LSP23 call of shared/deploy.js with a random salt; waits for it; reads the account
 // back (UPDeploy.verify); marks the code used. Answers { up, km, tx } or { error } with an HTTP status:
 //   400 bad_request (with `problems`) or bad_signature, 403 invite_invalid, 409 invite_used, 410 invite_expired,
 //   429 rate_limited or daily_limit, 503 unavailable (wallet too low, network unreachable), 502 failed.
@@ -33,6 +33,7 @@ const crypto = require("crypto");
 const { ethers } = require("ethers");
 const UPRequest = require("../../shared/request.js");
 const UPDeploy = require("../../shared/deploy.js");
+const UPIpfs = require("../../shared/ipfs.js");
 
 // ---------------------------------------------------------------- configuration
 function loadConfig() {
@@ -40,13 +41,13 @@ function loadConfig() {
   const c = JSON.parse(fs.readFileSync(file, "utf8"));
   const base = path.dirname(file);
   const abs = (p) => (path.isAbsolute(p) ? p : path.join(base, p));
-  const need = ["network", "rpc", "chainId", "gasKeyFile", "pinataJwtFile", "dataDir"];
+  const need = ["network", "rpc", "chainId", "gasKeyFile", "ipfsApi", "dataDir"];
   for (const k of need) if (c[k] === undefined) throw new Error(`config: ${k} is missing`);
   if (!UPRequest.NETWORKS.includes(c.network)) throw new Error("config: network must be lukso or lukso-testnet");
   return {
     network: c.network, rpc: c.rpc, chainId: Number(c.chainId),
-    gasKeyFile: abs(c.gasKeyFile), pinataJwtFile: abs(c.pinataJwtFile), dataDir: abs(c.dataDir),
-    pinataUrl: c.pinataUrl || "https://api.pinata.cloud/pinning/pinFileToIPFS",
+    gasKeyFile: abs(c.gasKeyFile), dataDir: abs(c.dataDir),
+    ipfsApi: c.ipfsApi, ipfsAuthFile: c.ipfsAuthFile ? abs(c.ipfsAuthFile) : null,
     host: c.host || "127.0.0.1", port: Number(c.port || 8787),
     maxPerDay: Number(c.maxPerDay ?? 20), perIpPerMinute: Number(c.perIpPerMinute ?? 1),
     maxControllers: Number(c.maxControllers ?? 5), inviteDays: Number(c.inviteDays ?? 30),
@@ -84,15 +85,7 @@ class Store {
 }
 
 // ---------------------------------------------------------------- IPFS
-async function pin(cfg, bytes, filename, type) {
-  const fd = new FormData();
-  fd.append("file", new Blob([bytes], { type }), filename);
-  fd.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
-  const res = await fetch(cfg.pinataUrl, { method: "POST", headers: { Authorization: "Bearer " + secret(cfg.pinataJwtFile) }, body: fd });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.IpfsHash) throw new Error(`pinata ${res.status}`);
-  return "ipfs://" + body.IpfsHash;
-}
+const pin = (cfg, bytes, filename, type) => UPIpfs.add(cfg.ipfsApi, bytes, { filename, type, auth: cfg.ipfsAuthFile ? secret(cfg.ipfsAuthFile) : "" });
 const dataUrlBytes = (u) => ethers.getBytes(ethers.decodeBase64(u.slice(u.indexOf(",") + 1)));
 const dataUrlType = (u) => u.slice(5, u.indexOf(";"));
 const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };

@@ -7,7 +7,7 @@
 // - the page creates the UP, and its own check after the transaction passes;
 // - on the new UP, a device key can update LSP3Profile but cannot add a controller; an administrator can;
 // - the LYX step funds each key; the request file is saved and loads back;
-// - IPFS mode (Pinata answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
+// - IPFS mode (the node's API answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
 // - the client's page uses no crypto term, in Italian or in English.
 "use strict";
 const { spawn } = require("child_process");
@@ -149,13 +149,13 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     // ---- IPFS mode, phone width
     const phone = await newPage(browser, operator, { viewport: { width: 390, height: 900 } });
     let uploads = 0;
-    await phone.route("https://api.pinata.cloud/**", (r) => { uploads++; r.fulfill({ status: 200, body: JSON.stringify({ IpfsHash: "bafytest" + uploads }), headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }); });
+    await phone.route("https://ipfs.chainintegrate.it/api/v0/add**", (r) => { uploads++; r.fulfill({ status: 200, body: JSON.stringify({ Name: "f", Hash: "bafybeigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest0" + uploads, Size: "1" }) + "\n", headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }); });
     await phone.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${ethers.Wallet.createRandom().address}`);
     await phone.fill("#pName", "Mario Rossi");
     await phone.setInputFiles("#pAvatar", pngPath);
-    await phone.check("#storeIpfs"); await phone.fill("#pinataJwt", "jwt-test"); await phone.dispatchEvent("#pinataJwt", "change");
+    await phone.check("#storeIpfs");
     await phone.click("#previewBtn"); await idle(phone);
-    check(/ipfs:\/\/bafytest2/.test(await phone.textContent("#previewStatus")) && uploads === 2, "IPFS mode uploads the image and the JSON");
+    check(/ipfs:\/\/bafybei\w+test02/.test(await phone.textContent("#previewStatus")) && uploads === 2, "IPFS mode uploads the image and the JSON");
     check(!(await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)), "no horizontal scroll at phone width");
     await phone.click("#langToggle");
     check((await phone.textContent("h1")).length > 0 && (await phone.evaluate(() => document.documentElement.lang)) !== "", "the language toggle works");

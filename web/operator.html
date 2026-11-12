@@ -19,6 +19,7 @@
 <script src="lib/deploy-check.js"></script>
 <script src="lib/shared/request.js"></script>
 <script src="lib/shared/deploy.js"></script>
+<script src="lib/shared/ipfs.js"></script>
 <style>
   /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
      Buttons and links use a darker teal, readable on white. The dark theme is in lib/theme.js. */
@@ -157,8 +158,10 @@
   <h2 data-i18n="panel4Title">4 · Dove salvare i dati del profilo</h2>
   <label class="check-row"><input type="radio" name="store" value="ipfs" id="storeIpfs"> <span data-i18n-html="storeIpfs"></span></label>
   <div id="ipfsBox" style="margin-left:24px;">
-    <label for="pinataJwt" data-i18n="jwtLabel">JWT di Pinata (dell'operatore)</label>
-    <input type="password" id="pinataJwt" autocomplete="off" placeholder="eyJ...">
+    <label for="ipfsApi" data-i18n="ipfsApiLabel">API del nodo IPFS</label>
+    <input type="text" id="ipfsApi" autocomplete="off" spellcheck="false" value="https://ipfs.chainintegrate.it">
+    <label for="ipfsAuth" data-i18n="ipfsAuthLabel">Autorizzazione (facoltativa)</label>
+    <input type="password" id="ipfsAuth" autocomplete="off" placeholder="Basic … / Bearer …">
     <label class="check-row"><input type="checkbox" id="rememberJwt"> <span data-i18n="rememberJwt"></span></label>
   </div>
   <label class="check-row"><input type="radio" name="store" value="chain" id="storeChain" checked> <span data-i18n-html="storeChain"></span></label>

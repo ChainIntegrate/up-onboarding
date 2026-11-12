@@ -1,6 +1,6 @@
 // End-to-end test of the creation service (tools/creator) on a local chain.
 //
-// A Hardhat node with LUKSO Testnet's chainId and LUKSO's contracts (as test/e2e.js), Pinata answered locally,
+// A Hardhat node with LUKSO Testnet's chainId and LUKSO's contracts (as test/e2e.js), the IPFS node's API answered locally,
 // the service started as on the server. Checked: an unknown code, a request signed by a key that is not one of
 // its administrators and an invalid request are refused; a good request creates the account, which is then read
 // back with its keys and permissions; the code cannot be used twice; a revoked code is refused; the per-IP and
@@ -16,7 +16,7 @@ const UPRequest = require("../shared/request.js");
 const UPDeploy = require("../shared/deploy.js");
 
 const RPC = "http://127.0.0.1:8545";
-const PORT = 8788, PINATA = 8789;
+const PORT = 8788, IPFS = 8789;
 const CREATOR = path.join(__dirname, "..", "tools", "creator", "creator.js");
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); if (!ok) failures++; };
@@ -34,10 +34,16 @@ async function waitFor(url, body) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "creator-"));
   const node = spawn("npx", ["hardhat", "node", "--port", "8545"], { cwd: __dirname, stdio: "ignore" });
   const pins = [];
-  const pinata = http.createServer((req, res) => {
+  // Kubo's /api/v0/add, as the node answers it: one JSON line per file.
+  const ipfs = http.createServer((req, res) => {
     const chunks = []; req.on("data", (c) => chunks.push(c));
-    req.on("end", () => { pins.push({ auth: req.headers.authorization, size: Buffer.concat(chunks).length }); res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ IpfsHash: "bafytest" + pins.length })); });
-  }).listen(PINATA);
+    req.on("end", () => {
+      const u = new URL(req.url, "http://x");
+      pins.push({ path: u.pathname, pin: u.searchParams.get("pin"), cid: u.searchParams.get("cid-version"), auth: req.headers.authorization, size: Buffer.concat(chunks).length });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ Name: "f", Hash: "bafybeigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest" + String(pins.length).padStart(2, "0"), Size: "1" }) + "\n");
+    });
+  }).listen(IPFS);
   let svc;
   try {
     await waitFor(RPC, '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}');
@@ -47,9 +53,9 @@ async function waitFor(url, body) {
     const gas = ethers.Wallet.createRandom();
     await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("10").toString(16)]);
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
-    fs.writeFileSync(path.join(dir, "pinata-jwt"), "jwt-test", { mode: 0o600 });
-    const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", pinataJwtFile: "pinata-jwt", dataDir: "data",
-      pinataUrl: `http://127.0.0.1:${PINATA}/pin`, port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30 };
+    fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
+    const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", dataDir: "data",
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -94,8 +100,9 @@ async function waitFor(url, body) {
       check((await perm(admin.address)) === UPDeploy.ADMIN_PERMS && (await perm(device.address)) === UPDeploy.DEVICE_PERMS && (await perm(gas.address)) === 0n,
         "the keys have their permissions, the service's wallet has none");
       const [lsp3] = await read.getDataBatch([UPDeploy.LSP3_KEY]);
-      check(ethers.toUtf8String(ethers.dataSlice(lsp3, 40)).startsWith("ipfs://bafytest") && pins.length === 2 && pins.every((p) => p.auth === "Bearer jwt-test"),
-        "the image and the profile are stored on IPFS");
+      check(ethers.toUtf8String(ethers.dataSlice(lsp3, 40)).startsWith("ipfs://bafybei") && pins.length === 2 &&
+        pins.every((p) => p.path === "/api/v0/add" && p.pin === "true" && p.cid === "1" && p.auth === "Basic dGVzdDp0ZXN0"),
+        "the image and the profile are added and pinned on the IPFS node");
       check(km && (await prov.getCode(km)) !== "0x", "the Key Manager exists");
     }
     const look = async (address) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/lookup`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.9.9.9" }, body: JSON.stringify({ address }) }); return { status: x.status, body: await x.json() }; };
@@ -133,7 +140,7 @@ async function waitFor(url, body) {
     check(left < ethers.parseEther("0.001") && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee");
   } finally {
     if (svc) svc.kill();
-    node.kill(); pinata.close();
+    node.kill(); ipfs.close();
   }
   console.log(failures ? `${failures} check(s) failed` : "all checks passed");
   process.exit(failures ? 1 : 0);
