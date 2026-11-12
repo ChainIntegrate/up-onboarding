@@ -150,16 +150,15 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await client.fill("#pLinks", "Sito | https://www.rossi.it");
     await client.click("#addCtrl");
     await client.locator(".ctrl-row").nth(1).locator(".c-addr").fill(k2);
-    await client.check("#ciRecovery");
     const [cdl] = await Promise.all([client.waitForEvent("download"), client.click("#saveBtn")]);
     const clientReq = path.join(OUT, "client-request.json"); await cdl.saveAs(clientReq);
     const creq = JSON.parse(fs.readFileSync(clientReq));
-    check(creq.network === "lukso" && creq.chainintegrateRecovery === true && creq.controllers.length === 2 && creq.controllers[0].name === "PC ufficio", "the client's request holds devices and the recovery choice");
+    check(creq.network === "lukso" && creq.chainintegrateRecovery === undefined && creq.controllers.length === 2 && creq.controllers[0].name === "PC ufficio", "the client's request holds the devices");
     const op = await newPage(browser, operator);
     await op.goto(`http://127.0.0.1:${PORT}/operator.html`);
     await op.setInputFiles("#draftFile", clientReq);
     await op.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 2);
-    check((await op.inputValue("#pName")) === "Mario Rossi" && /recupero assistito|assisted recovery/.test(await op.textContent("#log")), "the operator's page loads the client's request and shows the recovery choice");
+    check((await op.inputValue("#pName")) === "Mario Rossi", "the operator's page loads the client's request");
     await client.close(); await op.close();
 
     // ---- IPFS mode, phone width

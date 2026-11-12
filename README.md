@@ -74,7 +74,7 @@ integrity hash, and never hold a private key.
 
 | Page | For | What it does |
 |---|---|---|
-| `web/index.html` | the client | "Create your ChainIntegrate account": the public profile, the access devices (the codes shown by ChainIntegrate's app or extension, each *main* or *access only*), the choice of assisted recovery by ChainIntegrate, then the request file to download and send. Link parameters: `?code=0x…&name=…` fill in the first device |
+| `web/index.html` | the client | "Create your ChainIntegrate account": the public profile, the access devices (the codes shown by ChainIntegrate's app or extension, each *main* or *access only*), then the request file to download and send. Link parameters: `?code=0x…&name=…` fill in the first device |
 | `web/operator.html` | ChainIntegrate | Loads a client's request (or is filled in by hand), creates the Universal Profile and checks it; not indexed by search engines |
 
 **Wording of the client's page.** The client is creating an account to use ChainIntegrate's services, and
@@ -84,10 +84,11 @@ language: `test/e2e.js` fails if one appears (title, text, placeholders, descrip
 left is the device code's `0x` prefix, which the client copies from the app. The operator's page keeps the
 technical terms: only ChainIntegrate uses it.
 
-**Assisted recovery.** On the client's page the client can ask ChainIntegrate to be able to recover the
-account if all main devices are lost, being told plainly that ChainIntegrate then has the same powers as a main
-device. The request carries the choice (`chainintegrateRecovery`); the operator's page shows it, and the
-operator adds ChainIntegrate's recovery key as an administrator.
+**No recovery by ChainIntegrate, by design.** The account belongs to the client's keys only: ChainIntegrate
+never adds a key of its own, so it has no power over any account, holds nothing that could be stolen from all
+clients at once, and is not a custodian. What protects the client is the backup copy, which the extension makes
+them download and check before anything else; the pages say plainly that no one can recover an account in
+their place.
 
 ## Tests
 

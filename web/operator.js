@@ -31,7 +31,6 @@
       draftNote: "La <b>richiesta</b> è un file con tutto quello che c'è in questa pagina (profilo, immagini, chiavi): il cliente può compilarla da solo e mandartela, oppure la prepari tu e la ricarichi più tardi. Contiene solo dati pubblici: nessuna chiave privata.",
       draftSaved: "✅ Richiesta salvata.",
       draftLoaded: "✅ Richiesta caricata.",
-      recoveryAsked: "⚠️ Il cliente ha chiesto il recupero assistito: aggiungi la chiave di recupero di ChainIntegrate come amministratore (sezione 3), dopo averglielo confermato.",
       draftBad: (v) => `❌ File non valido: ${v.err}`,
       draftIncomplete: (v) => `⚠️ La richiesta è incompleta o ha dati scartati: ${v.what}.`,
       notARequest: "non è un file richiesta di questa pagina",
@@ -53,7 +52,7 @@
       imgRemove: "Togli",
       imgBad: "❌ Immagine non leggibile.",
       panel3Title: "3 · Le chiavi del cliente",
-      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b>: usa la UP e i suoi fondi e aggiorna il profilo, ma non gestisce le chiavi (i permessi di \"Autorizza un dispositivo\"). Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. Puoi metterti come secondo amministratore (recupero), ma allora anche tu puoi fare tutto sulla UP: dillo chiaramente al cliente.",
+      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b>: usa la UP e i suoi fondi e aggiorna il profilo, ma non gestisce le chiavi (i permessi di \"Autorizza un dispositivo\"). Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. ChainIntegrate non aggiunge mai una propria chiave: l'account è solo del cliente.",
       addCtrlBtn: "+ Aggiungi una chiave",
       ctrlAddrPh: "Indirizzo 0x…",
       ctrlNamePh: "Nome (es. PC ufficio, estensione)",
@@ -134,7 +133,6 @@
       draftNote: "The <b>request</b> is a file with everything on this page (profile, images, keys): the client can fill it in alone and send it to you, or you prepare it and load it again later. It holds public data only: no private key.",
       draftSaved: "✅ Request saved.",
       draftLoaded: "✅ Request loaded.",
-      recoveryAsked: "⚠️ The client asked for assisted recovery: add ChainIntegrate's recovery key as an administrator (section 3), after confirming it with them.",
       draftBad: (v) => `❌ Invalid file: ${v.err}`,
       draftIncomplete: (v) => `⚠️ The request is incomplete or had data dropped: ${v.what}.`,
       notARequest: "not a request file of this page",
@@ -156,7 +154,7 @@
       imgRemove: "Remove",
       imgBad: "❌ Unreadable image.",
       panel3Title: "3 · The client's keys",
-      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b>: uses the UP and its funds and updates the profile, but does not manage keys (the permissions of \"Authorize a device\"). You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. You can add yourself as the second administrator (recovery), but then you too can do anything on the UP: tell the client plainly.",
+      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b>: uses the UP and its funds and updates the profile, but does not manage keys (the permissions of \"Authorize a device\"). You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. ChainIntegrate never adds a key of its own: the account belongs to the client alone.",
       addCtrlBtn: "+ Add a key",
       ctrlAddrPh: "Address 0x…",
       ctrlNamePh: "Name (e.g. Office PC, extension)",
@@ -661,7 +659,6 @@
   // ==================== REQUEST FILE ====================
   // The format and its checks are in shared/request.js (web/lib/shared/request.js), the same code the client's
   // extension and app use to write it.
-  let recoveryAsked = false; // the client's choice in the loaded request, kept when the request is saved again
   function formFields() {
     const links = $("pLinks").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
       const cut = l.lastIndexOf("|");
@@ -672,7 +669,6 @@
       profile: { name: $("pName").value, description: $("pDesc").value, tags: $("pTags").value.split(","), links },
       images: { avatar: images.avatar, cover: images.cover },
       controllers: readRows().filter((r) => r.address || r.name),
-      chainintegrateRecovery: recoveryAsked,
     };
   }
   const problemList = (errors) => errors.map((e) => t("reqErr_" + e.split(".").filter((x) => !/^\d+$/.test(x)).join("_")) + (/\.(\d+)/.test(e) ? ` (${Number(e.match(/\.(\d+)/)[1]) + 1})` : "")).join("; ");
@@ -713,8 +709,6 @@
       if (!document.querySelector(".ctrl-row")) addRow();
       invalidate();
       log(t("draftLoaded"), "line-ok");
-      recoveryAsked = !!d.chainintegrateRecovery;
-      if (recoveryAsked) log(t("recoveryAsked"), "line-warn");
       if (errors.length) log(t("draftIncomplete", { what: problemList(errors) }), "line-warn");
     } catch (e) { log(t("draftBad", { err: errText(e) }), "line-err"); }
   });

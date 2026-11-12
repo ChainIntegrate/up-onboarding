@@ -34,7 +34,7 @@
       imgRemove: "Togli",
       imgBad: "❌ Questa immagine non si riesce a leggere: prova con un file JPG o PNG.",
       panel2Title: "2 · I tuoi dispositivi di accesso",
-      devNote: "Ogni dispositivo con cui accedi all'account ha un <b>codice</b>, che trovi nell'app o nell'estensione ChainIntegrate alla voce \"Codice del dispositivo\" (inizia con <b>0x</b>). Il codice non è segreto: puoi copiarlo e mandarlo tranquillamente.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>Principale</b>: accede e può aggiungere o togliere altri dispositivi.</li><li><b>Solo accesso</b>: usa l'account, ma non può gestire i dispositivi.</li></ul><div style=\"margin-top:8px;\">L'estensione ChainIntegrate ti fa creare una <b>copia di backup</b> del tuo accesso: con quella rientri anche se perdi il computer. Per più sicurezza puoi avere <b>due dispositivi principali</b>, tenuti in posti diversi. Se non hai ancora l'app o l'estensione, lascia vuoto: ti aiutiamo noi.</div>",
+      devNote: "Ogni dispositivo con cui accedi all'account ha un <b>codice</b>, che trovi nell'app o nell'estensione ChainIntegrate alla voce \"Codice del dispositivo\" (inizia con <b>0x</b>). Il codice non è segreto: puoi copiarlo e mandarlo tranquillamente.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>Principale</b>: accede e può aggiungere o togliere altri dispositivi.</li><li><b>Solo accesso</b>: usa l'account, ma non può gestire i dispositivi.</li></ul><div style=\"margin-top:8px;\">Il tuo account è solo tuo: <b>nessuno, nemmeno ChainIntegrate, può recuperarlo al posto tuo</b>. L'estensione ChainIntegrate ti fa creare una <b>copia di backup</b> del tuo accesso: con quella rientri anche se perdi il computer. Per più sicurezza puoi avere <b>due dispositivi principali</b>, tenuti in posti diversi. Se non hai ancora l'app o l'estensione, lascia vuoto: ti aiutiamo noi.</div>",
       addCtrlBtn: "+ Aggiungi un dispositivo",
       codePh: "Codice del dispositivo (0x…)",
       devNamePh: "Nome (es. PC ufficio, telefono)",
@@ -47,7 +47,6 @@
       devNoMain: "❌ Serve almeno un dispositivo principale.",
       devOneMain: "⚠️ Un solo dispositivo principale: tieni con cura la sua copia di backup. Se perdi sia il dispositivo sia la copia, non potrai più gestire l'account.",
       devOk: (v) => `✅ ${v.n} dispositiv${v.n === 1 ? "o" : "i"}: ${v.a} principal${v.a === 1 ? "e" : "i"}, ${v.d} solo accesso.`,
-      recoveryLabel: "<b>Voglio che ChainIntegrate possa recuperare il mio account</b> se perdo tutti i dispositivi principali. Per farlo, ChainIntegrate avrà sull'account gli stessi poteri di un dispositivo principale. Senza questa scelta, se perdi tutti i dispositivi principali l'account non si può più recuperare, nemmeno da noi.",
       panel3Title: "3 · Manda la richiesta a ChainIntegrate",
       sendNote: "Scarica la richiesta (un piccolo file) e mandala a ChainIntegrate all'indirizzo che ti abbiamo indicato, o su Telegram. Puoi anche salvarla e riprenderla più tardi.",
       notChecked: "Compila il profilo per controllare la richiesta.",
@@ -86,7 +85,7 @@
       imgRemove: "Remove",
       imgBad: "❌ This picture cannot be read: try a JPG or PNG file.",
       panel2Title: "2 · Your access devices",
-      devNote: "Each device you sign in with has a <b>code</b>, shown in ChainIntegrate's app or extension under \"Device code\" (it starts with <b>0x</b>). The code is not secret: you can copy it and send it safely.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>Main</b>: signs in and can add or remove other devices.</li><li><b>Access only</b>: uses the account, but cannot manage devices.</li></ul><div style=\"margin-top:8px;\">ChainIntegrate's extension has you create a <b>backup copy</b> of your access: with it you get back in even if you lose the computer. For more safety you can have <b>two main devices</b>, kept in different places. If you do not have the app or the extension yet, leave this empty: we will help you.</div>",
+      devNote: "Each device you sign in with has a <b>code</b>, shown in ChainIntegrate's app or extension under \"Device code\" (it starts with <b>0x</b>). The code is not secret: you can copy it and send it safely.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>Main</b>: signs in and can add or remove other devices.</li><li><b>Access only</b>: uses the account, but cannot manage devices.</li></ul><div style=\"margin-top:8px;\">Your account is yours alone: <b>no one, not even ChainIntegrate, can recover it for you</b>. ChainIntegrate's extension has you create a <b>backup copy</b> of your access: with it you get back in even if you lose the computer. For more safety you can have <b>two main devices</b>, kept in different places. If you do not have the app or the extension yet, leave this empty: we will help you.</div>",
       addCtrlBtn: "+ Add a device",
       codePh: "Device code (0x…)",
       devNamePh: "Name (e.g. Office PC, phone)",
@@ -99,7 +98,6 @@
       devNoMain: "❌ At least one main device is needed.",
       devOneMain: "⚠️ Only one main device: keep its backup copy safe. If you lose both the device and the copy, you can no longer manage the account.",
       devOk: (v) => `✅ ${v.n} device${v.n === 1 ? "" : "s"}: ${v.a} main, ${v.d} access only.`,
-      recoveryLabel: "<b>I want ChainIntegrate to be able to recover my account</b> if I lose all my main devices. To do so, ChainIntegrate will have the same powers over the account as a main device. Without this choice, if you lose all your main devices the account cannot be recovered, not even by us.",
       panel3Title: "3 · Send the request to ChainIntegrate",
       sendNote: "Download the request (a small file) and send it to ChainIntegrate at the address we gave you, or on Telegram. You can also save it and continue later.",
       notChecked: "Fill in the profile to check the request.",
@@ -194,7 +192,6 @@
       profile: { name: $("pName").value, description: $("pDesc").value, tags: $("pTags").value.split(","), links },
       images: { avatar: images.avatar, cover: images.cover },
       controllers: rows(),
-      chainintegrateRecovery: $("ciRecovery").checked,
     };
   }
   // { request, blocking: [text], notes: [[text, cls]] }
@@ -216,7 +213,7 @@
     else if (!devs.length) {
       const a = list.filter((c) => c.role === "admin").length;
       devNotes.push([t("devOk", { n: list.length, a, d: list.length - a }), "line-ok"]);
-      if (a === 1 && !request.chainintegrateRecovery) devNotes.push([t("devOneMain"), "line-warn"]);
+      if (a === 1) devNotes.push([t("devOneMain"), "line-warn"]);
     }
     return { request, blocking: blocking.concat(devs), devNotes, noDevices: !rows().length };
   }
@@ -232,7 +229,6 @@
     return c;
   }
   ["pName", "pDesc", "pTags", "pLinks"].forEach((id) => $(id).addEventListener("input", refresh));
-  $("ciRecovery").addEventListener("change", refresh);
 
   $("saveBtn").addEventListener("click", () => {
     const c = refresh();
@@ -266,7 +262,6 @@
       $("ctrlRows").innerHTML = "";
       d.controllers.forEach((c) => addRow(c));
       if (!document.querySelector(".ctrl-row")) addRow();
-      $("ciRecovery").checked = !!d.chainintegrateRecovery;
       refresh();
       log(t("loaded"), "line-ok");
     } catch (e) { log(t("loadBad"), "line-err"); }
