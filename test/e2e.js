@@ -98,7 +98,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await page.check("#ackCreate");
     await page.click("#createBtn"); await page.waitForTimeout(300); await idle(page);
     const log = await page.innerText("#log");
-    check(/✅ (Check passed|Controllo superato)/.test(log), "the page's check after creation passes");
+    check(/✅ (Check passed|Controllo superato)/.test(log), "the page's check after creation passes" + (/✅ (Check passed|Controllo superato)/.test(log) ? "" : "\n" + log));
     check((await prov.getCode(up)) !== "0x", "the UP has code");
 
     // ---- the permissions on the new UP

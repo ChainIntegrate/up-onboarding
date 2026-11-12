@@ -228,30 +228,10 @@
   // ==================== CONSTANTS ====================
   // LUKSO's contracts, at the same address on LUKSO and its testnet (deterministic deployment); the page checks
   // that each has code before using it.
-  const FACTORY = "0x2300000A84D25dF63081feAa37ba6b62C4c89a30";        // LSP23LinkedContractsFactory
-  const POST_MODULE = "0x000000000066093407b6704B89793beFfD0D8F00";    // UniversalProfileInitPostDeploymentModule
-  const UP_IMPL = "0x3024D38EA2434BA6635003Dc1BDC0daB5882ED4F";        // UniversalProfileInit v0.14.0
-  const KM_IMPL = "0x2Fe3AeD98684E7351aD2D408A43cE09a738BF8a4";        // LSP6KeyManagerInit v0.14.0
-  const URD = "0x7870C5B8BC9572A8001C3f96f7ff59961B23500D";            // LSP1UniversalReceiverDelegateUP
-  const DEPLOY_SELECTOR = "0x6a66a753";
-
-  const LSP3_KEY = "0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5";
-  const URD_KEY = "0x0cfc51aec37c55a4d0b1a65c6255c4bf2fbdf6277f3cc0730c45b828b6db8b47";
-  // Permissions. Administrator: what LUKSO's extension gives its main controller (seen on the maintainer's UPs,
-  // tools/logs). Device: as "Authorize a device" (up-authorize-lukso.html, up-backup.html), with SETDATA limited
-  // to LSP3Profile. URD: REENTRANCY + SUPER_SETDATA + SETDATA, as LUKSO sets it.
-  const ADMIN_PERMS = 0x7f3f06n;
-  const DEVICE_PERMS = 0x100n | 0x400n | 0x40000n | 0x200000n | BK.ERC4337;
-  const DEVICE_DATA_KEYS = ethers.concat(["0x0020", LSP3_KEY]);
-  const URD_PERMS = 0x60080n;
+  // LUKSO's contracts and what a creation writes are in shared/deploy.js (UPDeploy), the same code the creation
+  // service uses.
+  const { FACTORY, POST_MODULE, UP_IMPL, KM_IMPL, URD } = UPDeploy;
   const MAX_CHAIN_KB = 24; // on-chain profile value: about 17M gas at most, well under LUKSO's block gas limit
-
-  const FACTORY_IFACE = new ethers.Interface([
-    "function deployERC1167Proxies((bytes32 salt,uint256 fundingAmount,address implementationContract,bytes initializationCalldata) primary,(uint256 fundingAmount,address implementationContract,bytes initializationCalldata,bool addPrimaryContractAddress,bytes extraInitializationParams) secondary,address postDeploymentModule,bytes postDeploymentModuleCalldata) payable returns (address,address)",
-    "function computeERC1167Addresses((bytes32 salt,uint256 fundingAmount,address implementationContract,bytes initializationCalldata) primary,(uint256 fundingAmount,address implementationContract,bytes initializationCalldata,bool addPrimaryContractAddress,bytes extraInitializationParams) secondary,address postDeploymentModule,bytes postDeploymentModuleCalldata) view returns (address,address)",
-  ]);
-  if (FACTORY_IFACE.getFunction("deployERC1167Proxies").selector !== DEPLOY_SELECTOR) throw new Error("LSP23 ABI mismatch");
-  const UP_IFACE = new ethers.Interface(["function initialize(address)", "function getDataBatch(bytes32[]) view returns (bytes[])"]);
 
   const NETS = [LUKSO_CHAIN, LUKSO_TESTNET_CHAIN];
   const netSel = $("network");
@@ -456,35 +436,12 @@
     const json = JSON.stringify({ LSP3Profile: lsp3 });
     const bytes = ethers.toUtf8Bytes(json);
     const url = mode === "chain" ? "data:application/json;base64," + ethers.encodeBase64(bytes) : await pin(bytes, "LSP3Profile.json", "application/json", "LSP3Profile.json");
-    const value = ethers.concat(["0x0000", "0x6f357c6a", "0x0020", ethers.keccak256(bytes), ethers.toUtf8Bytes(url)]);
+    const value = UPDeploy.profileValue(bytes, url);
     if (mode === "chain" && ethers.dataLength(value) > MAX_CHAIN_KB * 1024) throw Object.assign(new Error(t("tooBig", { kb: (ethers.dataLength(value) / 1024).toFixed(1), max: MAX_CHAIN_KB })), { shown: true });
     return { json, url, value };
   }
 
   // ==================== DEPLOYMENT ====================
-  // The data the post-deployment module writes on the new UP: profile, LSP1 delegate, the controllers' list,
-  // their permissions, the devices' allowed data keys and each key's name.
-  function dataFor(profileValue, ctrls) {
-    const keys = [LSP3_KEY, URD_KEY], values = [profileValue, URD];
-    const all = [{ address: ethers.getAddress(URD), perms: URD_PERMS }].concat(ctrls.map((c) => ({ ...c, perms: c.role === "admin" ? ADMIN_PERMS : DEVICE_PERMS })));
-    keys.push("0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3"); values.push(ethers.toBeHex(all.length, 16));
-    all.forEach((c, i) => {
-      keys.push(BK.indexKey(i)); values.push(c.address);
-      keys.push(BK.permKey(c.address)); values.push(ethers.zeroPadValue(ethers.toBeHex(c.perms), 32));
-      if (c.role === "device") { keys.push(BK.dataKeysKey(c.address)); values.push(DEVICE_DATA_KEYS); }
-      if (c.name) { keys.push(BK.nameKey(c.address)); values.push(BK.nameValue(c.name)); }
-    });
-    return { keys, values, all };
-  }
-  function deployArgs(postCalldata) {
-    return [
-      { salt, fundingAmount: 0n, implementationContract: UP_IMPL, initializationCalldata: UP_IFACE.encodeFunctionData("initialize", [POST_MODULE]) },
-      { fundingAmount: 0n, implementationContract: KM_IMPL, initializationCalldata: "0xc4d66de8", addPrimaryContractAddress: true, extraInitializationParams: "0x" },
-      POST_MODULE,
-      postCalldata,
-    ];
-  }
-
   // Everything the plan depends on, so a change after "Prepare" is noticed.
   function fingerprint() {
     return JSON.stringify([net().key, salt, store(), $("pName").value, $("pDesc").value, $("pTags").value, $("pLinks").value,
@@ -505,21 +462,18 @@
       const provider = readProvider();
       const got = Number((await provider.getNetwork()).chainId);
       if (got !== net().chainId) { setStatus("previewStatus", t("rpcMismatch", { got, want: net().chainId }), "line-err"); return; }
-      const infra = [["LSP23LinkedContractsFactory", FACTORY], ["UniversalProfileInitPostDeploymentModule", POST_MODULE], ["UniversalProfileInit", UP_IMPL], ["LSP6KeyManagerInit", KM_IMPL], ["LSP1UniversalReceiverDelegateUP", URD]];
-      for (const [name, addr] of infra) if ((await provider.getCode(addr)) === "0x") { setStatus("previewStatus", t("infraMissing", { name, addr }), "line-err"); return; }
+      const missing = await UPDeploy.missingInfra(provider);
+      if (missing.length) { setStatus("previewStatus", t("infraMissing", { name: missing.join(", "), addr: "—" }), "line-err"); return; }
 
       const prof = await buildProfile(p);
-      const d = dataFor(prof.value, ck.list);
-      const postCalldata = ethers.AbiCoder.defaultAbiCoder().encode(["bytes32[]", "bytes[]"], [d.keys, d.values]);
-      const args = deployArgs(postCalldata);
-      const factory = new ethers.Contract(FACTORY, FACTORY_IFACE, provider);
-      const [up, km] = await factory.computeERC1167Addresses(...args);
-      // The page's own initialization must be LUKSO's standard one (deploy-check.js).
+      const pl = UPDeploy.plan({ profileValue: prof.value, controllers: ck.list, salt });
+      const { postCalldata, args, data } = pl;
+      const { up, km } = await UPDeploy.addresses(provider, pl);
+      // The initialization must be LUKSO's standard one (deploy-check.js).
       const problems = DeployCheck.initProblems({ postDeploymentModule: POST_MODULE, primary: { initCalldata: args[0].initializationCalldata }, secondary: { initCalldata: args[1].initializationCalldata, addPrimaryContractAddress: args[1].addPrimaryContractAddress, extraInitParams: args[1].extraInitializationParams } });
       if (problems.length) throw new Error("initialization " + problems.join(", "));
       const exists = (await provider.getCode(up)) !== "0x";
-      const data = FACTORY_IFACE.encodeFunctionData("deployERC1167Proxies", args);
-      plan = { fp, up, km, data, prof, ctrls: ck.list, all: d.all, exists, simOk: false };
+      plan = { fp, up, km, data, prof, ctrls: ck.list, pl, exists, simOk: false };
       if (exists) { setStatus("previewStatus", t("alreadyThere", { up }), "line-warn"); addSaltButton(); return; }
 
       let gas = "—", cost = "—";
@@ -611,17 +565,7 @@
       if (!rc || rc.status !== 1) { log(t("txReverted"), "line-err"); return; }
       log(t("verifying"), "line-dim");
       const at = { blockTag: rc.blockNumber };
-      const what = [];
-      const ln = await DeployCheck.link(provider, p.up, p.km);
-      if (!ln.ok) what.push(`owner ${ln.owner} / target ${ln.target}`);
-      const r = await BK.read(provider, p.up, at);
-      if (r.len !== p.all.length) what.push(`controllers ${r.len}`);
-      p.all.forEach((c, i) => {
-        const got = r.controllers[i];
-        if (!got || got.address !== c.address || got.perms !== c.perms) what.push(`controller ${i} ${got ? got.address + " " + got.raw : "missing"}`);
-      });
-      const [lsp3] = await new ethers.Contract(p.up, UP_IFACE, provider).getDataBatch([LSP3_KEY], at);
-      if (String(lsp3).toLowerCase() !== p.prof.value.toLowerCase()) what.push("LSP3Profile");
+      const what = await UPDeploy.verify(provider, p.pl, p.up, p.km, at);
       log(what.length ? t("verifyBad", { what: what.join(", ") }) : t("verifyOk"), what.length ? "line-warn" : "line-ok");
       created = { up: p.up, km: p.km, controllers: p.ctrls };
       const testnet = net().chainId === 4201;
