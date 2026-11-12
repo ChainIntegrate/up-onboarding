@@ -57,13 +57,13 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo chown up-onboarding:up-onboarding /etc/up-onboarding/gas-key && sudo chmod 600 /etc/up-onboarding/gas-key
    ```
 
-3. **The IPFS node**: the service adds and pins the images and profiles on ChainIntegrate's own node, through
-   its API (Kubo, `/api/v0/add`). In the configuration, `ipfsApi`: `http://127.0.0.1:5001` if the node runs on
-   this server, otherwise the node's API address, with this server among the node's allowed addresses. If the
-   API is behind a proxy that asks for a header, put its value in a file and name it in `ipfsAuthFile`:
+3. **The IPFS node**: the service adds and pins the images and profiles on ChainIntegrate's own node (Kubo), on
+   another server, as traceability-registry and supplier-trust-registry do: its write API (`http://<node>:5001`)
+   accepts only the servers its firewall allows, and this server already is one. In the configuration,
+   `ipfsApi` takes the same value as `IPFS_API_URL` in those backends' `.env`:
 
    ```bash
-   curl -s -X POST http://127.0.0.1:5001/api/v0/version      # on this server: the node answers with its version
+   sudo grep -rh --include=.env "^IPFS_API_URL=" /var/www /opt /home 2>/dev/null | sort -u
    ```
 
 4. **The configuration**: start on LUKSO Testnet (`"network": "lukso-testnet"`, `"rpc": "https://rpc.testnet.lukso.network"`,

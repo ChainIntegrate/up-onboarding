@@ -51,7 +51,7 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 |---|---|
 | `network`, `rpc`, `chainId` | `lukso` (42) or `lukso-testnet` (4201) and an RPC of that network |
 | `gasKeyFile` | the gas wallet's private key, one line, mode 600: a wallet used only for this, with little LYX |
-| `ipfsApi` | the IPFS node's API: `http://127.0.0.1:5001` when the node runs on this machine, else its address (the node must allow this server) |
+| `ipfsApi` | the IPFS node's write API, `http://<node>:5001`: the same value as `IPFS_API_URL` in the other ChainIntegrate backends on this server (traceability-registry, supplier-trust-registry). The node's firewall accepts only allowed servers; no secret in the address |
 | `ipfsAuthFile` | optional: an `Authorization` header value, one line, mode 600, when the node's API is behind a proxy that asks for one |
 | `dataDir` | the codes (`invites.json`) and the log of created accounts (`created.jsonl`) |
 | `maxPerDay`, `perIpPerMinute`, `maxControllers`, `inviteDays` | 20, 1, 5, 30 |
