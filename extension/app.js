@@ -50,6 +50,9 @@
       verifyHtml: "Per essere sicuri che la copia funzioni, <b>caricala qui</b> dal posto in cui l'hai salvata e scrivi la sua password.",
       verifyBtn: "Controlla",
       downloadAgainBtn: "Scaricala di nuovo",
+      updateTitle: "È disponibile una nuova versione",
+      updateText: (v) => `Hai la versione ${v.mine}, la più recente è la ${v.latest}. Per aggiornare: scarica il file, scompattalo nella stessa cartella di adesso sostituendo i file, poi in chrome://extensions premi "Ricarica" su ChainIntegrate Account. Il tuo accesso resta com'è.`,
+      updateLink: "Scarica la nuova versione",
       createTitle: "Crea il tuo account",
       createHtml: "Il tuo accesso è pronto. Ora crea l'account con il <b>codice di invito</b> che ti ha dato ChainIntegrate: ci vuole circa un minuto.",
       inviteLabel: "Codice di invito",
@@ -142,6 +145,9 @@
       verifyHtml: "To be sure the copy works, <b>load it here</b> from where you saved it and type its password.",
       verifyBtn: "Check",
       downloadAgainBtn: "Download it again",
+      updateTitle: "A new version is available",
+      updateText: (v) => `You have version ${v.mine}, the latest is ${v.latest}. To update: download the file, unzip it into the same folder as now, replacing the files, then in chrome://extensions press "Reload" on ChainIntegrate Account. Your access stays as it is.`,
+      updateLink: "Download the new version",
       createTitle: "Create your account",
       createHtml: "Your access is ready. Now create the account with the <b>invitation code</b> ChainIntegrate gave you: it takes about a minute.",
       inviteLabel: "Invitation code",
@@ -511,12 +517,28 @@
     document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.getAttribute("data-i18n-html")); });
     document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.getAttribute("data-i18n-placeholder")); });
     $("langToggle").textContent = t("langToggleBtn");
+    if (latest) showUpdate();
     if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
 
+  // ---- updates: the service announces the latest version (the one in its clone of the repository)
+  const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+  let latest = null;
+  function showUpdate() {
+    const mine = chrome.runtime.getManifest().version;
+    const show = !!latest && newer(latest.version, mine) && /^https:\/\/github\.com\/ChainIntegrate\//.test(latest.download);
+    $("updateBox").hidden = !show;
+    if (show) { $("updateText").textContent = t("updateText", { mine, latest: latest.version }); $("updateLink").href = latest.download; }
+  }
+  async function checkUpdate() {
+    try { const b = await (await fetch(CONFIG.health)).json(); latest = b.extension && /^\d+\.\d+\.\d+$/.test(b.extension.version) ? b.extension : null; } catch (e) { latest = null; }
+    showUpdate();
+  }
+
   (async () => {
     applyI18n();
+    checkUpdate();
     account = await store.get();
     if (account && account.record) await showMain(); else show("sWelcome");
   })();

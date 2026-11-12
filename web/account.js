@@ -6,7 +6,7 @@
   const $ = (id) => document.getElementById(id);
   // The extension's page on the Chrome Web Store, once published; until then the page says ChainIntegrate sends
   // the link.
-  const INSTALL_URL = null;
+  const INSTALL_URL = "https://github.com/ChainIntegrate/up-onboarding/releases/latest/download/chainintegrate-account.zip";
 
   let LANG = SiteUI.initialLang();
   const I18N = {
@@ -24,6 +24,7 @@
       s3p: "Con il codice che ti ha dato ChainIntegrate, il nome e, se vuoi, una descrizione e un'immagine. L'account è pronto in circa un minuto.",
       installBtn: "Installa l'estensione",
       installSoon: "Il link per installare l'estensione te lo manda ChainIntegrate, insieme al codice di invito.",
+      installHow: "<ol class=\"steps\"><li>Scarica il file e scompattalo in una cartella dove resterà (per esempio Documenti): ne esce la cartella <b>chainintegrate-account</b>.</li><li>In Chrome apri <b>chrome://extensions</b> e attiva <b>Modalità sviluppatore</b> (in alto a destra).</li><li>Premi <b>Carica estensione non pacchettizzata</b> e scegli la cartella chainintegrate-account.</li></ol>Chrome a ogni avvio ricorda che l'estensione non viene dallo store: è normale. Gli aggiornamenti te li segnala l'estensione stessa.",
       faqTitle: "Da sapere",
       q1: "Il profilo è pubblico?",
       a1: "Sì: nome, descrizione e immagine sono visibili a chiunque. Non inserire dati che vuoi tenere riservati (indirizzo di casa, telefono personale, documenti). Potrai modificarli in seguito, ma le versioni precedenti restano consultabili.",
@@ -49,6 +50,7 @@
       s3p: "With the code ChainIntegrate gave you, the name and, if you like, a description and a picture. The account is ready in about a minute.",
       installBtn: "Install the extension",
       installSoon: "ChainIntegrate sends you the link to install the extension, together with the invitation code.",
+      installHow: "<ol class=\"steps\"><li>Download the file and unzip it into a folder where it will stay (for example Documents): it gives the <b>chainintegrate-account</b> folder.</li><li>In Chrome open <b>chrome://extensions</b> and turn on <b>Developer mode</b> (top right).</li><li>Press <b>Load unpacked</b> and choose the chainintegrate-account folder.</li></ol>At each start Chrome reminds you the extension does not come from the store: that is normal. The extension itself tells you about updates.",
       faqTitle: "Good to know",
       q1: "Is the profile public?",
       a1: "Yes: name, description and picture can be seen by anyone. Do not enter anything you want to keep private (home address, personal phone, documents). You can change them later, but earlier versions remain viewable.",
@@ -71,6 +73,6 @@
     $("langToggle").textContent = t("langToggleBtn");
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
-  if (INSTALL_URL) { $("installLink").href = INSTALL_URL; $("installLink").hidden = false; $("installSoon").hidden = true; }
+  if (INSTALL_URL) { $("installLink").href = INSTALL_URL; $("installLink").hidden = false; $("installSoon").hidden = true; $("installHow").hidden = false; }
   applyI18n();
 })();

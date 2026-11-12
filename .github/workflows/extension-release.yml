@@ -1,0 +1,34 @@
+name: Extension release
+# Push a tag extension-v<version> (the version in extension/manifest.json): the tests run, the extension is packed
+# and published as a GitHub release. releases/latest/download/chainintegrate-account.zip always names the latest.
+on:
+  push:
+    tags: ["extension-v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: The tag is the manifest's version, and the manifest fixes the extension's ID
+        run: |
+          V=$(node -p "require('./extension/manifest.json').version")
+          test "extension-v$V" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, manifest $V"; exit 1; }
+          node -e "if (!require('./extension/manifest.json').key) { console.error('manifest.json has no key: the extension ID would change'); process.exit(1) }"
+          echo "V=$V" >> "$GITHUB_ENV"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:unit
+      - run: npm run test:extension
+      - run: npm run pack:extension
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(sha256sum dist/chainintegrate-account.zip | cut -d' ' -f1)
+          printf 'ChainIntegrate Account %s\n\nInstall: unzip, then chrome://extensions, developer mode, "Load unpacked", the chainintegrate-account folder.\nUpdate: unzip over the same folder, then "Reload" in chrome://extensions. The access stays.\n\nSHA-256 of chainintegrate-account.zip: %s\n' "$V" "$sha" > notes.txt
+          gh release create "$GITHUB_REF_NAME" dist/chainintegrate-account.zip "dist/chainintegrate-account-$V.zip" --title "ChainIntegrate Account $V" --notes-file notes.txt

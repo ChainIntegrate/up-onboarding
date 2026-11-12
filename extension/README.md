@@ -45,6 +45,21 @@ service which account has this key (`/api/lookup`), so the account comes back to
 - Permissions: `storage`, and `account.chainintegrate.it` (the creation service) as its only host. No content
   scripts: the extension reads nothing on the web and sends only the account request and the lookup.
 
+## Distribution and updates
+
+- **The extension's ID is fixed** by the public key in `manifest.json` (`key`): the same ID whatever folder the
+  extension is loaded from, and on the Chrome Web Store later (its first upload carries the matching private key,
+  kept by ChainIntegrate, never in this repository). Everything the extension keeps (the encrypted access, the
+  passkey, which belongs to the ID) survives updates. The release workflow refuses a manifest without `key`.
+- **Releases on GitHub**: a tag `extension-v<version>` runs `.github/workflows/extension-release.yml` (tests,
+  pack, release). `releases/latest/download/chainintegrate-account.zip` always names the latest; the client's
+  page links it, with the install steps.
+- **Update notice**: the creation service announces the version of `extension/manifest.json` in its clone
+  (`/api/health`); a newer one shows "A new version is available" with the download link and the steps (unzip over
+  the same folder, "Reload" in chrome://extensions).
+- **Stored data** keeps its format across versions (`account` in `chrome.storage.local`: the key record of
+  `shared/keystore.js`, version 1, and the account fields); a version that changes it must read the old one.
+
 ## Build, install, test
 
 ```bash

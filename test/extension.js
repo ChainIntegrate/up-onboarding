@@ -21,13 +21,14 @@ const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|ga
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); if (!ok) failures++; };
 
-async function launch() {
+async function launch(health) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-ext-"));
   const ctx = await chromium.launchPersistentContext(dir, { channel: "chromium", headless: true, acceptDownloads: true,
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`] });
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
   const id = new URL(sw.url()).host;
+  if (health) await ctx.route("https://account.chainintegrate.it/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => check(false, "page error: " + e.message));
   await page.goto(`chrome-extension://${id}/app.html?lang=it`);
@@ -137,7 +138,9 @@ async function verify(page, file, pw) {
   await ctx.close();
 
   // ---- 2. restore on a new computer
-  ({ ctx, page } = await launch());
+  ({ ctx, page } = await launch({ ok: true, network: "lukso", extension: { version: "9.9.9", download: "https://github.com/ChainIntegrate/up-onboarding/releases/latest" } }));
+  await visible(page, "updateBox");
+  check(/9\.9\.9/.test(await page.textContent("#updateText")) && (await page.getAttribute("#updateLink", "href")).startsWith("https://github.com/ChainIntegrate/"), "a newer version is announced, with the download link");
   const FOUND = ethers.Wallet.createRandom().address;
   let asked = null;
   await ctx.route("https://account.chainintegrate.it/api/lookup", async (r) => { asked = JSON.parse(r.request().postData()).address; await r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ up: FOUND, network: "lukso" }) }); });
@@ -154,7 +157,10 @@ async function verify(page, file, pw) {
   await ctx.close();
 
   // ---- 3. setup with the computer's lock (virtual authenticator with PRF)
-  ({ ctx, page } = await launch());
+  const own = JSON.parse(fs.readFileSync(path.join(EXT, "manifest.json"))).version;
+  ({ ctx, page } = await launch({ ok: true, network: "lukso", extension: { version: own, download: "https://github.com/ChainIntegrate/up-onboarding/releases/latest" } }));
+  await page.waitForTimeout(500);
+  check(!(await page.isVisible("#updateBox")), "no update notice when the version is the latest");
   const cdp = await ctx.newCDPSession(page);
   await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true }); // headless pages have no focus, which WebAuthn requires
   await cdp.send("WebAuthn.enable");

@@ -215,12 +215,20 @@ function makeService(cfg) {
   return { handleCreate, handleLookup, wallet, provider, store };
 }
 
+// The extension's latest version, as in this clone (git pull brings it), and where to download it: the extension
+// compares it with its own and offers the update.
+const EXTENSION_DOWNLOAD = "https://github.com/ChainIntegrate/up-onboarding/releases/latest";
+function latestExtension() {
+  try { return { version: JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "extension", "manifest.json"), "utf8")).version, download: EXTENSION_DOWNLOAD }; }
+  catch (e) { return null; }
+}
+
 function serve(cfg) {
   const svc = makeService(cfg);
   const server = http.createServer((req, res) => {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
-    if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network });
+    if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
     if (req.method !== "POST" || (url.pathname !== "/api/create" && url.pathname !== "/api/lookup")) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
