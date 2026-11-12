@@ -4,7 +4,7 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
-## In 0.4.1
+## In 0.4.1 (released 2026-11-12)
 
 The relay no longer depends on the computer's clock (found in the live test on LUKSO: the Key Manager refused with
 `RelayCallBeforeStartTime`, the laptop's clock being ahead of the latest block). What the key signs is valid from 0
