@@ -3,7 +3,8 @@
 //
 //   node alert.js failed <unit>   the service stopped and systemd gave up restarting it (OnFailure=)
 //   node alert.js check           every 10 minutes (up-onboarding-creator-check.timer): the service answers,
-//                                 the gas wallet is above its floor, no code is left in "review" or "creating";
+//                                 the gas wallet is above its floor, no code is left in "review" or "creating",
+//                                 the nightly backup is there;
 //                                 an e-mail when a problem appears, when it lasts (every 6 hours), and when
 //                                 it is solved
 //   node alert.js test            a test e-mail
@@ -55,6 +56,14 @@ async function problems(cfg) {
     const n = fs.readFileSync(path.join(cfg.dataDir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)).length;
     if (n >= cfg.maxRelayPerDay) out.push(`The relay reached its daily cap (${n} of ${cfg.maxRelayPerDay}): operations are refused until tomorrow. If it is not expected, look at relay.jsonl.`);
   } catch (e) { if (e.code !== "ENOENT") out.push(`The relay log cannot be read: ${e.message}.`); }
+  // The nightly copy (up-onboarding-backup.timer), once its folder exists: the latest no older than 26 hours.
+  try {
+    if (fs.existsSync(cfg.backupDir)) {
+      const copies = fs.readdirSync(cfg.backupDir).filter((f) => /^up-onboarding-\d{4}-\d{2}-\d{2}\.tar\.gz$/.test(f)).sort();
+      const last = copies.length ? fs.statSync(path.join(cfg.backupDir, copies[copies.length - 1])).mtimeMs : 0;
+      if (Date.now() - last > 26 * 3600000) out.push(`No backup of the service's data in the last 26 hours (${cfg.backupDir}): look at "sudo journalctl -u up-onboarding-backup -n 20".`);
+    }
+  } catch (e) { out.push(`The backups cannot be read: ${e.message}.`); }
   try {
     const invites = JSON.parse(fs.readFileSync(path.join(cfg.dataDir, "invites.json"), "utf8"));
     const stuck = Object.values(invites).filter((i) => i.state === "review" || (i.state === "creating" && Date.now() - Date.parse(i.startedAt || 0) > 15 * 60000));

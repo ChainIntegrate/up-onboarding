@@ -1,0 +1,18 @@
+# /etc/systemd/system/up-onboarding-backup.service
+# Run by up-onboarding-backup.timer: a dated copy of the service's data (codes, created accounts, relay log) in
+# /var/backups/up-onboarding, the latest 30 kept (creator.js backup). alert.js check e-mails when it is missing.
+[Unit]
+Description=Backup of the up-onboarding creation service's data
+
+[Service]
+Type=oneshot
+User=up-onboarding
+Group=up-onboarding
+WorkingDirectory=/var/www/up-onboarding/tools/creator
+Environment=CREATOR_CONFIG=/etc/up-onboarding/config.json
+ExecStart=/usr/bin/node creator.js backup
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/backups/up-onboarding

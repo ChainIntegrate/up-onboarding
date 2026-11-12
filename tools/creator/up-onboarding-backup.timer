@@ -1,0 +1,11 @@
+# /etc/systemd/system/up-onboarding-backup.timer
+[Unit]
+Description=Every night: backup of the up-onboarding creation service's data
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

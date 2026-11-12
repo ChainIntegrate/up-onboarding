@@ -12,6 +12,11 @@
 //                                               images on the IPFS node and on public gateways, their hashes
 //   node creator.js withdraw <address> [amount]  sends the gas wallet's LYX (all of it, minus the fee, or the
 //                                               amount) to an address of yours: the key never leaves the server
+//   node creator.js backup                      a dated copy of the data folder in backupDir (the latest 30 kept);
+//                                               every night by up-onboarding-backup.timer
+//   node creator.js rebuild [--dry-run]         the list of created accounts (created.jsonl) rebuilt from the network:
+//                                               the gas wallet's creations, read from LUKSO's explorer, each checked
+//                                               on the network; adds the accounts missing from the list
 // The configuration is ./config.json, or the file named by CREATOR_CONFIG (see config.example.json).
 //
 // POST /api/create  { invite, request, signature }
@@ -66,6 +71,8 @@ function loadConfig() {
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
     rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    backupDir: abs(c.backupDir || "/var/backups/up-onboarding"), backupKeep: Number(c.backupKeep ?? 30),
+    explorerApi: String(c.explorerApi || (c.network === "lukso" ? "https://explorer.execution.mainnet.lukso.network/api/v2" : "https://explorer.execution.testnet.lukso.network/api/v2")).replace(/\/+$/, ""),
   };
 }
 const secret = (file) => fs.readFileSync(file, "utf8").trim();
@@ -596,7 +603,76 @@ async function main() {
     console.log(`confirmed; balance now ${ethers.formatEther(await provider.getBalance(w.address))}`);
     return;
   }
-  console.error("usage: creator.js serve | invite [--days N] [--note TEXT] | invites | revoke <code or id> | status | withdraw <address> [amount]");
+  if (cmd === "backup") {
+    fs.mkdirSync(cfg.backupDir, { recursive: true, mode: 0o700 });
+    const out = path.join(cfg.backupDir, `up-onboarding-${new Date().toISOString().slice(0, 10)}.tar.gz`);
+    const tmp = out + ".tmp";
+    require("child_process").execFileSync("tar", ["-czf", tmp, "--exclude=./alert-state.json", "--exclude=*.tmp", "-C", cfg.dataDir, "."]);
+    fs.chmodSync(tmp, 0o600); fs.renameSync(tmp, out);
+    const all = fs.readdirSync(cfg.backupDir).filter((f) => /^up-onboarding-\d{4}-\d{2}-\d{2}\.tar\.gz$/.test(f)).sort();
+    for (const f of all.slice(0, Math.max(0, all.length - cfg.backupKeep))) fs.unlinkSync(path.join(cfg.backupDir, f));
+    console.log(`backup ${out} (${fs.statSync(out).size} bytes); ${Math.min(all.length, cfg.backupKeep)} copies kept in ${cfg.backupDir}`);
+    return;
+  }
+  if (cmd === "rebuild") {
+    const dry = rest.includes("--dry-run");
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
+    const gas = new ethers.Wallet(secret(cfg.gasKeyFile)).address;
+    const known = new Set(store.created().filter((e) => e.up).map((e) => ethers.getAddress(e.up)));
+    // The gas wallet's transactions, from LUKSO's explorer (Blockscout API): the node cannot list them.
+    const hashes = [];
+    let next = "";
+    for (let page = 0; page < 500; page++) {
+      const res = await fetch(`${cfg.explorerApi}/addresses/${gas}/transactions?filter=from${next}`, { signal: AbortSignal.timeout(30000) });
+      if (!res.ok) throw new Error(`the explorer answers ${res.status}`);
+      const b = await res.json();
+      for (const it of b.items || []) if (it && it.to && it.to.hash && ethers.getAddress(it.to.hash) === UPDeploy.FACTORY && it.status === "ok") hashes.push(it.hash);
+      if (!b.next_page_params) break;
+      next = "&" + new URLSearchParams(b.next_page_params).toString();
+    }
+    // A creation read back from its transaction's data: the call's arguments and the client's keys (the
+    // AddressPermissions[] items but LUKSO's LSP1 delegate), as shared/deploy.js writes them.
+    const FACTORY_IFACE = new ethers.Interface(["function deployERC1167Proxies((bytes32 salt,uint256 fundingAmount,address implementationContract,bytes initializationCalldata) primary,(uint256 fundingAmount,address implementationContract,bytes initializationCalldata,bool addPrimaryContractAddress,bytes extraInitializationParams) secondary,address postDeploymentModule,bytes postDeploymentModuleCalldata) payable returns (address,address)"]);
+    const ARRAY_KEY = "0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3";
+    const readCreation = (data) => {
+      let t;
+      try { t = FACTORY_IFACE.parseTransaction({ data }); } catch (e) { return null; }
+      if (!t || ethers.getAddress(t.args[2]) !== ethers.getAddress(UPDeploy.POST_MODULE)) return null;
+      let keys, values;
+      try { [keys, values] = ethers.AbiCoder.defaultAbiCoder().decode(["bytes32[]", "bytes[]"], t.args[3]); } catch (e) { return null; }
+      const controllers = [];
+      keys.forEach((k, i) => {
+        if (k.toLowerCase().startsWith(ARRAY_KEY.slice(0, 34)) && k.toLowerCase() !== ARRAY_KEY) {
+          try { const a = ethers.getAddress(ethers.dataSlice(values[i], 0, 20)); if (a !== ethers.getAddress(UPDeploy.URD)) controllers.push(a); } catch (e) { /* not an address */ }
+        }
+      });
+      return { args: [[...t.args[0]], [...t.args[1]], t.args[2], t.args[3]], controllers };
+    };
+    const UPI = new ethers.Interface(["function owner() view returns (address)"]);
+    const KMI = new ethers.Interface(["function target() view returns (address)"]);
+    const factory = new ethers.Contract(UPDeploy.FACTORY, ["function computeERC1167Addresses((bytes32,uint256,address,bytes),(uint256,address,bytes,bool,bytes),address,bytes) view returns (address,address)"], provider);
+    let added = 0;
+    for (const h of hashes.reverse()) {
+      const tx = await provider.getTransaction(h);
+      const rc = await provider.getTransactionReceipt(h);
+      const c = tx && rc && rc.status === 1 && ethers.getAddress(tx.from) === gas ? readCreation(tx.data) : null;
+      if (!c) { console.log(`${h}: not a creation, skipped`); continue; }
+      const [upA, kmA] = await factory.computeERC1167Addresses(...c.args);
+      const up = ethers.getAddress(upA), km = ethers.getAddress(kmA);
+      const owner = UPI.decodeFunctionResult("owner", await provider.call({ to: up, data: UPI.encodeFunctionData("owner") }))[0];
+      const target = KMI.decodeFunctionResult("target", await provider.call({ to: km, data: KMI.encodeFunctionData("target") }))[0];
+      if (ethers.getAddress(owner) !== km || ethers.getAddress(target) !== up) { console.log(`${h}: account ${up} not as created (owner ${owner}), skipped`); continue; }
+      if (known.has(up)) { console.log(`${up}: already in the list`); continue; }
+      const block = await provider.getBlock(rc.blockNumber);
+      const entry = { at: new Date(Number(block.timestamp) * 1000).toISOString(), up, km, tx: h, network: cfg.network, keys: c.controllers, rebuilt: true };
+      console.log(`${up}: missing, ${dry ? "would be added" : "added"} (tx ${h}, keys ${c.controllers.join(" ")})`);
+      if (!dry) fs.appendFileSync(path.join(cfg.dataDir, "created.jsonl"), JSON.stringify(entry) + "\n", { mode: 0o600 });
+      known.add(up); added++;
+    }
+    console.log(`${hashes.length} creation(s) found by the explorer, ${added} account(s) ${dry ? "missing" : "added"}`);
+    return;
+  }
+  console.error("usage: creator.js serve | invite [--days N] [--note TEXT] | invites | revoke <code or id> | status | inspect <account> | withdraw <address> [amount] | backup | rebuild [--dry-run]");
   process.exit(2);
 }
 

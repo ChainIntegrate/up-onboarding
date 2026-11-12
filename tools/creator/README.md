@@ -81,6 +81,20 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
 | `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
+| `backupDir`, `backupKeep` | where `creator.js backup` keeps its dated copies of the data folder, and how many (`/var/backups/up-onboarding`, 30) |
+| `explorerApi` | LUKSO's explorer (Blockscout API v2), read only by `creator.js rebuild` (the mainnet or testnet explorer by `network`) |
 
 A creation costs about 0.01 LYX with the profile on IPFS. Installation: [../../DEPLOY.md](../../DEPLOY.md).
 Tests: `npm run test:creator` (a local chain with LUKSO's contracts, the IPFS API answered locally).
+
+## Backup and recovery
+
+`dataDir` holds the codes (`invites.json`), the created accounts (`created.jsonl`: the relay serves only these) and
+the relay's log. Every night `up-onboarding-backup.timer` runs `creator.js backup`: a dated `.tar.gz` in `backupDir`,
+readable by the service only, the latest 30 kept; `alert.js check` sends an e-mail when the latest is older than 26
+hours. To restore one: stop the service, `sudo tar -xzf <copy> -C /var/lib/up-onboarding`, start it.
+
+Without any copy, `creator.js rebuild` rebuilds `created.jsonl` from the network: LUKSO's explorer lists the gas
+wallet's transactions, each creation is read back (the account, its Key Manager, its keys) and checked on the network
+(the account owned by its Key Manager), and the accounts missing from the list are added (`--dry-run`: only listed).
+The accounts themselves never depend on these files: they live on the network and in the clients' extensions.

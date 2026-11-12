@@ -17,7 +17,7 @@ const UPDeploy = require("../shared/deploy.js");
 const UPRelay = require("../shared/relay.js");
 
 const RPC = "http://127.0.0.1:8545";
-const PORT = 8788, IPFS = 8789;
+const PORT = 8788, IPFS = 8789, EXPLORER = 8790;
 const CREATOR = path.join(__dirname, "..", "tools", "creator", "creator.js");
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); if (!ok) failures++; };
@@ -55,6 +55,16 @@ async function waitFor(url, body) {
       res.end(JSON.stringify({ Name: "f", Hash: hash, Size: "1" }) + "\n");
     });
   }).listen(IPFS);
+  // LUKSO's explorer (Blockscout API v2), as it lists an address's transactions: two pages, the creation on the
+  // second one, a transfer on the first.
+  const explorerTxs = [];
+  const explorer = http.createServer((req, res) => {
+    const u = new URL(req.url, "http://x");
+    const page2 = u.searchParams.get("page") === "2";
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(page2 ? { items: explorerTxs, next_page_params: null }
+      : { items: [{ hash: "0x" + "11".repeat(32), to: { hash: "0x000000000000000000000000000000000000dEaD" }, status: "ok" }], next_page_params: { page: 2 } }));
+  }).listen(EXPLORER);
   let svc;
   try {
     await waitFor(RPC, '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}');
@@ -66,10 +76,12 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
-    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data",
+    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
       ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 7, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
+    // Commands that talk to the explorer stub (served by this process) run without blocking it.
+    const cliAsync = (...args) => new Promise((res, rej) => require("child_process").execFile(process.execPath, [CREATOR, ...args], { env, encoding: "utf8" }, (e, out, err) => (e ? rej(new Error(err || e.message)) : res(out.trim()))));
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
     svc = spawn(process.execPath, [CREATOR, "serve"], { env, stdio: ["ignore", "inherit", "inherit"] });
     await waitFor(`http://127.0.0.1:${PORT}/api/health`);
@@ -129,6 +141,30 @@ async function waitFor(url, body) {
     check(l.status === 200 && l.body.up === created && l.body.network === "lukso", "an account is found by one of its keys");
     l = await look(stranger.address);
     check(l.status === 404, "a key with no account is not found");
+    // ---- the list of created accounts: backed up, and rebuilt from the network when lost
+    const out = cli("backup");
+    const copies = fs.readdirSync(path.join(dir, "backups"));
+    const listed = execFileSync("tar", ["-tzf", path.join(dir, "backups", copies[0])], { encoding: "utf8" });
+    check(copies.length === 1 && /^up-onboarding-\d{4}-\d{2}-\d{2}\.tar\.gz$/.test(copies[0]) && (fs.statSync(path.join(dir, "backups", copies[0])).mode & 0o077) === 0 &&
+      /created\.jsonl/.test(listed) && /invites\.json/.test(listed), "backup: a dated copy of the codes and of the created accounts, readable by the service only" + ` [${out}]`);
+    for (const d of ["2020-01-01", "2020-01-02"]) fs.writeFileSync(path.join(dir, "backups", `up-onboarding-${d}.tar.gz`), "old");
+    fs.writeFileSync(path.join(dir, "config-keep1.json"), JSON.stringify({ ...config, backupKeep: 2 }));
+    execFileSync(process.execPath, [CREATOR, "backup"], { env: { ...env, CREATOR_CONFIG: path.join(dir, "config-keep1.json") }, stdio: "ignore" });
+    check(fs.readdirSync(path.join(dir, "backups")).sort().join() === ["up-onboarding-2020-01-02.tar.gz", copies[0]].sort().join(), "backup: only the latest copies are kept");
+    explorerTxs.push({ hash: r.body.tx, to: { hash: UPDeploy.FACTORY }, status: "ok" });
+    const createdFile = path.join(dir, "data", "created.jsonl");
+    const before = fs.readFileSync(createdFile, "utf8");
+    fs.writeFileSync(createdFile, "");
+    check((await look(device.address)).status === 404, "rebuild: with the list lost, the account is unknown to the service");
+    const rb = await cliAsync("rebuild");
+    const rebuilt = fs.readFileSync(createdFile, "utf8").split("\n").filter(Boolean).map((x) => JSON.parse(x));
+    check(rebuilt.length === 1 && rebuilt[0].up === created && rebuilt[0].km === r.body.km && rebuilt[0].tx === r.body.tx && rebuilt[0].rebuilt === true &&
+      rebuilt[0].keys.join() === [admin.address, device.address].join(), "rebuild: the account, its Key Manager and its keys come back from the network" + ` [${rb.split("\n").pop()}]`);
+    l = await look(device.address);
+    check(l.status === 200 && l.body.up === created, "rebuild: the service knows the account again");
+    await cliAsync("rebuild");
+    check(fs.readFileSync(createdFile, "utf8").split("\n").filter(Boolean).length === 1, "rebuild: run again, it adds nothing twice");
+    fs.writeFileSync(createdFile, before);
     // ---- relay: operations on the account, gas paid by the service (LSP25)
     const relayPost = async (pathName, body) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/relay${pathName}`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.8.8.8" }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
     const read1 = new ethers.Contract(created, ["function getData(bytes32) view returns (bytes)"], prov);
@@ -275,7 +311,7 @@ async function waitFor(url, body) {
     check(left < ethers.parseEther("0.001") && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee");
   } finally {
     if (svc) svc.kill();
-    try { process.kill(-node.pid); } catch (e) { node.kill(); } ipfs.close(); // npx and the node it starts
+    try { process.kill(-node.pid); } catch (e) { node.kill(); } ipfs.close(); explorer.close(); // npx and the node it starts
   }
   console.log(failures ? `${failures} check(s) failed` : "all checks passed");
   process.exit(failures ? 1 : 0);

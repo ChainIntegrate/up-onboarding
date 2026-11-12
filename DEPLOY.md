@@ -108,6 +108,17 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo systemd-run --wait --pipe -p User=up-onboarding -p EnvironmentFile=/etc/up-onboarding/smtp.env -p WorkingDirectory=/var/www/up-onboarding/tools/creator /usr/bin/node alert.js test   # a test e-mail, with the service's settings
    ```
 
+   **Backup** of the service's data every night, on this server (`/var/backups/up-onboarding`, the latest 30 copies),
+   with an e-mail when one is missing; `creator.js rebuild` rebuilds the list of accounts from the network if every
+   copy were lost ([tools/creator/README.md](tools/creator/README.md#backup-and-recovery)):
+
+   ```bash
+   sudo install -d -m 700 -o up-onboarding -g up-onboarding /var/backups/up-onboarding
+   sudo cp up-onboarding-backup.service up-onboarding-backup.timer /etc/systemd/system/
+   sudo systemctl daemon-reload && sudo systemctl enable --now up-onboarding-backup.timer
+   sudo systemctl start up-onboarding-backup && ls -l /var/backups/up-onboarding   # the first copy, now
+   ```
+
 6. **nginx**: the site file has the `/api/` location; copy it again and reload:
 
    ```bash
