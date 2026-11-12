@@ -4,6 +4,14 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
+## In 0.4.1
+
+The relay no longer depends on the computer's clock (found in the live test on LUKSO: the Key Manager refused with
+`RelayCallBeforeStartTime`, the laptop's clock being ahead of the latest block). What the key signs is valid from 0
+until ten minutes after the network's time, which the service gives with the nonce; the service also waits, up to a
+minute and a half, for the network to reach a validity that starts later (0.4.0 extensions), and says by name why
+the Key Manager refused.
+
 ## In 0.4.0 (released 2026-11-12)
 
 Items 8 (the relay), 9 (the privacy notice from the extension) and 11 (the backup copy names the account), the

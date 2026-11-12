@@ -188,7 +188,7 @@ async function verify(page, file, pw) {
   // ---- changes to the account over the relay (the service answered here; the service itself: test/creator.js)
   const KMADDR = ethers.Wallet.createRandom().address;
   const sent = [];
-  await ctx.route("https://account.chainintegrate.it/api/relay/nonce", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ account: UP, keyManager: KMADDR, nonce: "7", chainId: 42 }) }));
+  await ctx.route("https://account.chainintegrate.it/api/relay/nonce", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ account: UP, keyManager: KMADDR, nonce: "7", chainId: 42, time: Math.floor(Date.now() / 1000) - 12 }) }));
   await ctx.route("https://account.chainintegrate.it/api/relay", (r) => { sent.push(["relay", JSON.parse(r.request().postData())]); r.fulfill({ status: 200, contentType: "application/json", body: '{"tx":"0x01"}' }); });
   await ctx.route("https://account.chainintegrate.it/api/profile", (r) => { sent.push(["profile", JSON.parse(r.request().postData())]); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ value: "0x00006f357c6a0020" + "11".repeat(32) + Buffer.from("ipfs://bafkreigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest01").toString("hex"), url: "ipfs://x" }) }); });
   await page.click("#editBox summary");
@@ -199,6 +199,8 @@ async function verify(page, file, pw) {
   const relDigest = UPRelay.digest({ chainId: 42, keyManager: KMADDR, nonce: 7n, validity: BigInt(rel.validity), payload: rel.payload });
   check(ethers.recoverAddress(relDigest, rel.signature) === code && UPRelay.check(rel.payload, { signer: code }).items[0].name === "Portatile Simone" && rel.account === UP,
     "renaming this computer: the LSP25 request is signed by this computer's key for the account's Key Manager");
+  const relV = UPRelay.splitValidity(BigInt(rel.validity));
+  check(relV.start === 0n && Math.abs(Number(relV.end) - (Math.floor(Date.now() / 1000) - 12 + 600)) < 30, "the request is valid from the start until ten minutes after the network's time given by the service (not the computer's clock)");
   check((await page.evaluate(() => chrome.storage.local.get("account"))).account.nameInAccount === "Portatile Simone", "the new name is remembered");
   sent.length = 0;
   await page.fill("#eDesc", "Vino toscano, dal 1950"); await page.fill("#editPw", PW); await page.click("#eProfileBtn");

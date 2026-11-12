@@ -775,8 +775,10 @@
   async function relaySend(sk, payload) {
     const signer = account.record.address;
     const n = await postJson(CONFIG.relayNonce, { account: account.up, signer });
-    const now = Math.floor(Date.now() / 1000);
-    const validity = UPRelay.validity(now - 30, now + 600);
+    // Valid from the start (0) until ten minutes after the network's time as the service reads it: the computer's
+    // clock does not count (the Key Manager compares with the block's time).
+    const base = Number.isInteger(n.time) && n.time > 0 ? n.time : Math.floor(Date.now() / 1000);
+    const validity = UPRelay.validity(0, base + 600);
     const digest = UPRelay.digest({ chainId: n.chainId, keyManager: n.keyManager, nonce: BigInt(n.nonce), validity, payload });
     return postJson(CONFIG.relay, { account: account.up, nonce: n.nonce, validity: validity.toString(), payload, signature: sk.sign(digest).serialized });
   }

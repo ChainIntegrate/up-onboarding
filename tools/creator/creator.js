@@ -280,7 +280,10 @@ function makeService(cfg) {
     if (typeof body.signer !== "string" || !ethers.isAddress(body.signer)) throw new HttpError(400, "bad_request", { problems: ["signer"] });
     const raw = await provider.call({ to: keyManager, data: UPRelay.KM.encodeFunctionData("getNonce", [ethers.getAddress(body.signer), 0]) });
     const nonce = UPRelay.KM.decodeFunctionResult("getNonce", raw)[0];
-    return { account, keyManager, nonce: nonce.toString(), chainId: cfg.chainId };
+    // The network's time (the latest block's), for the validity of what the key signs: the Key Manager checks it
+    // against the block's time, not against the client's clock.
+    const latest = await provider.getBlock("latest");
+    return { account, keyManager, nonce: nonce.toString(), chainId: cfg.chainId, time: latest ? Number(latest.timestamp) : Math.floor(Date.now() / 1000) };
   }
 
   // Why the account's Key Manager (LSP6, LSP25) or the account refused: its custom error by name, else the raw data.
@@ -325,6 +328,15 @@ function makeService(cfg) {
     try { isProject = await UPCatalog.verifyNeeds(provider, allowed.needs); } catch (e) { throw new HttpError(503, "unavailable"); }
     if (!isProject) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
     const data = UPRelay.KM.encodeFunctionData("executeRelayCall", [signature, nonce, validity, payload]);
+    // A validity that starts after the latest block (a client clock a little ahead; blocks come every ~12 s): wait,
+    // within a minute and a half, for the network to reach it, else the Key Manager refuses it (RelayCallBeforeStartTime).
+    if (start > 0n) {
+      for (let i = 0; i < 30; i++) {
+        const b = await provider.getBlock("latest");
+        if (!b || BigInt(b.timestamp) >= start) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
     const run = queue.then(async () => {
       if (store.relayToday() >= cfg.maxRelayPerDay) { console.error("RELAY DAILY LIMIT reached"); throw new HttpError(429, "daily_limit"); }
       // The Key Manager checks the signer's permissions and the nonce, the account checks the call: a refusal shows here.

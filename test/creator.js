@@ -135,8 +135,7 @@ async function waitFor(url, body) {
     async function relay(wallet, payload, { nonce, validity, account = created } = {}) {
       const n = await relayPost("/nonce", { account, signer: wallet.address });
       if (n.status !== 200) return n;
-      const now = Math.floor(Date.now() / 1000) - 5;
-      const v = validity ?? UPRelay.validity(now, now + 600);
+      const v = validity ?? UPRelay.validity(0, n.body.time + 600);
       const useNonce = nonce ?? BigInt(n.body.nonce);
       const digest = UPRelay.digest({ chainId: n.body.chainId, keyManager: n.body.keyManager, nonce: useNonce, validity: v, payload });
       const sig = wallet.signingKey.sign(digest).serialized;
