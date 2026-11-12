@@ -1,5 +1,7 @@
 name: Extension release
-# Push a tag extension-v<version> (the version in extension/manifest.json). Hardened as asked by Cross_Chain's
+# Started by hand on main (Actions, "Extension release", "Run workflow"), or by pushing a tag extension-v<version>:
+# the version is the one in extension/manifest.json, and the release creates the tag extension-v<version> on the
+# commit it built. Hardened as asked by Cross_Chain's
 # audit EXT-06:
 #   build    read only, no stored token: packs the zip from the tag, reproducibly, BEFORE any dependency or test
 #            tool is installed, and checks it against web/extension/<version>/SHA256SUMS (committed, also served
@@ -9,6 +11,7 @@ name: Extension release
 #            attestation (gh attestation verify) and publishes the release with the SHA-256 in its notes.
 # Actions pinned by commit. releases/latest/download/chainintegrate-account.zip always names the latest.
 on:
+  workflow_dispatch:
   push:
     tags: ["extension-v*"]
 permissions:
@@ -16,14 +19,19 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - name: The tag is the manifest's version, and the manifest fixes the extension's ID
+      - name: The version, from main or from its tag; the manifest fixes the extension's ID
+        id: v
         run: |
           V=$(node -p "require('./extension/manifest.json').version")
-          test "extension-v$V" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, manifest $V"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "extension-v$V" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, manifest $V"; exit 1; }
+          else test "$GITHUB_REF" = refs/heads/main || { echo "releases are made from main only"; exit 1; }; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
           node -e "if (!require('./extension/manifest.json').key) { console.error('manifest.json has no key: the extension ID would change'); process.exit(1) }"
       - name: Pack (no dependency installed yet) and check against the committed SHA256SUMS
         run: node tools/pack-extension.js --check
@@ -66,8 +74,9 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.build.outputs.version }}
         run: |
-          V="${GITHUB_REF_NAME#extension-v}"
+          gh release view "extension-v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && { echo "extension-v$V is already released: a new version is needed"; exit 1; }
           sha=$(sha256sum dist/chainintegrate-account.zip | cut -d' ' -f1)
           cat > notes.txt <<NOTES
           ChainIntegrate Account $V
@@ -76,12 +85,12 @@ jobs:
           The same list of SHA-256 (the zip and every file in it) is SHA256SUMS below and at
           https://account.chainintegrate.it/extension/$V/SHA256SUMS (ChainIntegrate's own site).
           Provenance: gh attestation verify chainintegrate-account.zip --repo $GITHUB_REPOSITORY
-          Rebuild: git checkout $GITHUB_REF_NAME && node tools/pack-extension.js --check
+          Rebuild: git checkout extension-v$V && node tools/pack-extension.js --check
 
           Install: unzip into a folder that is not synced (Windows: %LOCALAPPDATA%\ChainIntegrate, Mac:
           ~/Library/Application Support/ChainIntegrate), then chrome://extensions, Developer mode,
           "Load unpacked", the chainintegrate-account folder. Update: unzip over the same folder, then "Reload".
           NOTES
           sed -i 's/^          //' notes.txt
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "ChainIntegrate Account $V" --notes-file notes.txt \
+          gh release create "extension-v$V" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "ChainIntegrate Account $V" --notes-file notes.txt \
             dist/chainintegrate-account.zip "dist/chainintegrate-account-$V.zip" dist/SHA256SUMS
