@@ -10,6 +10,14 @@ chooses to make it a recovery administrator.
 
 **Status: experimental (0.x).** No professional audit. Try everything on LUKSO Testnet first.
 
+## Where
+
+| | |
+|---|---|
+| The client's page: "Create your ChainIntegrate account" | https://account.chainintegrate.it/ |
+| The operator's page (ChainIntegrate only) | https://account.chainintegrate.it/operator.html |
+| How the site is published | [DEPLOY.md](DEPLOY.md), nginx files in [`tools/nginx/`](tools/nginx/) |
+
 ## The parts
 
 | Part | What it is | Where | Status |

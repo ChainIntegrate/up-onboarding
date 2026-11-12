@@ -82,6 +82,15 @@ async function verify(page, file, pw) {
   await visible(page, "sMain");
   const code = (await page.textContent("#code")).trim();
   check(code === bk.key.address, "the code shown is the backup's address");
+  await page.fill("#devName", "PC ufficio"); await page.dispatchEvent("#devName", "change");
+  await ctx.route("https://account.chainintegrate.it/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "ok" }));
+  await page.waitForFunction(async () => (await chrome.storage.local.get("account")).account.name === "PC ufficio");
+  const [popup] = await Promise.all([ctx.waitForEvent("page"), page.click("#accountBtn")]);
+  await popup.waitForURL(/account\.chainintegrate\.it/);
+  const opened = new URL(popup.url());
+  check(opened.origin === "https://account.chainintegrate.it" && opened.searchParams.get("code") === code && opened.searchParams.get("name") === "PC ufficio",
+    "\"Complete your account\" opens the account page with the code and the name");
+  await popup.close();
   const stored = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
   const clear = ethers.hexlify(await K.open(bk.key, { password: BK })).slice(2);
   check(stored.record.address === code && stored.record.method === "password" && !JSON.stringify(stored).includes(clear), "the stored access is encrypted and holds no clear key");
