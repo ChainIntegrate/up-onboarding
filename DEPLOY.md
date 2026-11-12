@@ -46,12 +46,28 @@ to the headers snippet or the site file needs them copied again and `sudo nginx 
 
 ## Check after every deploy
 
+The server may not reach itself through its public address (no "hairpin"): from the server, point curl at
+nginx on the machine itself with `--resolve`; from any other computer, drop `$R`.
+
 ```bash
-curl -sI https://account.chainintegrate.it/ | grep -i content-security-policy        # connect-src 'none'
-curl -sI https://account.chainintegrate.it/operator.html | grep -i -E "connect-src|x-robots-tag"
-curl -s -o /dev/null -w "%{http_code}\n" https://account.chainintegrate.it/.git/config    # 404
-curl -s -o /dev/null -w "%{http_code}\n" https://account.chainintegrate.it/README.md      # 404 (not in web/)
+R="--resolve account.chainintegrate.it:443:127.0.0.1 --resolve account.chainintegrate.it:80:127.0.0.1"
+curl -sI $R https://account.chainintegrate.it/ | grep -i -E "^HTTP|content-security-policy|strict-transport|x-frame"   # 200, connect-src 'none'
+curl -sI $R https://account.chainintegrate.it/operator.html | grep -i -E "^HTTP|connect-src|x-robots-tag"           # 200, LUKSO and Pinata only, noindex
+for u in /.git/config /README.md; do curl -s $R -o /dev/null -w "$u %{http_code}\n" https://account.chainintegrate.it$u; done   # 404, 404
+curl -s $R -o /dev/null -w "%{http_code} %{redirect_url}\n" http://account.chainintegrate.it/                       # 301 to https
+sudo certbot renew --dry-run --cert-name account.chainintegrate.it
 ```
+
+TLS versions, on the server. nginx picks the version before it knows which site is asked for, so what counts
+is the default server of port 443 (or `nginx.conf`), not the line in this site alone. The check looks at the
+negotiated cipher: s_client prints a "Protocol" line even when the server refuses.
+
+```bash
+for v in tls1 tls1_1 tls1_2 tls1_3; do printf "%-7s " $v; echo | openssl s_client -connect 127.0.0.1:443 -servername account.chainintegrate.it -$v -cipher 'DEFAULT@SECLEVEL=0' 2>/dev/null | grep -qE "^New, .*Cipher is [A-Za-z0-9_-]+$" && echo accepted || echo refused; done
+# tls1 refused, tls1_1 refused, tls1_2 accepted, tls1_3 accepted
+```
+
+First deploy, 2026-11-12: every check as expected.
 
 ## What the headers do
 
