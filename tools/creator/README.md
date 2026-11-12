@@ -34,7 +34,11 @@ node creator.js invite --days 7             # one that expires sooner (default: 
 node creator.js invites                     # id, state, dates, account, note
 node creator.js revoke <code or id>         # an open code that may no longer be used
 node creator.js status                      # gas wallet, balance, accounts today
+node creator.js withdraw 0x… [amount]       # the gas wallet's LYX to an address of yours (all, minus the fee)
 ```
+
+The gas wallet's key stays on the server (`gasKeyFile`): the service is the only one that uses it, and
+`withdraw` takes the LYX back without it leaving the server. Never use that address for anything else.
 
 With `CREATOR_CONFIG=/etc/up-onboarding/config.json` (the service's) and as the service's user, so the files keep
 their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config.json node creator.js invite`.

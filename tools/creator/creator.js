@@ -8,6 +8,8 @@
 //   node creator.js invites                     the codes: state, expiry, note, account created
 //   node creator.js revoke <code>               a code that may no longer be used
 //   node creator.js status                      the gas wallet's address and balance, today's count
+//   node creator.js withdraw <address> [amount]  sends the gas wallet's LYX (all of it, minus the fee, or the
+//                                               amount) to an address of yours: the key never leaves the server
 // The configuration is ./config.json, or the file named by CREATOR_CONFIG (see config.example.json).
 //
 // POST /api/create  { invite, request, signature }
@@ -277,7 +279,25 @@ async function main() {
     console.log(`network ${cfg.network}\ngas wallet ${w.address}\nbalance ${ethers.formatEther(await provider.getBalance(w.address))}\ncreated today ${store.usedToday()} of ${cfg.maxPerDay}`);
     return;
   }
-  console.error("usage: creator.js serve | invite [--days N] [--note TEXT] | invites | revoke <code or id> | status");
+  if (cmd === "withdraw") {
+    const to = rest[0];
+    if (!to || !ethers.isAddress(to)) { console.error("usage: creator.js withdraw <address> [amount]"); process.exit(2); }
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const w = new ethers.Wallet(secret(cfg.gasKeyFile), provider);
+    if ((await provider.getCode(to)) !== "0x" && !rest.includes("--contract")) { console.error("the address is a contract (a profile?): add --contract if that is what you want"); process.exit(1); }
+    const balance = await provider.getBalance(w.address);
+    const fee = await provider.getFeeData();
+    const price = fee.maxFeePerGas || fee.gasPrice;
+    const gasLimit = (await provider.getCode(to)) === "0x" ? 21000n : 100000n;
+    const amount = rest[1] && rest[1] !== "--contract" ? ethers.parseEther(rest[1]) : balance - gasLimit * price;
+    if (amount <= 0n || amount + gasLimit * price > balance) { console.error(`not enough: balance ${ethers.formatEther(balance)}`); process.exit(1); }
+    const tx = await w.sendTransaction({ to: ethers.getAddress(to), value: amount, gasLimit, maxFeePerGas: fee.maxFeePerGas || undefined, maxPriorityFeePerGas: fee.maxPriorityFeePerGas || undefined, gasPrice: fee.maxFeePerGas ? undefined : fee.gasPrice });
+    console.log(`sent ${ethers.formatEther(amount)} to ${ethers.getAddress(to)}: ${tx.hash}`);
+    await tx.wait(1, cfg.confirmSeconds * 1000);
+    console.log(`confirmed; balance now ${ethers.formatEther(await provider.getBalance(w.address))}`);
+    return;
+  }
+  console.error("usage: creator.js serve | invite [--days N] [--note TEXT] | invites | revoke <code or id> | status | withdraw <address> [amount]");
   process.exit(2);
 }
 

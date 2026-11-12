@@ -125,6 +125,12 @@ async function waitFor(url, body) {
     check(r.status === 429 && r.body.error === "daily_limit", "the daily limit holds");
     check(/created today 2 of 2/.test(cli("status")), "status counts today's accounts");
     check(cli("invites").split("\n").length === 4, "the codes are listed");
+    const mine = ethers.Wallet.createRandom().address;
+    cli("withdraw", mine, "1.5");
+    check((await prov.getBalance(mine)) === ethers.parseEther("1.5"), "withdraw sends an amount to the operator's address");
+    cli("withdraw", mine);
+    const left = await prov.getBalance(gas.address);
+    check(left < ethers.parseEther("0.001") && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee");
   } finally {
     if (svc) svc.kill();
     node.kill(); pinata.close();
