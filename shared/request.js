@@ -15,7 +15,9 @@
 //   "salt": "0x…32 bytes…" (optional: the LSP23 salt, so the UP's address stays the same between sessions),
 //   "profile": { "name": "…", "description": "…", "tags": ["…"], "links": [{ "title": "…", "url": "https://…" }] },
 //   "images": { "avatar": { "dataUrl": "data:image/…;base64,…", "w": 512, "h": 512 } | null, "cover": … | null },
-//   "controllers": [{ "address": "0x…", "name": "…", "role": "admin" | "device" }]
+//   "controllers": [{ "address": "0x…", "name": "…", "role": "admin" | "device" }],
+//   "chainintegrateRecovery": true | false (optional: the client asks ChainIntegrate to be a recovery
+//     administrator, which also gives ChainIntegrate full control of the profile)
 // }
 (function (root, factory) {
   const api = factory(root.ethers || (typeof require === "function" ? require("ethers").ethers : null));
@@ -99,6 +101,8 @@
 
     const request = { kind: KIND, version: VERSION, network, profile, images, controllers };
     if (salt) request.salt = salt;
+    if (src.chainintegrateRecovery != null && typeof src.chainintegrateRecovery !== "boolean") errors.push("chainintegrateRecovery");
+    if (src.chainintegrateRecovery === true) request.chainintegrateRecovery = true;
     return { request, errors };
   }
 

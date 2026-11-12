@@ -6,19 +6,16 @@
 <script src="lib/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Crea una Universal Profile — ChainIntegrate</title>
-<meta name="description" content="Crea su LUKSO una Universal Profile per un cliente: profilo, chiavi e permessi, gas pagato dall'operatore. Il cliente non ha bisogno di LYX né di account social.">
+<title>Crea il tuo account ChainIntegrate</title>
+<meta name="description" content="Crea il tuo account per usare i servizi di ChainIntegrate: prepari il profilo e lo mandi a noi, al resto pensiamo noi.">
 <link rel="icon" href="favicon.ico">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Crea una Universal Profile — ChainIntegrate">
-<meta property="og:description" content="Crea su LUKSO una Universal Profile per un cliente: profilo, chiavi e permessi, gas pagato dall'operatore.">
+<meta property="og:title" content="Crea il tuo account ChainIntegrate">
+<meta property="og:description" content="Crea il tuo account per usare i servizi di ChainIntegrate.">
 <meta name="twitter:card" content="summary">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js" integrity="sha384-6Zl0Pc8zjSz8KvmNeXRvUQgY4ryFb+BwDvKCmLYcBME0joAaru491tQgi9B7zsMM" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="lib/networks.js"></script>
 <script src="lib/ui.js"></script>
-<script src="lib/backup-check.js"></script>
-<script src="lib/deploy-check.js"></script>
 <script src="lib/shared/request.js"></script>
 <style>
   /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
@@ -96,6 +93,10 @@
   .row-btns button { margin-top: 12px; }
   .result a { color: var(--accent); }
   .mono { font-family: monospace; font-size: 12.5px; word-break: break-all; }
+  .steps { margin: 8px 0 0; padding-left: 20px; } .steps li { margin-bottom: 6px; }
+  .status-box { font-family: inherit; font-size: 13.5px; }
+  .done { border: 2px solid var(--ok); border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .done[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -106,88 +107,55 @@
 
 <div class="header-row">
   <div>
-    <h1 data-i18n="h1">Crea una Universal Profile</h1>
+    <h1 data-i18n="h1">Crea il tuo account ChainIntegrate</h1>
     <div class="subtitle" data-i18n="subtitle"></div>
   </div>
   <button id="langToggle" type="button">English</button>
 </div>
 
 <div class="panel">
-  <h2 data-i18n="panel0Title">0 · Cosa fa questa pagina</h2>
-  <div class="note" data-i18n-html="introNote"></div>
+  <h2 data-i18n="panel0Title">Come funziona</h2>
+  <div data-i18n-html="howHtml" style="font-size:13.5px; line-height:1.55;"></div>
+  <div class="note" style="margin-top:12px;" data-i18n-html="publicNote"></div>
 </div>
 
 <div class="panel">
-  <h2 data-i18n="panel1Title">1 · Rete</h2>
-  <select id="network"></select>
-  <div class="row-btns">
-    <button id="saveDraft" class="secondary" type="button" data-i18n="saveDraftBtn">Salva la richiesta (file)</button>
-    <button id="loadDraft" class="secondary" type="button" data-i18n="loadDraftBtn">Carica una richiesta</button>
-  </div>
-  <input type="file" id="draftFile" accept="application/json,.json" hidden>
-  <div class="note" style="margin-top:10px;" data-i18n-html="draftNote"></div>
-</div>
-
-<div class="panel">
-  <h2 data-i18n="panel2Title">2 · Il profilo</h2>
-  <label for="pName" data-i18n="nameLabel">Nome (persona o società)</label>
-  <input type="text" id="pName" maxlength="64" autocomplete="off">
+  <h2 data-i18n="panel1Title">1 · Il tuo profilo</h2>
+  <label for="pName" data-i18n="nameLabel">Nome (persona o azienda)</label>
+  <input type="text" id="pName" maxlength="64" autocomplete="organization">
   <label for="pDesc" data-i18n="descLabel">Descrizione</label>
-  <textarea id="pDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal;"></textarea>
-  <label for="pTags" data-i18n="tagsLabel">Tag, separati da virgole</label>
+  <textarea id="pDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal;" data-i18n-placeholder="descPh"></textarea>
+  <label for="pTags" data-i18n="tagsLabel">Parole chiave, separate da virgole</label>
   <input type="text" id="pTags" maxlength="200" autocomplete="off" data-i18n-placeholder="tagsPh">
   <label for="pLinks" data-i18n="linksLabel">Link, uno per riga: titolo | indirizzo</label>
   <textarea id="pLinks" style="font-family:inherit; font-size:13.5px; min-height:70px; word-break:normal;" data-i18n-placeholder="linksPh"></textarea>
-  <label for="pAvatar" data-i18n="avatarLabel">Immagine del profilo (facoltativa)</label>
-  <input type="file" id="pAvatar" accept="image/*">
+  <label for="pAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
+  <input type="file" id="pAvatar" accept="image/png,image/jpeg,image/webp,image/gif">
   <div class="img-prev" id="avatarPrev"></div>
   <label for="pCover" data-i18n="coverLabel">Immagine di copertina (facoltativa)</label>
-  <input type="file" id="pCover" accept="image/*">
+  <input type="file" id="pCover" accept="image/png,image/jpeg,image/webp,image/gif">
   <div class="img-prev" id="coverPrev"></div>
 </div>
 
 <div class="panel">
-  <h2 data-i18n="panel3Title">3 · Le chiavi del cliente</h2>
-  <div class="note" data-i18n-html="ctrlNote"></div>
+  <h2 data-i18n="panel2Title">2 · I tuoi dispositivi di accesso</h2>
+  <div class="note" data-i18n-html="devNote"></div>
   <div id="ctrlRows"></div>
-  <button id="addCtrl" class="secondary" type="button" data-i18n="addCtrlBtn">+ Aggiungi una chiave</button>
+  <button id="addCtrl" class="secondary" type="button" data-i18n="addCtrlBtn">+ Aggiungi un dispositivo</button>
   <div class="status-box" id="ctrlStatus" style="margin-top:12px;"></div>
+  <label class="check-row"><input type="checkbox" id="ciRecovery"> <span data-i18n-html="recoveryLabel"></span></label>
 </div>
 
 <div class="panel">
-  <h2 data-i18n="panel4Title">4 · Dove salvare i dati del profilo</h2>
-  <label class="check-row"><input type="radio" name="store" value="ipfs" id="storeIpfs"> <span data-i18n-html="storeIpfs"></span></label>
-  <div id="ipfsBox" style="margin-left:24px;">
-    <label for="pinataJwt" data-i18n="jwtLabel">JWT di Pinata (dell'operatore)</label>
-    <input type="password" id="pinataJwt" autocomplete="off" placeholder="eyJ...">
-    <label class="check-row"><input type="checkbox" id="rememberJwt"> <span data-i18n="rememberJwt"></span></label>
-  </div>
-  <label class="check-row"><input type="radio" name="store" value="chain" id="storeChain" checked> <span data-i18n-html="storeChain"></span></label>
-</div>
-
-<div class="panel">
-  <h2 data-i18n="panel5Title">5 · Crea la UP</h2>
-  <div class="note" data-i18n-html="deployNote"></div>
-  <button id="connectBtn" class="secondary" type="button" data-i18n="connectBtn">Collega il wallet dell'operatore</button>
-  <div id="walletPick"></div>
-  <div class="status-box" id="walletStatus"><span class="empty" data-i18n="notConnected">Non collegato.</span></div>
-  <button id="previewBtn" class="secondary" type="button" data-i18n="previewBtn">Prepara e controlla</button>
-  <div class="status-box" id="previewStatus"><span class="empty" data-i18n="notPrepared">Non ancora preparata.</span></div>
-  <label class="check-row"><input type="checkbox" id="ackCreate"> <span data-i18n="ackCreate"></span></label>
-  <button id="createBtn" type="button" disabled data-i18n="createBtn">Crea la Universal Profile</button>
-  <div class="status-box result" id="resultBox" hidden></div>
-  <div id="fundBox" hidden>
-    <div class="divider" data-i18n="fundDivider">— poi, qualche LYX alle chiavi del cliente —</div>
-    <div class="note" data-i18n-html="fundNote"></div>
-    <label for="fundAmount" data-i18n="fundLabel">LYX per ogni chiave</label>
-    <input type="text" id="fundAmount" value="0.5" inputmode="decimal">
-    <button id="fundBtn" class="secondary" type="button" data-i18n="fundBtn">Manda i LYX alle chiavi</button>
-  </div>
+  <h2 data-i18n="panel3Title">3 · Manda la richiesta a ChainIntegrate</h2>
+  <div class="note" data-i18n-html="sendNote"></div>
+  <div class="status-box" id="checkBox"><span class="empty" data-i18n="notChecked">Compila il profilo per controllare la richiesta.</span></div>
+  <button id="saveBtn" type="button" data-i18n="saveBtn">Scarica la richiesta</button>
+  <div class="done" id="doneBox" hidden><div data-i18n-html="doneHtml"></div></div>
+  <button id="loadBtn" class="secondary" type="button" data-i18n="loadBtn">Riprendi una richiesta salvata</button>
+  <input type="file" id="loadFile" accept="application/json,.json" hidden>
   <div id="log"></div>
-  <button id="copyLog" class="secondary" type="button" data-i18n="copyLogBtn">Copia il log</button>
 </div>
-
-<div id="busyToast" role="status" aria-live="polite"><div class="spin"></div><div class="msg" id="busyMsg"></div></div>
 
 <div class="site-footer">
   <div class="footer-row">
@@ -196,6 +164,6 @@
   </div>
 </div>
 
-<script src="up-create.js"></script>
+<script src="account.js"></script>
 </body>
 </html>

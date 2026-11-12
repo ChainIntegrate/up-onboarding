@@ -46,6 +46,7 @@ test("errors are reported", () => {
     [(s) => { s.controllers[1].role = "owner"; }, "controllers.1.role"],
     [(s) => { s.controllers[0].role = "device"; }, "controllers.noAdmin"],
     [(s) => { s.controllers = []; }, "controllers.none"],
+    [(s) => { s.chainintegrateRecovery = "yes"; }, "chainintegrateRecovery"],
   ];
   for (const [change, code] of cases) {
     const s = base(); change(s);
@@ -59,4 +60,11 @@ test("create does not need kind and version", () => {
   assert.deepStrictEqual(errors, []);
   assert.strictEqual(request.kind, R.KIND);
   assert.strictEqual(request.salt, "0x" + "ab".repeat(32));
+});
+
+test("the recovery choice is kept only when true", () => {
+  const s = base(); s.chainintegrateRecovery = true;
+  assert.strictEqual(R.parse(s).request.chainintegrateRecovery, true);
+  s.chainintegrateRecovery = false;
+  assert.strictEqual(R.parse(s).request.chainintegrateRecovery, undefined);
 });

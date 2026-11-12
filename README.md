@@ -14,7 +14,7 @@ chooses to make it a recovery administrator.
 
 | Part | What it is | Where | Status |
 |---|---|---|---|
-| **Web page** | Creates the Universal Profile: profile, keys and permissions, one transaction to LUKSO's LSP23 factory sent and paid by the operator | [`web/`](web/) | working, tested on a local chain |
+| **Web pages** | `index.html`, for the client: "Create your ChainIntegrate account", in plain words, with no crypto terms; it produces the request file. `operator.html`, for ChainIntegrate only: loads the request and creates the Universal Profile, one transaction to LUKSO's LSP23 factory sent and paid by the operator | [`web/`](web/) | working, tested on a local chain |
 | **Browser extension** | The client's keys on the computer: creates them, prepares the request for the operator, signs for ChainIntegrate's services. Separate from UP Wallet | [`extension/`](extension/) | design |
 | **Android app** | The same on the phone. Separate from UP Wallet for Android | [`android/`](android/) | design |
 | **Shared code** | The request file's format and checks, and the client's keys (created, kept encrypted, backed up), used by the page, the extension and the app | [`shared/`](shared/) | working, unit-tested |
@@ -64,9 +64,22 @@ or `?lang=it` sets it from a link). The look is ChainIntegrate's logo: light gre
 a dark theme on request (the button next to the language). Pages load only their own scripts and ethers 6.13.4 from cdnjs with its
 integrity hash, and never hold a private key.
 
-| Page | What it does |
-|---|---|
-| `web/up-create.html` | Creates a Universal Profile for a client. Link parameters: `?network=lukso-testnet&key=0x…&name=…&role=device` fill in the first key |
+| Page | For | What it does |
+|---|---|---|
+| `web/index.html` | the client | "Create your ChainIntegrate account": the public profile, the access devices (the codes shown by ChainIntegrate's app or extension, each *main* or *access only*), the choice of assisted recovery by ChainIntegrate, then the request file to download and send. Link parameters: `?code=0x…&name=…` fill in the first device |
+| `web/operator.html` | ChainIntegrate | Loads a client's request (or is filled in by hand), creates the Universal Profile and checks it; not indexed by search engines |
+
+**Wording of the client's page.** The client is creating an account to use ChainIntegrate's services, and
+nothing on the page should recall crypto: it speaks of an account, a public profile, access devices and their
+codes. No blockchain, crypto, wallet, token, gas, LYX, LUKSO, Universal Profile, Ethereum or Bitcoin, in either
+language: `test/e2e.js` fails if one appears (title, text, placeholders, descriptions). The one technical trace
+left is the device code's `0x` prefix, which the client copies from the app. The operator's page keeps the
+technical terms: only ChainIntegrate uses it.
+
+**Assisted recovery.** On the client's page the client can ask ChainIntegrate to be able to recover the
+account if all main devices are lost, being told plainly that ChainIntegrate then has the same powers as a main
+device. The request carries the choice (`chainintegrateRecovery`); the operator's page shows it, and the
+operator adds ChainIntegrate's recovery key as an administrator.
 
 ## Tests
 
@@ -84,7 +97,7 @@ npm test
   packages `@lukso/lsp-smart-contracts@0.14.0` and `@lukso/lsp23-contracts@0.15.0`), runs the page in Chromium
   with a test wallet, creates a UP and checks it: the page's own verification, a device key that can update the
   profile but cannot add a controller, an administrator that can, the LYX step, the request file saved and
-  loaded back, IPFS mode (Pinata answered locally), the language toggle and the layout at phone width.
+  loaded back, the client's page (no crypto term in Italian or English, its request loaded by the operator's page), IPFS mode (Pinata answered locally), the language toggle and the layout at phone width.
 
 Both run on GitHub Actions at every push (`.github/workflows/test.yml`).
 

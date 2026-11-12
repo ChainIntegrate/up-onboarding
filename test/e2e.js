@@ -1,4 +1,4 @@
-// End-to-end test of web/up-create.html on a local chain.
+// End-to-end test of the pages on a local chain: web/index.html (the client's) and web/operator.html.
 //
 // A Hardhat node with LUKSO Testnet's chainId gets LUKSO's own contracts at their official addresses
 // (test/fixtures/lukso-contracts.json, bytecode from LUKSO's npm packages). The page runs in Chromium; the
@@ -7,7 +7,8 @@
 // - the page creates the UP, and its own check after the transaction passes;
 // - on the new UP, a device key can update LSP3Profile but cannot add a controller; an administrator can;
 // - the LYX step funds each key; the request file is saved and loads back;
-// - IPFS mode (Pinata answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width.
+// - IPFS mode (Pinata answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
+// - the client's page uses no crypto term, in Italian or in English, and its request loads in the operator's page.
 "use strict";
 const { spawn } = require("child_process");
 const http = require("http");
@@ -77,7 +78,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
 
     // ---- on-chain profile, three keys
     const page = await newPage(browser, operator);
-    await page.goto(`http://127.0.0.1:${PORT}/up-create.html?network=lukso-testnet&key=${k1}&name=Office%20PC`);
+    await page.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${k1}&name=Office%20PC`);
     await page.fill("#pName", "Cantina Esempio Srl");
     await page.fill("#pDesc", "Vino toscano");
     await page.fill("#pTags", "vino, Toscana");
@@ -121,7 +122,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     const req = JSON.parse(fs.readFileSync(reqPath));
     check(req.kind === "chainintegrate-up-create" && req.controllers.length === 3 && !!req.images.avatar, "the request file holds profile, image and keys");
     const again = await newPage(browser, operator);
-    await again.goto(`http://127.0.0.1:${PORT}/up-create.html`);
+    await again.goto(`http://127.0.0.1:${PORT}/operator.html`);
     await again.setInputFiles("#draftFile", reqPath);
     await again.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 3);
     check((await again.inputValue("#pName")) === "Cantina Esempio Srl" && (await again.inputValue("#pLinks")) === "Sito | https://www.esempio.it/" &&
@@ -130,11 +131,42 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await again.close();
     await page.screenshot({ path: path.join(OUT, "desktop.png"), fullPage: true });
 
+    // ---- the client's page: no crypto words, its request reaches the operator's page
+    const client = await newPage(browser, operator);
+    await client.goto(`http://127.0.0.1:${PORT}/index.html?code=${k1}&name=PC%20ufficio`);
+    const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|gas|lyx\w*|lukso|ethereum|ether|eth|bitcoin|btc|nft\w*|ipfs|universal profile|up|web3|smart contract|chiav[ei] privat[ae]|private key|seed|mining|minare|transazion[ei]|transactions?|on-?chain|dapp|ledger|metamask)\b/i;
+    for (const lang of ["it", "en"]) {
+      if ((await client.evaluate(() => document.documentElement.lang)) !== lang) await client.click("#langToggle");
+      await client.evaluate(() => document.querySelectorAll(".ui-more").forEach((b) => b.click()));
+      const words = await client.evaluate(() => [document.title, document.body.innerText,
+        ...[...document.querySelectorAll("[placeholder]")].map((e) => e.placeholder),
+        ...[...document.querySelectorAll("meta[name=description], meta[property^=og]")].map((m) => m.content)].join("\n"));
+      const hit = words.match(BANNED);
+      check(!hit, `the client's page in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
+    }
+    await client.click("#saveBtn");
+    check(/❌/.test(await client.textContent("#log")), "the client's page does not save a request without a name");
+    await client.fill("#pName", "Mario Rossi");
+    await client.fill("#pLinks", "Sito | https://www.rossi.it");
+    await client.click("#addCtrl");
+    await client.locator(".ctrl-row").nth(1).locator(".c-addr").fill(k2);
+    await client.check("#ciRecovery");
+    const [cdl] = await Promise.all([client.waitForEvent("download"), client.click("#saveBtn")]);
+    const clientReq = path.join(OUT, "client-request.json"); await cdl.saveAs(clientReq);
+    const creq = JSON.parse(fs.readFileSync(clientReq));
+    check(creq.network === "lukso" && creq.chainintegrateRecovery === true && creq.controllers.length === 2 && creq.controllers[0].name === "PC ufficio", "the client's request holds devices and the recovery choice");
+    const op = await newPage(browser, operator);
+    await op.goto(`http://127.0.0.1:${PORT}/operator.html`);
+    await op.setInputFiles("#draftFile", clientReq);
+    await op.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 2);
+    check((await op.inputValue("#pName")) === "Mario Rossi" && /recupero assistito|assisted recovery/.test(await op.textContent("#log")), "the operator's page loads the client's request and shows the recovery choice");
+    await client.close(); await op.close();
+
     // ---- IPFS mode, phone width
     const phone = await newPage(browser, operator, { viewport: { width: 390, height: 900 } });
     let uploads = 0;
     await phone.route("https://api.pinata.cloud/**", (r) => { uploads++; r.fulfill({ status: 200, body: JSON.stringify({ IpfsHash: "bafytest" + uploads }), headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }); });
-    await phone.goto(`http://127.0.0.1:${PORT}/up-create.html?network=lukso-testnet&key=${ethers.Wallet.createRandom().address}`);
+    await phone.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${ethers.Wallet.createRandom().address}`);
     await phone.fill("#pName", "Mario Rossi");
     await phone.setInputFiles("#pAvatar", pngPath);
     await phone.check("#storeIpfs"); await phone.fill("#pinataJwt", "jwt-test"); await phone.dispatchEvent("#pinataJwt", "change");

@@ -19,9 +19,9 @@
   let LANG = SiteUI.initialLang();
   const I18N = {
     it: {
-      pageTitle: "Crea una Universal Profile — ChainIntegrate",
-      h1: "Crea una Universal Profile",
-      subtitle: "Una Universal Profile su LUKSO per un cliente che non usa le cripto: tu prepari e paghi il gas, la UP è sua",
+      pageTitle: "Operatore: crea un account — ChainIntegrate",
+      h1: "Operatore: crea l'account di un cliente",
+      subtitle: "Pagina riservata a ChainIntegrate. Il cliente prepara la richiesta sulla pagina \"Crea il tuo account\" (index.html); qui la carichi e crei la sua Universal Profile su LUKSO, pagando il gas. La UP è sua.",
       langToggleBtn: "English",
       panel0Title: "0 · Cosa fa questa pagina",
       introNote: "Crea su <b>LUKSO</b> una Universal Profile per una persona o una società, come fa la creazione del profilo di LUKSO, ma con te (l'operatore) in mezzo: il cliente non deve comprare LYX, installare il wallet di LUKSO o entrare in Telegram, Discord o X.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>Il cliente</b> ti dà solo gli <b>indirizzi</b> delle sue chiavi (per esempio quello dell'estensione o dell'app UP Wallet, pannello \"Questo computer\" / \"Questo telefono\"). Nessuna chiave privata passa da qui.</li><li><b>Tu</b> compili il profilo, colleghi il tuo wallet su LUKSO e mandi una transazione alla factory LSP23 di LUKSO, pagando il gas. Chi manda la transazione non ha nessun potere sulla UP: appartiene alle chiavi scritte dentro.</li><li>Dopo la conferma la pagina rilegge la UP e controlla proprietario, Key Manager, chiavi, permessi e profilo.</li></ul><div style=\"margin-top:8px;\">Pagina sperimentale: provala prima su LUKSO Testnet.</div>",
@@ -31,6 +31,7 @@
       draftNote: "La <b>richiesta</b> è un file con tutto quello che c'è in questa pagina (profilo, immagini, chiavi): il cliente può compilarla da solo e mandartela, oppure la prepari tu e la ricarichi più tardi. Contiene solo dati pubblici: nessuna chiave privata.",
       draftSaved: "✅ Richiesta salvata.",
       draftLoaded: "✅ Richiesta caricata.",
+      recoveryAsked: "⚠️ Il cliente ha chiesto il recupero assistito: aggiungi la chiave di recupero di ChainIntegrate come amministratore (sezione 3), dopo averglielo confermato.",
       draftBad: (v) => `❌ File non valido: ${v.err}`,
       draftIncomplete: (v) => `⚠️ La richiesta è incompleta o ha dati scartati: ${v.what}.`,
       notARequest: "non è un file richiesta di questa pagina",
@@ -121,9 +122,9 @@
       footerHtml: `Servizi di consulenza in integrazione dati &amp; blockchain a cura di ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza via Telegram</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Codice sorgente su GitHub</a>`,
     },
     en: {
-      pageTitle: "Create a Universal Profile — ChainIntegrate",
-      h1: "Create a Universal Profile",
-      subtitle: "A Universal Profile on LUKSO for a client who does not use crypto: you prepare it and pay the gas, the UP is theirs",
+      pageTitle: "Operator: create an account — ChainIntegrate",
+      h1: "Operator: create a client's account",
+      subtitle: "For ChainIntegrate only. The client prepares the request on the \"Create your account\" page (index.html); here you load it and create their Universal Profile on LUKSO, paying the gas. The UP is theirs.",
       langToggleBtn: "Italiano",
       panel0Title: "0 · What this page does",
       introNote: "Creates on <b>LUKSO</b> a Universal Profile for a person or a company, as LUKSO's own profile creation does, but with you (the operator) in the middle: the client does not buy LYX, install LUKSO's wallet or join Telegram, Discord or X.<ul style=\"margin:8px 0 0; padding-left:20px;\"><li><b>The client</b> gives you only the <b>addresses</b> of their keys (for example the UP Wallet extension's or app's, panel \"This computer\" / \"This phone\"). No private key goes through here.</li><li><b>You</b> fill in the profile, connect your wallet on LUKSO and send one transaction to LUKSO's LSP23 factory, paying the gas. Whoever sends it has no power over the UP: it belongs to the keys written in it.</li><li>After confirmation the page reads the UP back and checks owner, Key Manager, keys, permissions and profile.</li></ul><div style=\"margin-top:8px;\">Experimental page: try it on LUKSO Testnet first.</div>",
@@ -133,6 +134,7 @@
       draftNote: "The <b>request</b> is a file with everything on this page (profile, images, keys): the client can fill it in alone and send it to you, or you prepare it and load it again later. It holds public data only: no private key.",
       draftSaved: "✅ Request saved.",
       draftLoaded: "✅ Request loaded.",
+      recoveryAsked: "⚠️ The client asked for assisted recovery: add ChainIntegrate's recovery key as an administrator (section 3), after confirming it with them.",
       draftBad: (v) => `❌ Invalid file: ${v.err}`,
       draftIncomplete: (v) => `⚠️ The request is incomplete or had data dropped: ${v.what}.`,
       notARequest: "not a request file of this page",
@@ -659,6 +661,7 @@
   // ==================== REQUEST FILE ====================
   // The format and its checks are in shared/request.js (web/lib/shared/request.js), the same code the client's
   // extension and app use to write it.
+  let recoveryAsked = false; // the client's choice in the loaded request, kept when the request is saved again
   function formFields() {
     const links = $("pLinks").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
       const cut = l.lastIndexOf("|");
@@ -669,6 +672,7 @@
       profile: { name: $("pName").value, description: $("pDesc").value, tags: $("pTags").value.split(","), links },
       images: { avatar: images.avatar, cover: images.cover },
       controllers: readRows().filter((r) => r.address || r.name),
+      chainintegrateRecovery: recoveryAsked,
     };
   }
   const problemList = (errors) => errors.map((e) => t("reqErr_" + e.split(".").filter((x) => !/^\d+$/.test(x)).join("_")) + (/\.(\d+)/.test(e) ? ` (${Number(e.match(/\.(\d+)/)[1]) + 1})` : "")).join("; ");
@@ -709,6 +713,8 @@
       if (!document.querySelector(".ctrl-row")) addRow();
       invalidate();
       log(t("draftLoaded"), "line-ok");
+      recoveryAsked = !!d.chainintegrateRecovery;
+      if (recoveryAsked) log(t("recoveryAsked"), "line-warn");
       if (errors.length) log(t("draftIncomplete", { what: problemList(errors) }), "line-warn");
     } catch (e) { log(t("draftBad", { err: errText(e) }), "line-err"); }
   });
