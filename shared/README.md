@@ -2,8 +2,8 @@
 
 What the web page, the extension and the Android app have in common, written and reviewed once. Plain
 JavaScript with no browser or Android code: it runs in the browser (globals `UPRequest`, `UPKeystore`, after
-ethers 6) and in Node (`require`). The web pages load copies in `web/lib/shared/`, kept identical by
-`npm run sync` and checked by the unit tests.
+ethers 6) and in Node (`require`). The web pages load copies in `web/lib/shared/` and the extension in
+`extension/shared/`, kept identical by `npm run sync` and checked by the unit tests.
 
 ## `request.js`: the request file
 

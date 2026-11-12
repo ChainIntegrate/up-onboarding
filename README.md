@@ -15,7 +15,7 @@ chooses to make it a recovery administrator.
 | Part | What it is | Where | Status |
 |---|---|---|---|
 | **Web pages** | `index.html`, for the client: "Create your ChainIntegrate account", in plain words, with no crypto terms; it produces the request file. `operator.html`, for ChainIntegrate only: loads the request and creates the Universal Profile, one transaction to LUKSO's LSP23 factory sent and paid by the operator | [`web/`](web/) | working, tested on a local chain |
-| **Browser extension** | The client's keys on the computer: creates them, prepares the request for the operator, signs for ChainIntegrate's services. Separate from UP Wallet | [`extension/`](extension/) | design |
+| **Browser extension** | The client's access on the computer: creates it (protected by the computer's lock or a password), makes the client download and check a backup copy, restores it on another computer, shows the device code for the account page. Separate from UP Wallet | [`extension/`](extension/) | 0.1, tested in Chromium; signing for the services next |
 | **Android app** | The same on the phone. Separate from UP Wallet for Android | [`android/`](android/) | design |
 | **Shared code** | The request file's format and checks, and the client's keys (created, kept encrypted, backed up), used by the page, the extension and the app | [`shared/`](shared/) | working, unit-tested |
 
@@ -87,11 +87,16 @@ operator adds ChainIntegrate's recovery key as an administrator.
 npm install
 npx playwright install chromium
 npm test
+npm run pack:extension   # the extension's zip, in dist/
 ```
 
 - `npm run test:unit` (`test/unit/`): the request file's checks, the key store (password and device secret,
   wrong secrets, a record with a changed address, tampered ciphertext, the backup file) and that
   `web/lib/shared/` is a copy of `shared/` (`npm run sync` updates it).
+- `npm run test:extension` (`test/extension.js`) loads the extension in Chromium: setup with a password and
+  with the computer's lock (a virtual authenticator with PRF), the backup required and checked (a wrong password
+  and another access's backup refused, nothing stored before the check), a new backup copy, removal, restore
+  on a new profile with the same code, and no crypto term on any screen.
 - `npm run test:e2e` (`test/e2e.js`) starts a local Hardhat chain with LUKSO Testnet's chainId and LUKSO's own
   contracts at their official addresses (`test/fixtures/lukso-contracts.json`, bytecode from LUKSO's npm
   packages `@lukso/lsp-smart-contracts@0.14.0` and `@lukso/lsp23-contracts@0.15.0`), runs the page in Chromium

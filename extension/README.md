@@ -1,15 +1,51 @@
-# Browser extension (design)
+# ChainIntegrate Account (browser extension)
 
-A browser extension for the client, much simpler than UP Wallet for the browser: no WalletConnect, no dApps,
-no networks other than LUKSO.
+The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
+later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
+words. **Status: 0.1, first version: creates the access, the backup copy and the restore. Signing for
+ChainIntegrate's services comes next.**
 
-Planned:
-- **Keys.** At first start it creates two keys: the daily one (encrypted on the computer with a passkey, or a
-  password where no passkey works) and a backup administrator, exported once as an encrypted file for the
-  client to keep elsewhere.
-- **Request.** It produces the request file for `web/up-create.html` (the keys' addresses and roles, the
-  profile), to send to the operator.
-- **Use.** It shows the client's profile and signs only for ChainIntegrate's services, each request explained
-  in plain words.
+## What the client sees
 
-The key storage and the signing code live in [`../shared/`](../shared/), shared with the Android app.
+1. **Welcome**: "Start: create your access" or "I already have an access: restore from the backup copy".
+2. **Protect the access on this computer**: with the computer's lock (fingerprint, face or PIN through a
+   passkey: Windows Hello, Touch ID, a phone) or with a password of at least 12 characters.
+3. **Create the backup copy**: a file protected by a password chosen now, downloaded; the page says where to
+   keep it (outside the computer, the password apart, never sent to anyone, ChainIntegrate included).
+4. **Check the backup copy**: the client loads the file back and types its password. A wrong password or the
+   backup of another access is refused. Only now is the access saved on the computer: a setup cannot end with
+   a backup that does not open.
+5. **Ready**: the computer's *code* (the key's address) to copy, or the "Complete your account" button that
+   opens the client's page (`web/index.html`) with the code filled in (`config.js`, `accountPage`, once the
+   page is published); a name for the computer; "Check the backup copy", "Create a new backup copy" (unlocked
+   with the computer's lock or password); "Remove the access from this computer", only after confirming the
+   backup is at hand.
+
+**Restore**: on a new computer, or after reinstalling, the backup file and its password give back the same
+access with the same code; then the client protects it on that computer (step 2).
+
+## How it works
+
+- `app.html`, `app.js`: the page, opened in a tab by the toolbar button (`background.js`), not in a popup,
+  which would close on the file chooser and on the passkey dialog.
+- The key and its encryption are `shared/keystore.js` (a copy of `../shared/`, kept identical by
+  `npm run sync`): a secp256k1 key created on the computer, stored in `chrome.storage.local` only encrypted
+  (AES-256-GCM; from the passkey's PRF value through HKDF-SHA256, or from the password through PBKDF2-SHA256
+  with 600,000 rounds). The backup file is the same key encrypted with the backup password.
+- `passkey.js`: the passkey through WebAuthn's PRF extension; the passkey belongs to the extension's id. Where
+  the authenticator gives no PRF value, the page asks for a password instead.
+- The private key is in memory only while it is needed (creating the backup, sealing it on the computer) and
+  wiped right after; until the backup is checked nothing is stored.
+- ethers 6.13.4 is included (`vendor/`, MIT; an extension cannot load code from a server); a unit test checks
+  it is byte for byte the file the web pages load from cdnjs.
+- Permissions: `storage` only. No host permissions, no content scripts: the extension reads and sends nothing
+  on the web.
+
+## Build, install, test
+
+```bash
+npm run pack:extension     # dist/chainintegrate-account-<version>.zip
+npm run test:extension     # the flows above in Chromium, the passkey with a virtual authenticator
+```
+
+To try it by hand: `chrome://extensions`, developer mode, "Load unpacked", the `extension/` folder.

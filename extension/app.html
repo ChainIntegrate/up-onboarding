@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<script src="lib/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChainIntegrate Account</title>
+<link rel="icon" href="img/icon-32.png">
+<script src="vendor/ethers-6.13.4.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="lib/ui.js"></script>
+<script src="shared/keystore.js"></script>
+<script src="passkey.js"></script>
+<style>
+  /* ChainIntegrate's look, from its logo: light grey, ink, teal (#22b8c9) and slate blue (#6090a2).
+     Buttons and links use a darker teal, readable on white. The dark theme is in lib/theme.js. */
+  :root {
+    --bg: #f7f7f7; --panel: #ffffff; --border: #dde3e6; --field: #fbfcfc; --chip: #e8eef1; --disabled: #c5ced3; --raised: #ffffff;
+    --text: #1b1e21; --text-dim: #5b6b74;
+    --brand: #22b8c9; --slate: #6090a2; --accent: #0e7f8c; --btn: #0e7f8c;
+    --ok: #1a8a4a; --warn: #a8650a; --err: #c93535;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+         max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .brand-row { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid var(--brand); }
+  .brand-logo { display: block; height: 72px; width: auto; max-width: 100%; border-radius: 10px; background: #f7f7f7; }
+  .site-footer { margin-top: 40px; padding: 18px 20px; background: #f7f7f7; border: 1px solid #dde3e6; border-radius: 10px; color: #4b4f58; }
+  .footer-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .footer-logo { height: 40px; width: auto; flex-shrink: 0; }
+  .footer-text { font-size: 13px; line-height: 1.6; }
+  .footer-li { display: inline-flex; vertical-align: middle; margin: 0 2px; }
+  .site-footer a { color: #0e7f8c; text-decoration: none; font-weight: 600; }
+  .site-footer a:hover { text-decoration: underline; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 28px; }
+  #langToggle { width: auto; background: var(--chip); padding: 8px 14px; font-size: 12.5px; font-weight: 600;
+                border-radius: 6px; border: 1px solid var(--border); color: var(--text); cursor: pointer; margin-top: 2px; flex-shrink: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.03em; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; }
+  label:first-child { margin-top: 0; }
+  select, input, textarea { width: 100%; background: var(--field); border: 1px solid var(--border); color: var(--text);
+                  border-radius: 6px; padding: 10px 12px; font-size: 13.5px; font-family: inherit; }
+  textarea { font-family: monospace; font-size: 11.5px; min-height: 90px; resize: vertical; word-break: break-all; }
+  button { width: 100%; background: var(--btn); color: white; border: none; border-radius: 6px;
+           padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  button:disabled { background: var(--disabled); cursor: not-allowed; }
+  button.danger { background: var(--err); }
+  button.secondary { background: var(--chip); }
+  .status-box { background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 12px;
+                font-family: monospace; font-size: 12.5px; margin-top: 12px; word-break: break-all; }
+  .status-box .empty { color: var(--text-dim); }
+  .line-ok { color: var(--ok); } .line-warn { color: var(--warn); } .line-err { color: var(--err); } .line-dim { color: var(--text-dim); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+  .badge.ok { background: rgba(63,191,111,0.15); color: var(--ok); }
+  .badge.err { background: rgba(224,90,90,0.15); color: var(--err); }
+  .badge.warn { background: rgba(224,168,60,0.15); color: var(--warn); }
+  .ctrl-card { background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+  .ctrl-card .addr { font-family: monospace; font-size: 12.5px; }
+  .ctrl-card .flags { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .divider { color: var(--text-dim); font-size: 12px; text-align: center; margin: 16px 0 6px; }
+  .note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.5; }
+  .note b { color: var(--text); }
+  .check-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--text); margin-top: 12px; }
+  .check-row input { width: auto; margin-top: 2px; }
+  .check-row[hidden] { display: none; }
+  #log { font-family: monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin-top: 10px; }
+  /* While a backup action runs: a fixed box that says what is happening, so the wait before the wallet opens is never silent. */
+  #busyToast { display: none; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50;
+               width: calc(100% - 32px); max-width: 720px; background: var(--raised); border: 2px solid var(--warn); border-radius: 10px;
+               padding: 12px 16px; font-size: 14px; line-height: 1.5; color: var(--text); box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+  #busyToast.on { display: flex; gap: 12px; align-items: center; }
+  #busyToast .spin { width: 18px; height: 18px; flex: 0 0 18px; border: 3px solid var(--warn); border-top-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; }
+  #busyToast .msg { word-break: break-word; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #busyToast .spin { animation: none; } }
+  .ctrl-row { display: grid; grid-template-columns: 1fr; gap: 6px; background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 8px; }
+  .ctrl-row .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ctrl-row button { margin-top: 0; padding: 8px; font-size: 12.5px; }
+  @media (max-width: 560px) { .ctrl-row .two { grid-template-columns: 1fr; } }
+  .img-prev { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+  .img-prev img { max-width: 96px; max-height: 96px; border-radius: 8px; border: 1px solid var(--border); }
+  .row-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row-btns button { margin-top: 12px; }
+  .result a { color: var(--accent); }
+  .mono { font-family: monospace; font-size: 12.5px; word-break: break-all; }
+  .steps { margin: 8px 0 0; padding-left: 20px; } .steps li { margin-bottom: 6px; }
+  .status-box { font-family: inherit; font-size: 13.5px; }
+  .done { border: 2px solid var(--ok); border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .done[hidden] { display: none; }
+  .screen[hidden] { display: none; }
+  .code { font-family: monospace; font-size: 15px; word-break: break-all; background: var(--field); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 8px; }
+  .choice { display: block; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-top: 10px; cursor: pointer; font-size: 13.5px; color: var(--text); }
+  .choice input { width: auto; margin-right: 8px; }
+  .choice small { display: block; color: var(--text-dim); margin: 4px 0 0 24px; font-size: 12.5px; line-height: 1.5; }
+  .msg { font-size: 13.5px; margin-top: 10px; white-space: pre-wrap; }
+  .lead { font-size: 14px; line-height: 1.55; }
+  button.danger:disabled { background: var(--disabled); color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="brand-row">
+  <img src="img/logo.png" alt="ChainIntegrate" class="brand-logo" width="830" height="240">
+</div>
+
+<div class="header-row">
+  <div>
+    <h1 data-i18n="h1">Il tuo accesso ChainIntegrate</h1>
+    <div class="subtitle" data-i18n="subtitle"></div>
+  </div>
+  <button id="langToggle" type="button">English</button>
+</div>
+
+<!-- First start -->
+<div class="panel screen" id="sWelcome" hidden>
+  <h2 data-i18n="welcomeTitle">Benvenuto</h2>
+  <div class="lead" data-i18n-html="welcomeHtml"></div>
+  <button id="startNew" type="button" data-i18n="startNewBtn">Inizia: crea il tuo accesso</button>
+  <button id="startRestore" class="secondary" type="button" data-i18n="startRestoreBtn">Ho già un accesso: ripristina dalla copia di backup</button>
+</div>
+
+<!-- Restore: the backup file and its password -->
+<div class="panel screen" id="sRestore" hidden>
+  <h2 data-i18n="restoreTitle">Ripristina dalla copia di backup</h2>
+  <div class="lead" data-i18n-html="restoreHtml"></div>
+  <label for="restoreFile" data-i18n="backupFileLabel">File della copia di backup</label>
+  <input type="file" id="restoreFile" accept="application/json,.json">
+  <label for="restorePw" data-i18n="backupPwLabel">Password della copia di backup</label>
+  <input type="password" id="restorePw" autocomplete="off">
+  <button id="restoreBtn" type="button" data-i18n="restoreBtn">Ripristina</button>
+  <button class="secondary back" type="button" data-i18n="backBtn">Indietro</button>
+  <div class="msg" id="restoreMsg"></div>
+</div>
+
+<!-- How this computer protects the access -->
+<div class="panel screen" id="sProtect" hidden>
+  <h2 data-i18n="protectTitle">Proteggi l'accesso su questo computer</h2>
+  <div class="lead" data-i18n-html="protectHtml"></div>
+  <label class="choice"><input type="radio" name="how" value="passkey" checked><b data-i18n="howPasskey">Con il blocco del computer</b><small data-i18n="howPasskeyNote"></small></label>
+  <label class="choice"><input type="radio" name="how" value="password"><b data-i18n="howPassword">Con una password</b><small data-i18n="howPasswordNote"></small></label>
+  <div id="pwBox" hidden>
+    <label for="devPw" data-i18n="devPwLabel">Password (almeno 12 caratteri)</label>
+    <input type="password" id="devPw" autocomplete="new-password">
+    <label for="devPw2" data-i18n="pwAgainLabel">Ripeti la password</label>
+    <input type="password" id="devPw2" autocomplete="new-password">
+  </div>
+  <button id="protectBtn" type="button" data-i18n="continueBtn">Continua</button>
+  <button class="secondary back" type="button" data-i18n="backBtn">Indietro</button>
+  <div class="msg" id="protectMsg"></div>
+</div>
+
+<!-- The backup copy: download -->
+<div class="panel screen" id="sBackup" hidden>
+  <h2 data-i18n="backupTitle">Crea la copia di backup</h2>
+  <div class="lead" data-i18n-html="backupHtml"></div>
+  <label for="bkPw" data-i18n="bkPwLabel">Password della copia di backup (almeno 12 caratteri)</label>
+  <input type="password" id="bkPw" autocomplete="new-password">
+  <label for="bkPw2" data-i18n="pwAgainLabel">Ripeti la password</label>
+  <input type="password" id="bkPw2" autocomplete="new-password">
+  <button id="backupBtn" type="button" data-i18n="backupBtn">Scarica la copia di backup</button>
+  <div class="msg" id="backupMsg"></div>
+</div>
+
+<!-- The backup copy: check it by loading it back -->
+<div class="panel screen" id="sVerify" hidden>
+  <h2 data-i18n="verifyTitle">Controlla la copia di backup</h2>
+  <div class="lead" data-i18n-html="verifyHtml"></div>
+  <label for="verifyFile" data-i18n="backupFileLabel">File della copia di backup</label>
+  <input type="file" id="verifyFile" accept="application/json,.json">
+  <label for="verifyPw" data-i18n="backupPwLabel">Password della copia di backup</label>
+  <input type="password" id="verifyPw" autocomplete="off">
+  <button id="verifyBtn" type="button" data-i18n="verifyBtn">Controlla</button>
+  <button id="verifyAgain" class="secondary" type="button" data-i18n="downloadAgainBtn">Scaricala di nuovo</button>
+  <div class="msg" id="verifyMsg"></div>
+</div>
+
+<!-- Ready -->
+<div class="screen" id="sMain" hidden>
+  <div class="panel">
+    <h2 data-i18n="mainTitle">Il tuo accesso è pronto</h2>
+    <div class="lead" data-i18n-html="codeHtml"></div>
+    <div class="code" id="code"></div>
+    <button id="copyCode" class="secondary" type="button" data-i18n="copyBtn">Copia il codice</button>
+    <label for="devName" data-i18n="devNameLabel">Nome di questo computer (lo vedrai nel tuo account)</label>
+    <input type="text" id="devName" maxlength="64" autocomplete="off" data-i18n-placeholder="devNamePh">
+    <button id="accountBtn" type="button" data-i18n="accountBtn">Completa il tuo account</button>
+    <div class="note" id="noPage" style="margin-top:10px;" data-i18n="noPageNote" hidden></div>
+  </div>
+  <div class="panel">
+    <h2 data-i18n="bkTitle">Copia di backup</h2>
+    <div class="lead" id="bkState"></div>
+    <button id="checkBackup" class="secondary" type="button" data-i18n="checkBackupBtn">Controlla la copia di backup</button>
+    <button id="newBackup" class="secondary" type="button" data-i18n="newBackupBtn">Crea una nuova copia di backup</button>
+    <div id="unlockBox" hidden>
+      <label for="unlockPw" data-i18n="unlockPwLabel">Password di questo computer</label>
+      <input type="password" id="unlockPw" autocomplete="current-password">
+      <button id="unlockBtn" type="button" data-i18n="continueBtn">Continua</button>
+    </div>
+    <div class="msg" id="mainMsg"></div>
+  </div>
+  <div class="panel">
+    <h2 data-i18n="removeTitle">Togli l'accesso da questo computer</h2>
+    <div class="note" data-i18n="removeNote"></div>
+    <label class="check-row"><input type="checkbox" id="removeAck"> <span data-i18n="removeAck"></span></label>
+    <button id="removeBtn" class="danger" type="button" disabled data-i18n="removeBtn">Togli l'accesso da questo computer</button>
+  </div>
+</div>
+
+<div class="site-footer">
+  <div class="footer-row">
+    <img src="img/logo.png" alt="ChainIntegrate" class="footer-logo">
+    <div class="footer-text" data-i18n-html="footerHtml"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
