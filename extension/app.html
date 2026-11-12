@@ -201,8 +201,9 @@
     <div class="lead" data-i18n-html="createHtml"></div>
     <label for="invite" data-i18n="inviteLabel">Codice di invito</label>
     <input type="text" id="invite" maxlength="20" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX" style="font-family:monospace; letter-spacing:0.05em;">
-    <label for="pName" data-i18n="nameLabel">Nome (persona o azienda)</label>
-    <input type="text" id="pName" maxlength="64" autocomplete="organization">
+    <label for="pName" data-i18n="nameLabel">Nome del profilo</label>
+    <input type="text" id="pName" maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="off" data-i18n-placeholder="namePh">
+    <div class="note" id="nameHint" style="margin-top:6px;" data-i18n="nameHint"></div>
     <label for="pDesc" data-i18n="descLabel">Descrizione (facoltativa)</label>
     <textarea id="pDesc" maxlength="1000" style="font-family:inherit; font-size:13.5px; word-break:normal; min-height:70px;" data-i18n-placeholder="descPh"></textarea>
     <label for="pAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
@@ -247,6 +248,11 @@
     <div class="note" data-i18n="removeNote"></div>
     <label class="check-row"><input type="checkbox" id="removeAck"> <span data-i18n="removeAck"></span></label>
     <button id="removeBtn" class="danger" type="button" disabled data-i18n="removeBtn">Togli l'accesso da questo computer</button>
+    <div id="removeConfirm" hidden style="margin-top:14px; padding:14px; border:2px solid var(--err); border-radius:8px;">
+      <div class="lead" id="removeConfirmText"></div>
+      <button id="removeCancel" class="secondary" type="button" data-i18n="removeCancel">Annulla</button>
+      <button id="removeYes" class="danger" type="button" data-i18n="removeYes">Sì, togli l'accesso</button>
+    </div>
   </div>
 </div>
 

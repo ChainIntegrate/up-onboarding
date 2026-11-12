@@ -59,7 +59,12 @@
       createTitle: "Crea il tuo account",
       createHtml: "Il tuo accesso è pronto. Ora crea l'account con il <b>codice di invito</b> che ti ha dato ChainIntegrate: ci vuole circa un minuto.",
       inviteLabel: "Codice di invito",
-      nameLabel: "Nome (persona o azienda)",
+      nameLabel: "Nome del profilo",
+      namePh: "es. cantina-rossi",
+      nameHint: "Solo lettere minuscole, numeri e trattini, da 3 a 32 caratteri: è il nome con cui ti trovano (@cantina-rossi). Il nome completo dell'azienda scrivilo nella descrizione.",
+      nameOk: "✅ Il nome va bene.",
+      nameBad: "❌ Solo lettere minuscole (a-z), numeri e trattini, da 3 a 32 caratteri, senza trattino all'inizio o alla fine.",
+      noImage: "Nessuna immagine: il profilo sarà senza immagine.",
       descLabel: "Descrizione (facoltativa)",
       descPh: "Chi sei, cosa fai",
       avatarLabel: "Immagine o logo (facoltativo)",
@@ -98,6 +103,9 @@
       removeNote: "Usalo se lasci questo computer. L'accesso resta nella copia di backup: potrai ripristinarlo su un altro computer.",
       removeAck: "Ho la copia di backup e la sua password.",
       removeBtn: "Togli l'accesso da questo computer",
+      removeConfirm: (v) => `Stai per togliere da questo computer l'accesso${v.name ? ` all'account <b>${v.name}</b>` : ""} (codice ${v.code}). <b>Non si può annullare.</b> Potrai rientrare solo con il file della copia di backup e la sua password: se non li hai, l'account è perso per sempre, e nessuno, nemmeno ChainIntegrate, può recuperarlo.`,
+      removeCancel: "Annulla",
+      removeYes: "Sì, togli l'accesso",
       removed: "Accesso tolto da questo computer.",
       // messages
       working: "Un momento…",
@@ -157,7 +165,12 @@
       createTitle: "Create your account",
       createHtml: "Your access is ready. Now create the account with the <b>invitation code</b> ChainIntegrate gave you: it takes about a minute.",
       inviteLabel: "Invitation code",
-      nameLabel: "Name (person or company)",
+      nameLabel: "Profile name",
+      namePh: "e.g. cantina-rossi",
+      nameHint: "Lowercase letters, digits and hyphens only, 3 to 32 characters: the name you are found by (@cantina-rossi). Write the company's full name in the description.",
+      nameOk: "✅ The name is fine.",
+      nameBad: "❌ Lowercase letters (a-z), digits and hyphens only, 3 to 32 characters, no hyphen at the start or the end.",
+      noImage: "No picture: the profile will have none.",
       descLabel: "Description (optional)",
       descPh: "Who you are, what you do",
       avatarLabel: "Picture or logo (optional)",
@@ -196,6 +209,9 @@
       removeNote: "Use it when you leave this computer. The access stays in the backup copy: you can restore it on another computer.",
       removeAck: "I have the backup copy and its password.",
       removeBtn: "Remove the access from this computer",
+      removeConfirm: (v) => `You are about to remove from this computer the access${v.name ? ` to the account <b>${v.name}</b>` : ""} (code ${v.code}). <b>It cannot be undone.</b> You can get back in only with the backup file and its password: without them the account is lost for good, and no one, not even ChainIntegrate, can recover it.`,
+      removeCancel: "Cancel",
+      removeYes: "Yes, remove the access",
       removed: "Access removed from this computer.",
       working: "One moment…",
       pwShort: "❌ The password must have at least 12 characters.",
@@ -240,7 +256,7 @@
   function say(id, text, cls) { const m = $(id); m.textContent = text; m.className = "msg " + (cls || ""); }
   function busy(on, id) {
     document.querySelectorAll("button").forEach((b) => { if (b.id !== "removeBtn") b.disabled = on; });
-    if (!on) $("removeBtn").disabled = !$("removeAck").checked;
+    if (!on) { $("removeBtn").disabled = !$("removeAck").checked; syncName(); }
     if (on && id) say(id, t("working"), "line-dim");
   }
   function endPending() { if (pending && pending.privateKey) K.wipe(pending.privateKey); pending = null; }
@@ -390,7 +406,8 @@
     $("createPwBox").hidden = has || account.record.method !== "password";
     if (has) renderAccount(); else findAccount();
     $("unlockBox").hidden = true;
-    $("removeAck").checked = false; $("removeBtn").disabled = true;
+    $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
+    if (!has) resetCreateForm();
   }
   $("copyCode").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(account.record.address); say("mainMsg", t("copied"), "line-ok"); } catch (e) { /* select by hand */ }
@@ -406,18 +423,40 @@
     const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
     const c = document.createElement("canvas"); c.width = w; c.height = h;
     c.getContext("2d").drawImage(img, 0, 0, w, h);
-    let dataUrl = c.toDataURL("image/webp", 0.85);
-    if (!dataUrl.startsWith("data:image/webp")) dataUrl = c.toDataURL("image/jpeg", 0.85);
+    const ctx = c.getContext("2d");
+    // PNG when the picture has transparent pixels (a logo), JPEG otherwise (a photo); never WebP, which Universal
+    // Everything does not show (BACKLOG item 4).
+    const alpha = ctx.getImageData(0, 0, w, h).data;
+    let transparent = false;
+    for (let i = 3; i < alpha.length; i += 4) if (alpha[i] < 255) { transparent = true; break; }
+    const dataUrl = transparent ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.88);
     return { dataUrl, w, h };
   }
   function showAvatar() {
     const box = $("avatarPrev"); box.innerHTML = "";
-    if (!avatar) return;
+    if (!avatar) { const n = document.createElement("span"); n.textContent = t("noImage"); box.appendChild(n); return; }
     const img = document.createElement("img"); img.src = avatar.dataUrl; img.alt = "";
     const rm = document.createElement("button"); rm.type = "button"; rm.className = "secondary"; rm.style.cssText = "width:auto; margin:0; padding:6px 10px; font-size:12px;"; rm.textContent = t("imgRemove");
     rm.addEventListener("click", () => { avatar = null; $("pAvatar").value = ""; showAvatar(); });
     box.append(img, rm);
   }
+  // The form as new: also the file field, so the same picture chosen again is seen (BACKLOG item 3).
+  function resetCreateForm() {
+    avatar = null; $("pAvatar").value = ""; showAvatar(); syncName();
+  }
+  // The name: lowercase as it is typed; the rule of shared/request.js shown under the field and on the button.
+  function syncName() {
+    const v = $("pName").value;
+    const ok = UPRequest.NAME_RE.test(v);
+    $("nameHint").textContent = !v ? t("nameHint") : ok ? t("nameOk") : t("nameBad");
+    $("nameHint").className = "note " + (!v ? "" : ok ? "line-ok" : "line-err");
+    $("createBtn").disabled = !ok;
+  }
+  $("pName").addEventListener("input", () => {
+    const el = $("pName"), pos = el.selectionStart, low = el.value.toLowerCase();
+    if (low !== el.value) { el.value = low; el.setSelectionRange(pos, pos); }
+    syncName();
+  });
   $("pAvatar").addEventListener("change", async (ev) => {
     const f = ev.target.files && ev.target.files[0];
     if (!f) return;
@@ -454,6 +493,7 @@
     if (!(await guard("createMsg"))) return;
     if (!$("invite").value.trim()) { say("createMsg", t("noInvite"), "line-err"); return; }
     if (!$("pName").value.trim()) { say("createMsg", t("noName"), "line-err"); return; }
+    if (!UPRequest.NAME_RE.test($("pName").value)) { say("createMsg", t("nameBad"), "line-err"); return; }
     busy(true, "createMsg");
     let network;
     try { network = (await (await fetch(CONFIG.health)).json()).network; } catch (e) { network = null; }
@@ -464,7 +504,7 @@
       images: { avatar, cover: null },
       controllers: [{ address: account.record.address, name: account.name || t("devNamePh").replace(/^(es\.|e\.g\.)\s*/, ""), role: "admin" }],
     });
-    if (errors.length) { say("createMsg", t("err_bad_request"), "line-err"); busy(false); return; }
+    if (errors.length) { say("createMsg", errors.includes("profile.nameRule") ? t("nameBad") : t("err_bad_request"), "line-err"); busy(false); return; }
     let secret = null;
     try {
       // The request is signed with this computer's key, unlocked as usual: the service creates the account only
@@ -481,12 +521,13 @@
         body = await res.json().catch(() => ({}));
       } catch (e) { throw Object.assign(new Error(t("err_network")), { shown: true }); }
       if (!res.ok) {
+        if (body.error === "bad_request" && Array.isArray(body.problems) && body.problems.includes("profile.nameRule")) throw Object.assign(new Error(t("nameBad")), { shown: true });
         const key = "err_" + (body.error || "unavailable");
         const msg = body.error === "failed" ? t("err_failed", { ref: (body.tx || "").slice(0, 18) }) : I18N[LANG][key] ? t(key) : t("err_unavailable");
         throw Object.assign(new Error(msg), { shown: true });
       }
       await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
-      $("invite").value = ""; avatar = null; showAvatar();
+      $("invite").value = ""; $("pName").value = ""; $("pDesc").value = ""; resetCreateForm();
       await showMain();
       say("mainMsg", t("created"), "line-ok");
     } catch (e) { say("createMsg", explain(e), "line-err"); } finally { if (secret) K.wipe(secret); busy(false); }
@@ -516,9 +557,20 @@
   $("unlockBtn").addEventListener("click", () => startRenew($("unlockPw").value));
 
   $("removeAck").addEventListener("change", () => { $("removeBtn").disabled = !$("removeAck").checked; });
-  $("removeBtn").addEventListener("click", async () => {
+  // Removal in two steps (BACKLOG item 1): the checkbox, then a confirmation that names the account; "Cancel"
+  // has the focus.
+  $("removeBtn").addEventListener("click", () => {
     if (!$("removeAck").checked) return;
+    const esc = (v) => String(v || "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    $("removeConfirmText").innerHTML = t("removeConfirm", { name: esc(account.profileName), code: esc(account.record.address) });
+    $("removeConfirm").hidden = false;
+    $("removeCancel").focus();
+  });
+  $("removeCancel").addEventListener("click", () => { $("removeConfirm").hidden = true; $("removeAck").checked = false; $("removeBtn").disabled = true; });
+  $("removeYes").addEventListener("click", async () => {
+    if (!$("removeAck").checked || $("removeConfirm").hidden) return;
     await store.del(); account = null; endPending();
+    $("removeConfirm").hidden = true;
     show("sWelcome");
   });
 
@@ -530,6 +582,7 @@
     document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.getAttribute("data-i18n-placeholder")); });
     $("langToggle").textContent = t("langToggleBtn");
     if (latest) showUpdate();
+    if (account && !account.up) { syncName(); showAvatar(); }
     if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });

@@ -79,7 +79,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     // ---- on-chain profile, three keys
     const page = await newPage(browser, operator);
     await page.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${k1}&name=Office%20PC`);
-    await page.fill("#pName", "Cantina Esempio Srl");
+    await page.fill("#pName", "cantina-esempio");
     await page.fill("#pDesc", "Vino toscano");
     await page.fill("#pTags", "vino, Toscana");
     await page.fill("#pLinks", "Sito | https://www.esempio.it");
@@ -125,7 +125,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await again.goto(`http://127.0.0.1:${PORT}/operator.html`);
     await again.setInputFiles("#draftFile", reqPath);
     await again.waitForFunction(() => document.querySelectorAll(".ctrl-row").length === 3);
-    check((await again.inputValue("#pName")) === "Cantina Esempio Srl" && (await again.inputValue("#pLinks")) === "Sito | https://www.esempio.it/" &&
+    check((await again.inputValue("#pName")) === "cantina-esempio" && (await again.inputValue("#pLinks")) === "Sito | https://www.esempio.it/" &&
       (await again.locator(".ctrl-row").nth(2).locator(".c-role").inputValue()) === "device" && (await again.locator("#avatarPrev img").count()) === 1,
       "a saved request loads back into the page");
     await again.close();
@@ -151,7 +151,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     let uploads = 0;
     await phone.route("https://ipfs.chainintegrate.it/api/v0/add**", (r) => { uploads++; r.fulfill({ status: 200, body: JSON.stringify({ Name: "f", Hash: "bafybeigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest0" + uploads, Size: "1" }) + "\n", headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }); });
     await phone.goto(`http://127.0.0.1:${PORT}/operator.html?network=lukso-testnet&key=${ethers.Wallet.createRandom().address}`);
-    await phone.fill("#pName", "Mario Rossi");
+    await phone.fill("#pName", "mario-rossi");
     await phone.setInputFiles("#pAvatar", pngPath);
     await phone.check("#storeIpfs"); await phone.fill("#ipfsApi", "https://ipfs.chainintegrate.it"); await phone.dispatchEvent("#ipfsApi", "change");
     await phone.click("#previewBtn"); await idle(phone);

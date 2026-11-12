@@ -135,7 +135,15 @@ async function verify(page, file, pw) {
     seen = JSON.parse(r.request().postData());
     await r.fulfill({ status: answer.status, contentType: "application/json", body: JSON.stringify(answer.body) });
   });
-  await page.fill("#invite", "ABCD-EFGH-JKMN"); await page.fill("#pName", "Rossi Srl"); await page.fill("#pDesc", "Vino toscano");
+  // the name rule: lowercase as typed, the button off until the name is valid
+  await page.fill("#invite", "ABCD-EFGH-JKMN");
+  await page.type("#pName", "Rossi_Srl");
+  check((await page.inputValue("#pName")) === "rossi_srl" && (await page.isDisabled("#createBtn")) && /❌/.test(await page.textContent("#nameHint")), "the name is lowercased as typed, and a name with an underscore keeps the button off");
+  await page.fill("#pName", "-rossi"); await page.dispatchEvent("#pName", "input");
+  check(await page.isDisabled("#createBtn"), "a name starting with a hyphen keeps the button off");
+  await page.fill("#pName", "rossi-srl"); await page.dispatchEvent("#pName", "input");
+  check(!(await page.isDisabled("#createBtn")) && /✅/.test(await page.textContent("#nameHint")), "a valid name turns the button on");
+  await page.fill("#pDesc", "Vino toscano");
   await page.setInputFiles("#pAvatar", path.join(__dirname, "..", "web", "icon-192.png"));
   await page.waitForSelector("#avatarPrev img");
   await page.fill("#createPw", PW + "x"); await page.click("#createBtn");
@@ -146,16 +154,25 @@ async function verify(page, file, pw) {
   check(/già stato usato/.test(await msg(page, "createMsg")), "the service's refusal is told in plain words");
   const req = UPRequest.parse(seen.request);
   check(req.errors.length === 0 && req.request.controllers.length === 1 && req.request.controllers[0].address === code && req.request.controllers[0].role === "admin" &&
-    req.request.controllers[0].name === "PC ufficio" && req.request.profile.name === "Rossi Srl" && !!req.request.images.avatar && req.request.network === "lukso-testnet",
+    req.request.controllers[0].name === "PC ufficio" && req.request.profile.name === "rossi-srl" && !!req.request.images.avatar && req.request.network === "lukso-testnet",
     "the request names this computer's key as administrator, with the profile, the picture and the service's network");
   check(ethers.verifyMessage(UPRequest.signingMessage(req.request), seen.signature) === code && seen.invite === "ABCD-EFGH-JKMN", "the request is signed with this computer's key");
+  check(req.request.images.avatar.dataUrl.startsWith("data:image/jpeg;"), "a picture without transparency is sent as JPEG");
+  // a logo with transparent pixels stays PNG
+  const logo = Buffer.from(await page.evaluate(() => { const c = document.createElement("canvas"); c.width = 300; c.height = 300; const x = c.getContext("2d"); x.fillStyle = "#22b8c9"; x.fillRect(50, 50, 200, 200); return c.toDataURL("image/png").split(",")[1]; }), "base64");
+  const logoPath = path.join(OUT, "logo-transparent.png"); fs.writeFileSync(logoPath, logo);
+  await page.setInputFiles("#pAvatar", logoPath); await page.waitForSelector("#avatarPrev img");
+  await page.fill("#createPw", PW); await page.click("#createBtn");
+  await page.waitForFunction(() => !document.querySelector("#createBtn").disabled);
+  check(UPRequest.parse(seen.request).request.images.avatar.dataUrl.startsWith("data:image/png;"), "a picture with transparent pixels is sent as PNG");
   const UP = ethers.Wallet.createRandom().address;
   answer = { status: 200, body: { up: UP, km: ethers.Wallet.createRandom().address, tx: "0x" + "ab".repeat(32), network: "lukso" } };
   await page.fill("#createPw", PW); await page.click("#createBtn");
   await visible(page, "pAccount");
   const acc = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
-  check(acc.up === UP && acc.profileName === "Rossi Srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
+  check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
+  check((await page.inputValue("#pAvatar")) === "" && (await page.inputValue("#pName")) === "", "after the creation the form is empty, the picture field too (the same file can be chosen again)");
   await ctx.unroute("https://account.chainintegrate.it/api/create");
   const stored = (await page.evaluate(() => chrome.storage.local.get("account"))).account;
   const clear = ethers.hexlify(await K.open(bk.key, { password: BK })).slice(2);
@@ -172,8 +189,16 @@ async function verify(page, file, pw) {
   check(/funziona/.test(await msg(page, "mainMsg")), "a new backup copy is made and checked");
 
   // remove
-  check(await page.isDisabled("#removeBtn"), "removal needs the confirmation");
-  await page.check("#removeAck"); await page.click("#removeBtn"); await visible(page, "sWelcome");
+  check(await page.isDisabled("#removeBtn"), "removal needs the checkbox");
+  await page.check("#removeAck"); await page.click("#removeBtn");
+  await visible(page, "removeConfirm");
+  const focused = await page.evaluate(() => document.activeElement && document.activeElement.id);
+  check(focused === "removeCancel" && (await page.evaluate(() => chrome.storage.local.get("account"))).account !== undefined && /rossi-srl/.test(await page.textContent("#removeConfirmText")),
+    "removal asks for a confirmation that names the account, with Cancel focused, and removes nothing yet");
+  await page.click("#removeCancel");
+  check(!(await page.isVisible("#removeConfirm")) && (await page.isDisabled("#removeBtn")) && (await page.evaluate(() => chrome.storage.local.get("account"))).account !== undefined, "Cancel keeps the access");
+  await page.check("#removeAck"); await page.click("#removeBtn"); await visible(page, "removeConfirm");
+  await page.click("#removeYes"); await visible(page, "sWelcome");
   check((await page.evaluate(() => chrome.storage.local.get("account"))).account === undefined, "removal deletes the stored access");
   await ctx.close();
 

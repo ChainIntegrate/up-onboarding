@@ -7,7 +7,7 @@ const A = "0x1111111111111111111111111111111111111111";
 const B = "0x2222222222222222222222222222222222222222";
 const base = () => ({
   kind: R.KIND, version: 1, network: "lukso-testnet",
-  profile: { name: "  Rossi   Srl ", description: "Vino\r\n\r\n\r\n\r\ntoscano", tags: ["vino", "vino", " Toscana "], links: [{ title: "", url: "https://www.esempio.it" }] },
+  profile: { name: "  rossi-srl ", description: "Vino\r\n\r\n\r\n\r\ntoscano", tags: ["vino", "vino", " Toscana "], links: [{ title: "", url: "https://www.esempio.it" }] },
   images: { avatar: null, cover: null },
   controllers: [{ address: A.toLowerCase(), name: "PC\u202eufficio", role: "admin" }, { address: B, name: "", role: "device" }],
 });
@@ -15,7 +15,7 @@ const base = () => ({
 test("a good request is cleaned", () => {
   const { request, errors } = R.parse(base());
   assert.deepStrictEqual(errors, []);
-  assert.strictEqual(request.profile.name, "Rossi Srl");
+  assert.strictEqual(request.profile.name, "rossi-srl");
   assert.strictEqual(request.profile.description, "Vino\n\ntoscano");
   assert.deepStrictEqual(request.profile.tags, ["vino", "Toscana"]);
   assert.deepStrictEqual(request.profile.links, [{ title: "www.esempio.it", url: "https://www.esempio.it/" }]);
@@ -39,6 +39,14 @@ test("errors are reported", () => {
     [(s) => { s.network = "ethereum"; }, "network"],
     [(s) => { s.salt = "0x1234"; }, "salt"],
     [(s) => { s.profile.name = " \u200b "; }, "profile.name"],
+    [(s) => { s.profile.name = "Rossi"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "rossi_srl"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "rossi srl"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "-rossi"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "rossi-"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "ro"; }, "profile.nameRule"],
+    [(s) => { s.profile.name = "a".repeat(33); }, "profile.nameRule"],
+    [(s) => { s.images.avatar = { dataUrl: "data:image/webp;base64,UklGRg==" }; }, "images.avatar"],
     [(s) => { s.profile.links = [{ url: "javascript:alert(1)" }]; }, "profile.links.0"],
     [(s) => { s.images.avatar = { dataUrl: "data:image/svg+xml;base64,PHN2Zz4=" }; }, "images.avatar"],
     [(s) => { s.controllers[1].address = A; }, "controllers.1.duplicate"],
@@ -73,5 +81,12 @@ test("cleaning is stable, so the signed message is the same on both sides", () =
   assert.strictEqual(R.signingMessage(twice), R.signingMessage(once));
   assert.match(R.signingMessage(once), /^ChainIntegrate account request\n0x[0-9a-f]{64}$/);
   assert.strictEqual(R.signingMessage({ ...once, salt: "0x" + "11".repeat(32) }), R.signingMessage(once));
-  assert.notStrictEqual(R.signingMessage({ ...once, profile: { ...once.profile, name: "Other" } }), R.signingMessage(once));
+  assert.notStrictEqual(R.signingMessage({ ...once, profile: { ...once.profile, name: "other" } }), R.signingMessage(once));
+});
+
+test("good names", () => {
+  for (const name of ["abc", "chaintest2", "cantina-rossi", "a1-b2-c3", "a".repeat(32)]) {
+    const s = base(); s.profile.name = name;
+    assert.deepStrictEqual(R.parse(s).errors, [], name);
+  }
 });

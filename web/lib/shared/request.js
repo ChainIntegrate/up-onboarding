@@ -13,8 +13,8 @@
 //   "kind": "chainintegrate-up-create", "version": 1,
 //   "network": "lukso" | "lukso-testnet",
 //   "salt": "0x…32 bytes…" (optional: the LSP23 salt, so the UP's address stays the same between sessions),
-//   "profile": { "name": "…", "description": "…", "tags": ["…"], "links": [{ "title": "…", "url": "https://…" }] },
-//   "images": { "avatar": { "dataUrl": "data:image/…;base64,…", "w": 512, "h": 512 } | null, "cover": … | null },
+//   "profile": { "name": "cantina-rossi" (a-z, 0-9, hyphens, 3 to 32), "description": "…", "tags": ["…"], "links": [{ "title": "…", "url": "https://…" }] },
+//   "images": { "avatar": { "dataUrl": "data:image/png|jpeg;base64,…", "w": 512, "h": 512 } | null, "cover": … | null },
 //   "controllers": [{ "address": "0x…", "name": "…", "role": "admin" | "device" }]
 // }
 // The account belongs to these keys only: ChainIntegrate never holds a key of it (no recovery key by design).
@@ -29,7 +29,11 @@
   const NETWORKS = ["lukso", "lukso-testnet"];
   const ROLES = ["admin", "device"];
   const LIMITS = { name: 64, description: 1000, tag: 32, tags: 10, linkTitle: 64, url: 512, links: 10, controllers: 20, controllerName: 64, image: 2 * 1024 * 1024 };
-  const IMAGE_RE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/;
+  // PNG or JPEG only: Universal Everything drops a profile whose picture is WebP (BACKLOG item 4, 2026-11-12).
+  const IMAGE_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/;
+  // The profile's name, shown by Universal Everything as a handle (@name#abcd): lowercase letters, digits and
+  // hyphens, 3 to 32 characters, not starting or ending with a hyphen (the maintainer's rule, 2026-11-12).
+  const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/;
 
   // One line: no control, zero-width or bidi characters, spaces collapsed, at most `max` characters.
   const BAD = "[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]";
@@ -67,6 +71,7 @@
     const p = src.profile && typeof src.profile === "object" ? src.profile : {};
     const name = oneLine(p.name, LIMITS.name);
     if (!name) errors.push("profile.name");
+    else if (!NAME_RE.test(name)) errors.push("profile.nameRule");
     const tags = [];
     for (const t of Array.isArray(p.tags) ? p.tags : []) { const c = oneLine(t, LIMITS.tag); if (c && !tags.includes(c)) tags.push(c); }
     if (tags.length > LIMITS.tags) errors.push("profile.tags");
@@ -116,5 +121,5 @@
     return `ChainIntegrate account request\n${ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(rest)))}`;
   }
 
-  return { KIND, VERSION, NETWORKS, ROLES, LIMITS, create, parse, warnings, oneLine, signingMessage };
+  return { KIND, VERSION, NETWORKS, ROLES, LIMITS, NAME_RE, create, parse, warnings, oneLine, signingMessage };
 });

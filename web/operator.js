@@ -40,7 +40,7 @@
       reqErr_controllers: "troppe chiavi", reqErr_controllers_address: "indirizzo non valido", reqErr_controllers_duplicate: "indirizzo ripetuto",
       reqErr_controllers_role: "ruolo non valido", reqErr_controllers_none: "nessuna chiave", reqErr_controllers_noAdmin: "nessun amministratore",
       panel2Title: "2 · Il profilo",
-      nameLabel: "Nome (persona o società)",
+      nameLabel: "Nome del profilo (minuscole, numeri, trattini; 3-32)",
       descLabel: "Descrizione",
       tagsLabel: "Tag, separati da virgole",
       tagsPh: "es. azienda, vino, Toscana",
@@ -89,6 +89,7 @@
       ipfsFail: (v) => `❌ Caricamento su IPFS non riuscito: ${v.err}`,
       tooBig: (v) => `❌ I dati del profilo sono troppo grandi per la blockchain (${v.kb} kB, massimo ${v.max} kB): togli la copertina o usa IPFS.`,
       noName: "❌ Manca il nome del profilo.",
+      nameBad: "❌ Il nome del profilo: solo lettere minuscole, numeri e trattini, da 3 a 32 caratteri, senza trattino all'inizio o alla fine (es. cantina-rossi). Il nome completo va nella descrizione.",
       badLink: (v) => `❌ Link non valido alla riga ${v.n}: serve \"titolo | https://…\".`,
       infraMissing: (v) => `❌ Su questa rete manca un contratto di LUKSO: ${v.name} (${v.addr}).`,
       rpcMismatch: (v) => `❌ L'RPC risponde con chainId ${v.got}, non ${v.want}.`,
@@ -143,7 +144,7 @@
       reqErr_controllers: "too many keys", reqErr_controllers_address: "invalid address", reqErr_controllers_duplicate: "repeated address",
       reqErr_controllers_role: "invalid role", reqErr_controllers_none: "no keys", reqErr_controllers_noAdmin: "no administrator",
       panel2Title: "2 · The profile",
-      nameLabel: "Name (person or company)",
+      nameLabel: "Profile name (lowercase, digits, hyphens; 3-32)",
       descLabel: "Description",
       tagsLabel: "Tags, separated by commas",
       tagsPh: "e.g. company, wine, Tuscany",
@@ -192,6 +193,7 @@
       ipfsFail: (v) => `❌ Upload to IPFS failed: ${v.err}`,
       tooBig: (v) => `❌ The profile data is too large for the blockchain (${v.kb} kB, at most ${v.max} kB): remove the cover or use IPFS.`,
       noName: "❌ The profile name is missing.",
+      nameBad: "❌ The profile name: lowercase letters, digits and hyphens only, 3 to 32 characters, no hyphen at the start or the end (e.g. cantina-rossi). The full name goes in the description.",
       badLink: (v) => `❌ Invalid link on line ${v.n}: \"title | https://…\" is needed.`,
       infraMissing: (v) => `❌ A LUKSO contract is missing on this network: ${v.name} (${v.addr}).`,
       rpcMismatch: (v) => `❌ The RPC answers with chainId ${v.got}, not ${v.want}.`,
@@ -299,6 +301,7 @@
       links.push({ title: title || new URL(url).hostname, url });
     }
     if (!name) return { error: t("noName") };
+    if (!UPRequest.NAME_RE.test(name)) return { error: t("nameBad") };
     return { name, description, tags, links };
   }
 
@@ -312,8 +315,12 @@
     const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
     const c = document.createElement("canvas"); c.width = w; c.height = h;
     c.getContext("2d").drawImage(img, 0, 0, w, h);
-    let dataUrl = c.toDataURL("image/webp", quality);
-    if (!dataUrl.startsWith("data:image/webp")) dataUrl = c.toDataURL("image/jpeg", quality); // browsers without WebP encoding
+    // PNG when the picture has transparent pixels (a logo), JPEG otherwise; never WebP, which Universal Everything
+    // does not show (BACKLOG item 4).
+    const px = c.getContext("2d").getImageData(0, 0, w, h).data;
+    let transparent = false;
+    for (let i = 3; i < px.length; i += 4) if (px[i] < 255) { transparent = true; break; }
+    const dataUrl = transparent ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", quality);
     return { dataUrl, w, h };
   }
   const dataUrlBytes = (u) => ethers.decodeBase64(u.slice(u.indexOf(",") + 1));

@@ -70,7 +70,7 @@ async function waitFor(url, body) {
     const admin = ethers.Wallet.createRandom(), device = ethers.Wallet.createRandom(), stranger = ethers.Wallet.createRandom();
     const avatar = "data:image/png;base64," + fs.readFileSync(path.join(__dirname, "..", "web", "icon-192.png")).toString("base64");
     const { request } = UPRequest.create({ network: "lukso-testnet",
-      profile: { name: "Rossi Srl", description: "Vino", tags: ["vino"], links: [{ title: "Sito", url: "https://www.rossi.it" }] },
+      profile: { name: "rossi-srl", description: "Vino", tags: ["vino"], links: [{ title: "Sito", url: "https://www.rossi.it" }] },
       images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null },
       controllers: [{ address: admin.address, name: "PC ufficio", role: "admin" }, { address: device.address, name: "Telefono", role: "device" }] });
     const sign = (w, req) => w.signMessage(UPRequest.signingMessage(req));
@@ -86,6 +86,12 @@ async function waitFor(url, body) {
     check(r.status === 400 && r.body.error === "bad_signature", "a request signed by a key that is not its administrator is refused");
     r = await post({ invite: code, request, signature: await sign(device, request) });
     check(r.status === 400 && r.body.error === "bad_signature", "a request signed by a device key is refused");
+    const badName = { ...request, profile: { ...request.profile, name: "Rossi_Srl" } };
+    r = await post({ invite: code, request: badName, signature: await sign(admin, badName) });
+    check(r.status === 400 && r.body.problems.includes("profile.nameRule"), "a name that breaks the rule is refused");
+    const webp = { ...request, images: { avatar: { dataUrl: "data:image/webp;base64,UklGRiQAAABXRUJQ", w: 1, h: 1 }, cover: null } };
+    r = await post({ invite: code, request: webp, signature: await sign(admin, webp) });
+    check(r.status === 400 && r.body.problems.includes("images.avatar"), "a WebP picture is refused");
     const bad = { ...request, network: "lukso" };
     r = await post({ invite: code, request: bad, signature: await sign(admin, bad) });
     check(r.status === 400 && r.body.problems.includes("network"), "a request for another network is refused");
