@@ -7,7 +7,7 @@ Supplier Trust and TraceabilityRegistry require a membership token): only a simu
 daily cap for the whole service. The gas-cylinder-registry demo uses the owner script; the extension as its
 owner comes after the drivers' app is published.
 
-Done (0.4.0): the relay in the account service (section 6), for the account's own changes (profile, the signer's
+Done (0.4.0, released 2026-11-12): the relay in the account service (section 6), for the account's own changes (profile, the signer's
 name) and for the calls of the projects' catalog, with the catalog's on-chain checks, tested on a local chain with
 LUKSO's Key Manager; the catalog (`shared/catalog.js`, section 5) of TraceabilityRegistry and Supplier Trust (sign-in
 messages and transactions) and of the gas cylinder registry (EIP-712, not served until its site and factory are set);

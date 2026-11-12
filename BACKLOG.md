@@ -4,6 +4,12 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
+## In 0.4.0 (released 2026-11-12)
+
+Items 8 (the relay), 9 (the privacy notice from the extension) and 11 (the backup copy names the account), the
+projects' catalog, the page provider and the confirmation window (docs/integration.md), the network read from
+ChainIntegrate's node through the service. Next: the live test on LUKSO with this release; items 10, 12, 13.
+
 ## In 0.3.1 (released 2026-11-12)
 
 0.3.0 was the Testnet check of items 1-4 (`chaintest-tre`: name, picture and description shown on Universal
