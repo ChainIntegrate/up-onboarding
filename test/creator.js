@@ -14,6 +14,7 @@ const path = require("path");
 const { ethers } = require("ethers");
 const UPRequest = require("../shared/request.js");
 const UPDeploy = require("../shared/deploy.js");
+const UPRelay = require("../shared/relay.js");
 
 const RPC = "http://127.0.0.1:8545";
 const PORT = 8788, IPFS = 8789;
@@ -55,7 +56,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", dataDir: "data",
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 3, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -117,6 +118,47 @@ async function waitFor(url, body) {
     check(l.status === 200 && l.body.up === created && l.body.network === "lukso-testnet", "an account is found by one of its keys");
     l = await look(stranger.address);
     check(l.status === 404, "a key with no account is not found");
+    // ---- relay: operations on the account, gas paid by the service (LSP25)
+    const relayPost = async (pathName, body) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/relay${pathName}`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.8.8.8" }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    const read1 = new ethers.Contract(created, ["function getData(bytes32) view returns (bytes)"], prov);
+    async function relay(wallet, payload, { nonce, validity, account = created } = {}) {
+      const n = await relayPost("/nonce", { account, signer: wallet.address });
+      if (n.status !== 200) return n;
+      const now = Math.floor(Date.now() / 1000) - 5;
+      const v = validity ?? UPRelay.validity(now, now + 600);
+      const useNonce = nonce ?? BigInt(n.body.nonce);
+      const digest = UPRelay.digest({ chainId: n.body.chainId, keyManager: n.body.keyManager, nonce: useNonce, validity: v, payload });
+      const sig = wallet.signingKey.sign(digest).serialized;
+      return relayPost("", { account, nonce: useNonce.toString(), validity: v.toString(), payload, signature: sig });
+    }
+    const nameOf = async (a) => { const v = await read1.getData(UPRelay.nameKey(a.address)); return v === "0x" ? "" : ethers.toUtf8String(v); };
+    let rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Portatile Simone"))]));
+    check(rr.status === 200 && (await nameOf(admin)) === "Portatile Simone", "relay: the key renames itself on the account, the service pays");
+    const newProfile = ethers.concat(["0x00006f357c6a0020", ethers.keccak256("0x1234"), ethers.toUtf8Bytes("ipfs://bafkreigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest99")]);
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.LSP3_KEY, newProfile]));
+    check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === newProfile.toLowerCase(), "relay: the profile is updated");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("x"))]));
+    check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a key cannot rename another key");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", ["0x4b80742de2bf82acb3630000" + stranger.address.slice(2).toLowerCase(), ethers.zeroPadValue("0x7f3f06", 32)]));
+    check(rr.status === 400 && rr.body.error === "not_allowed", "relay: adding a controller is not allowed");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("execute", [0, stranger.address, ethers.parseEther("1"), "0x"]));
+    check(rr.status === 400 && rr.body.reason === "not_in_catalog", "relay: a transfer from the account is refused (not in the catalog)");
+    rr = await relay(stranger, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(stranger.address), ethers.hexlify(ethers.toUtf8Bytes("intruso"))]));
+    check(rr.status === 422 && rr.body.error === "refused", "relay: a key that is not the account's is refused before sending (no gas spent)");
+    rr = await relay(device, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("Telefono 2"))]));
+    check(rr.status === 422, "relay: a device key (no EXECUTE_RELAY_CALL) is refused before sending");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Di nuovo"))]), { nonce: 0n });
+    check(rr.status === 422, "relay: a used nonce is refused (no replay)");
+    const old = Math.floor(Date.now() / 1000) - 7200;
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Scaduto"))]), { validity: UPRelay.validity(old, old + 600) });
+    check(rr.status === 400 && rr.body.problems.includes("validity"), "relay: an expired request is refused");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Altro"))]), { account: stranger.address });
+    check(rr.status === 403 && rr.body.error === "unknown_account", "relay: only accounts the service created");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Terzo"))]));
+    check(rr.status === 200 && (await nameOf(admin)) === "Terzo", "relay: a third operation, under the cap");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Quarto"))]));
+    check(rr.status === 429 && rr.body.error === "daily_limit" && (await nameOf(admin)) === "Terzo", "relay: the daily cap holds");
+
     r = await post({ invite: code, request, signature: await sign(admin, request) });
     check(r.status === 409 && r.body.error === "invite_used", "a code cannot be used twice");
 
@@ -144,6 +186,12 @@ async function waitFor(url, body) {
     const ALERT = path.join(__dirname, "..", "tools", "creator", "alert.js");
     const alert = (...a) => execFileSync(process.execPath, [ALERT, ...a], { env: { ...env, ALERT_OUTBOX: outbox }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
     const mails = () => (fs.existsSync(outbox) ? fs.readFileSync(outbox, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+    alert("check");
+    check(mails().length === 1 && /daily cap/.test(mails()[0].text), "alerts: the relay's daily cap sends an e-mail");
+    fs.unlinkSync(path.join(dir, "data", "relay.jsonl"));
+    alert("check");
+    check(mails().length === 2 && /solved/.test(mails()[1].subject), "alerts: and a second when it is over");
+    fs.unlinkSync(outbox);
     check(alert("check") === "all good" && mails().length === 0, "alerts: all good, no e-mail");
     svc.kill(); await sleep(500);
     alert("check");

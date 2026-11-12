@@ -54,8 +54,8 @@ service which account has this key (`/api/lookup`), so the account comes back to
 - **Releases on GitHub**: a tag `extension-v<version>` runs `.github/workflows/extension-release.yml` (tests,
   pack, release). `releases/latest/download/chainintegrate-account.zip` always names the latest; the client's
   page links it, with the install steps.
-- **Update notice**: the creation service announces the version of `extension/manifest.json` in its clone
-  (`/api/health`); a newer one shows "A new version is available" with the download link and the steps (unzip over
+- **Update notice**: the creation service announces the latest *released* version, `web/extension/latest.txt`
+  (updated right after each release, so a version in development on main is never offered) (`/api/health`); a newer one shows "A new version is available" with the download link and the steps (unzip over
   the same folder, "Reload" in chrome://extensions).
 - **Stored data** keeps its format across versions (`account` in `chrome.storage.local`: the key record of
   `shared/keystore.js`, version 1, and the account fields); a version that changes it must read the old one.

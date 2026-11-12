@@ -45,6 +45,11 @@ judging what Universal Everything shows (item 4).
    client's page; the extension's footer links it in the next version (and the notice is updated when the extension
    starts talking to the ChainIntegrate services, 0.4.0).
 
+10. **Device keys cannot use the relay** (2026-11-12): the "device" permissions (`UPDeploy.DEVICE_PERMS`, as
+    Cross_Chain's "Authorize a device") lack EXECUTE_RELAY_CALL, which LSP25 requires. Today every extension key is
+    an administrator, so it does not matter; before a phone (the Android app) is added as a device, give device
+    keys EXECUTE_RELAY_CALL (new accounts) and decide how existing ones get it.
+
 ## Under investigation
 
 5. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,

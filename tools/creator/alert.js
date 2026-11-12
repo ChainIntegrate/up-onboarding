@@ -51,6 +51,11 @@ async function problems(cfg) {
     if (balance < ethers.parseEther(cfg.minBalance) + ethers.parseEther("0.1")) out.push(`The gas wallet ${w.address} has ${ethers.formatEther(balance)} (${cfg.network}): top it up, the service refuses creations under ${cfg.minBalance}.`);
   } catch (e) { out.push(`The network (${cfg.rpc}) cannot be read: ${e.shortMessage || e.message}.`); }
   try {
+    const day = new Date().toISOString().slice(0, 10);
+    const n = fs.readFileSync(path.join(cfg.dataDir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)).length;
+    if (n >= cfg.maxRelayPerDay) out.push(`The relay reached its daily cap (${n} of ${cfg.maxRelayPerDay}): operations are refused until tomorrow. If it is not expected, look at relay.jsonl.`);
+  } catch (e) { if (e.code !== "ENOENT") out.push(`The relay log cannot be read: ${e.message}.`); }
+  try {
     const invites = JSON.parse(fs.readFileSync(path.join(cfg.dataDir, "invites.json"), "utf8"));
     const stuck = Object.values(invites).filter((i) => i.state === "review" || (i.state === "creating" && Date.now() - Date.parse(i.startedAt || 0) > 15 * 60000));
     for (const i of stuck) out.push(`Code ${i.id} (${i.note || "no note"}) is "${i.state}"${i.tx ? `, transaction ${i.tx}` : ""}${i.up ? `, account ${i.up}` : ""}: check it with "node creator.js invites".`);

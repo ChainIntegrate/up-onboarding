@@ -39,6 +39,7 @@ globalThis.ethers = ethers;
 const UPRequest = require("../../shared/request.js");
 const UPDeploy = require("../../shared/deploy.js");
 const UPIpfs = require("../../shared/ipfs.js");
+const UPRelay = require("../../shared/relay.js");
 
 // ---------------------------------------------------------------- configuration
 function loadConfig() {
@@ -57,6 +58,7 @@ function loadConfig() {
     maxPerDay: Number(c.maxPerDay ?? 20), perIpPerMinute: Number(c.perIpPerMinute ?? 1),
     maxControllers: Number(c.maxControllers ?? 5), inviteDays: Number(c.inviteDays ?? 30),
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
+    maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
   };
 }
 const secret = (file) => fs.readFileSync(file, "utf8").trim();
@@ -82,6 +84,12 @@ class Store {
   created() {
     try { return fs.readFileSync(path.join(this.dir, "created.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); }
     catch (e) { if (e.code === "ENOENT") return []; throw e; }
+  }
+  relayLog(entry) { fs.appendFileSync(path.join(this.dir, "relay.jsonl"), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n", { mode: 0o600 }); }
+  relayToday() {
+    const day = new Date().toISOString().slice(0, 10);
+    try { return fs.readFileSync(path.join(this.dir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)).length; }
+    catch (e) { if (e.code === "ENOENT") return 0; throw e; }
   }
   usedToday() {
     const day = new Date().toISOString().slice(0, 10);
@@ -117,7 +125,7 @@ function makeService(cfg) {
   // once their last request is a minute old.
   const forget = setInterval(() => {
     const now = Date.now();
-    for (const m of [recent, recentLookups]) for (const [k, v] of m) if (!v.some((t) => now - t < 60000)) m.delete(k);
+    for (const m of [recent, recentLookups, recentRelays]) for (const [k, v] of m) if (!v.some((t) => now - t < 60000)) m.delete(k);
   }, 30000);
   forget.unref();
 
@@ -219,14 +227,87 @@ function makeService(cfg) {
     list.push(now); recentLookups.set(ip, list);
   }
 
-  return { handleCreate, handleLookup, wallet, provider, store };
+  // ---- operations on an account, gas paid by the service (LSP25 executeRelayCall; shared/relay.js)
+  // Only accounts this service created; only what UPRelay.check allows (the profile, the signer's own name; the
+  // projects' catalog later); simulated before sending, so a call the account's Key Manager or the target contract
+  // would refuse costs nothing; a daily cap for the whole service, against a fault that repeats.
+  const recentRelays = new Map();
+  function rateLimitRelay(ip) {
+    const now = Date.now();
+    const list = (recentRelays.get(ip) || []).filter((t) => now - t < 60000);
+    if (list.length >= cfg.relayPerIpPerMinute) throw new HttpError(429, "rate_limited");
+    list.push(now); recentRelays.set(ip, list);
+  }
+  const UP_OWNER = new ethers.Interface(["function owner() view returns (address)"]);
+  async function knownAccount(body) {
+    if (!body || typeof body.account !== "string" || !ethers.isAddress(body.account)) throw new HttpError(400, "bad_request", { problems: ["account"] });
+    const account = ethers.getAddress(body.account);
+    if (!store.created().some((e) => e.up && ethers.getAddress(e.up) === account)) throw new HttpError(403, "unknown_account");
+    const keyManager = UP_OWNER.decodeFunctionResult("owner", await provider.call({ to: account, data: UP_OWNER.encodeFunctionData("owner") }))[0];
+    return { account, keyManager: ethers.getAddress(keyManager) };
+  }
+
+  async function handleRelayNonce(body, ip) {
+    rateLimitRelay(ip);
+    const { account, keyManager } = await knownAccount(body);
+    if (typeof body.signer !== "string" || !ethers.isAddress(body.signer)) throw new HttpError(400, "bad_request", { problems: ["signer"] });
+    const raw = await provider.call({ to: keyManager, data: UPRelay.KM.encodeFunctionData("getNonce", [ethers.getAddress(body.signer), 0]) });
+    const nonce = UPRelay.KM.decodeFunctionResult("getNonce", raw)[0];
+    return { account, keyManager, nonce: nonce.toString(), chainId: cfg.chainId };
+  }
+
+  async function handleRelay(body, ip) {
+    rateLimitRelay(ip);
+    const { account, keyManager } = await knownAccount(body);
+    let nonce, validity, payload, signature;
+    try {
+      nonce = BigInt(body.nonce); validity = BigInt(body.validity);
+      payload = ethers.hexlify(body.payload); signature = ethers.Signature.from(body.signature).serialized;
+    } catch (e) { throw new HttpError(400, "bad_request", { problems: ["fields"] }); }
+    const { start, end } = UPRelay.splitValidity(validity);
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    if (start > now + 60n || end <= now || end > now + 3600n) throw new HttpError(400, "bad_request", { problems: ["validity"] });
+    const digest = UPRelay.digest({ chainId: cfg.chainId, keyManager, nonce, validity, value: 0n, payload });
+    const signer = ethers.recoverAddress(digest, signature);
+    const allowed = UPRelay.check(payload, { signer });
+    if (!allowed.ok) throw new HttpError(400, "not_allowed", { reason: allowed.error });
+    const data = UPRelay.KM.encodeFunctionData("executeRelayCall", [signature, nonce, validity, payload]);
+    const run = queue.then(async () => {
+      if (store.relayToday() >= cfg.maxRelayPerDay) { console.error("RELAY DAILY LIMIT reached"); throw new HttpError(429, "daily_limit"); }
+      // The Key Manager checks the signer's permissions and the nonce, the account checks the call: a refusal shows here.
+      let gas;
+      try { gas = await provider.estimateGas({ from: wallet.address, to: keyManager, data }); }
+      catch (e) { throw new HttpError(422, "refused", { reason: String(e.shortMessage || e.reason || "reverted").slice(0, 120) }); }
+      const fee = await provider.getFeeData();
+      const balance = await provider.getBalance(wallet.address);
+      if (balance < gas * (fee.maxFeePerGas || fee.gasPrice) * 2n + ethers.parseEther(cfg.minBalance)) {
+        console.error(`LOW BALANCE: ${ethers.formatEther(balance)} on ${wallet.address}`);
+        throw new HttpError(503, "unavailable");
+      }
+      const tx = await wallet.sendTransaction({ to: keyManager, data, gasLimit: (gas * 13n) / 10n });
+      const rc = await provider.waitForTransaction(tx.hash, 1, cfg.confirmSeconds * 1000);
+      const ok = !!rc && rc.status === 1;
+      store.relayLog({ account, signer, ops: allowed.items.map((i) => i.op), tx: tx.hash, ok });
+      console.log(`relay ${account} ${allowed.items.map((i) => i.op).join("+")} tx ${tx.hash} ${ok ? "ok" : "FAILED"}`);
+      if (!ok) throw new HttpError(502, "failed", { tx: tx.hash });
+      return { tx: tx.hash, ops: allowed.items };
+    });
+    queue = run.catch(() => {});
+    return run;
+  }
+
+  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, wallet, provider, store };
 }
 
-// The extension's latest version, as in this clone (git pull brings it), and where to download it: the extension
-// compares it with its own and offers the update.
+// The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
+// version still in development on main is never offered), and where to download it: the extension compares it
+// with its own and offers the update.
 const EXTENSION_DOWNLOAD = "https://github.com/ChainIntegrate/up-onboarding/releases/latest";
 function latestExtension() {
-  try { return { version: JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "extension", "manifest.json"), "utf8")).version, download: EXTENSION_DOWNLOAD }; }
+  try {
+    const version = fs.readFileSync(path.join(__dirname, "..", "..", "web", "extension", "latest.txt"), "utf8").trim();
+    return /^\d+\.\d+\.\d+$/.test(version) ? { version, download: EXTENSION_DOWNLOAD } : null;
+  }
   catch (e) { return null; }
 }
 
@@ -236,7 +317,8 @@ function serve(cfg) {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
     if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
-    if (req.method !== "POST" || (url.pathname !== "/api/create" && url.pathname !== "/api/lookup")) return send(404, { error: "not_found" });
+    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay"];
+    if (req.method !== "POST" || !ROUTES.includes(url.pathname)) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
     let size = 0; const chunks = [];
@@ -245,7 +327,10 @@ function serve(cfg) {
       if (res.writableEnded) return;
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (e) { return send(400, { error: "bad_request", problems: ["json"] }); }
-      try { send(200, url.pathname === "/api/lookup" ? svc.handleLookup(body, ip) : await svc.handleCreate(body, ip)); }
+      try {
+        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay }[url.pathname];
+        send(200, await handler(body, ip));
+      }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }
     });
   });
@@ -287,7 +372,7 @@ async function main() {
   if (cmd === "status") {
     const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
     const w = new ethers.Wallet(secret(cfg.gasKeyFile));
-    console.log(`network ${cfg.network}\ngas wallet ${w.address}\nbalance ${ethers.formatEther(await provider.getBalance(w.address))}\ncreated today ${store.usedToday()} of ${cfg.maxPerDay}`);
+    console.log(`network ${cfg.network}\ngas wallet ${w.address}\nbalance ${ethers.formatEther(await provider.getBalance(w.address))}\ncreated today ${store.usedToday()} of ${cfg.maxPerDay}\nrelayed today ${store.relayToday()} of ${cfg.maxRelayPerDay}`);
     return;
   }
   if (cmd === "inspect") {

@@ -1,6 +1,15 @@
 # The extension as the access to ChainIntegrate's projects (design, 0.4.0 onwards)
 
-**Status: design, 2026-11-12.** Nothing here is written yet. To be reviewed with the maintainer before the code.
+**Status: 2026-11-12.** Decisions of the maintainer: one complete 0.4.0 (signatures and transactions together),
+the relay first; live tests on LUKSO mainnet with the maintainer's accounts (costs are negligible), no Testnet
+deployments of the projects; no budget per project or account (today only the maintainer's accounts exist, and
+Supplier Trust and TraceabilityRegistry require a membership token): only a simulation before each send and a
+daily cap for the whole service. The gas-cylinder-registry demo uses the owner script; the extension as its
+owner comes after the drivers' app is published.
+
+Done: the relay in the account service (section 6) for the account's own changes (profile, the signer's name),
+tested on a local chain with LUKSO's Key Manager. Next: the extension's account changes over the relay, the
+catalog, the page provider and the signing window.
 
 ## 1. The goal
 

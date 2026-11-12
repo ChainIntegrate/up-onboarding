@@ -26,6 +26,16 @@ client's keys only.
 `POST /api/lookup { address }`: the account this service created with that key among its keys (the extension
 asks after restoring a backup on a new computer). Public data on the network anyway; at most 10 per minute.
 
+`POST /api/relay/nonce { account, signer }` and `POST /api/relay { account, nonce, validity, payload, signature }`:
+an operation on an account this service created, signed by one of its keys (LSP25 `executeRelayCall`,
+`shared/relay.js`), sent and paid by the service. Allowed today: the profile (an IPFS VerifiableURI) and the
+signer's own name; the projects' catalog comes next (`docs/integration.md`). Checks: the account is one the
+service created; the request is valid for at most an hour; what it does is allowed (`UPRelay.check`); a
+simulation, so whatever the Key Manager or the target refuses (a stranger's key, a device key without
+EXECUTE_RELAY_CALL, a used nonce) costs nothing; `maxRelayPerDay` for the whole service (200), with an alert e-mail
+when reached; `relayPerIpPerMinute` (20). Each operation sent is logged in `relay.jsonl` (account, signer,
+operation, transaction, outcome).
+
 ## Commands
 
 ```bash
@@ -67,6 +77,7 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 | `dataDir` | the codes (`invites.json`) and the log of created accounts (`created.jsonl`) |
 | `maxPerDay`, `perIpPerMinute`, `maxControllers`, `inviteDays` | 20, 1, 5, 30 |
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
+| `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
 
 A creation costs about 0.01 LYX with the profile on IPFS. Installation: [../../DEPLOY.md](../../DEPLOY.md).
