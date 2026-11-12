@@ -104,13 +104,27 @@ const dataUrlType = (u) => u.slice(5, u.indexOf(";"));
 const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
 
 // ---------------------------------------------------------------- the service
+// The receipt of a transaction, asked every 1.5 seconds until it comes or the time is up (null then). Not ethers'
+// waitForTransaction, which looks once and then waits for the next block: on a chain that makes blocks only for
+// transactions (the tests) that block may never come.
+async function waitReceipt(provider, hash, ms) {
+  const until = Date.now() + ms;
+  for (;;) {
+    try { const rc = await provider.getTransactionReceipt(hash); if (rc && rc.blockNumber) return rc; } catch (e) { /* the RPC failed once: ask again */ }
+    if (Date.now() > until) return null;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 class HttpError extends Error { constructor(status, code, extra) { super(code); this.status = status; this.code = code; this.extra = extra || {}; } }
 
 function makeService(cfg) {
   const store = new Store(cfg.dataDir);
   // A code left "creating" by a stop before any transaction is open again.
   { const all = store.load(); let n = 0; for (const k of Object.keys(all)) if (all[k].state === "creating" && !all[k].tx) { all[k].state = "open"; delete all[k].startedAt; n++; } if (n) store.save(all); }
-  const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+  // cacheTimeout -1: ethers would otherwise answer identical RPC calls from a 250 ms cache, the gas wallet's
+  // transaction count included, and two sends close together would reuse a nonce.
+  const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
   const wallet = new ethers.Wallet(secret(cfg.gasKeyFile), provider);
   const recent = new Map(); // ip -> [timestamps of the last minute]
   let queue = Promise.resolve(); // one creation at a time: one nonce sequence for the gas wallet
@@ -150,18 +164,23 @@ function makeService(cfg) {
     return request;
   }
 
-  async function create(request) {
-    // Images and profile on IPFS.
+  // The images and the LSP3Profile JSON on IPFS: the profile value (VerifiableURI) and its URL.
+  async function pinProfile(profile, imgs) {
     const images = {};
     for (const [kind, name] of [["avatar", "profile-image"], ["cover", "background-image"]]) {
-      const im = request.images[kind];
+      const im = imgs[kind];
       if (!im) continue;
       const bytes = dataUrlBytes(im.dataUrl), type = dataUrlType(im.dataUrl);
       images[kind] = { bytes, width: im.w, height: im.h, url: await pin(cfg, bytes, `${name}.${EXT[type]}`, type) };
     }
-    const json = ethers.toUtf8Bytes(UPDeploy.lsp3Json(request.profile, images));
+    const json = ethers.toUtf8Bytes(UPDeploy.lsp3Json(profile, images));
     const url = await pin(cfg, json, "LSP3Profile.json", "application/json");
-    const plan = UPDeploy.plan({ profileValue: UPDeploy.profileValue(json, url), controllers: request.controllers, salt: ethers.hexlify(crypto.randomBytes(32)) });
+    return { value: UPDeploy.profileValue(json, url), url };
+  }
+
+  async function create(request) {
+    const { value } = await pinProfile(request.profile, request.images);
+    const plan = UPDeploy.plan({ profileValue: value, controllers: request.controllers, salt: ethers.hexlify(crypto.randomBytes(32)) });
     const { up, km } = await UPDeploy.addresses(provider, plan);
     if ((await provider.getCode(up)) !== "0x") throw new HttpError(502, "failed", { reason: "exists" });
     // Gas: estimated, with a margin; refused when the wallet would drop under minBalance.
@@ -191,7 +210,7 @@ function makeService(cfg) {
       try {
         sent = await create(request);
         store.update(hash, { state: "review", tx: sent.tx.hash, up: sent.up, usedAt: new Date().toISOString() });
-        const rc = await provider.waitForTransaction(sent.tx.hash, 1, cfg.confirmSeconds * 1000);
+        const rc = await waitReceipt(provider, sent.tx.hash, cfg.confirmSeconds * 1000);
         if (!rc || rc.status !== 1) throw new HttpError(502, "failed", { tx: sent.tx.hash });
         const problems = await UPDeploy.verify(provider, sent.plan, sent.up, sent.km, { blockTag: rc.blockNumber });
         if (problems.length) { store.log({ up: sent.up, tx: sent.tx.hash, problems }); throw new HttpError(502, "failed", { tx: sent.tx.hash }); }
@@ -285,7 +304,7 @@ function makeService(cfg) {
         throw new HttpError(503, "unavailable");
       }
       const tx = await wallet.sendTransaction({ to: keyManager, data, gasLimit: (gas * 13n) / 10n });
-      const rc = await provider.waitForTransaction(tx.hash, 1, cfg.confirmSeconds * 1000);
+      const rc = await waitReceipt(provider, tx.hash, cfg.confirmSeconds * 1000);
       const ok = !!rc && rc.status === 1;
       store.relayLog({ account, signer, ops: allowed.items.map((i) => i.op), tx: tx.hash, ok });
       console.log(`relay ${account} ${allowed.items.map((i) => i.op).join("+")} tx ${tx.hash} ${ok ? "ok" : "FAILED"}`);
@@ -296,7 +315,28 @@ function makeService(cfg) {
     return run;
   }
 
-  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, wallet, provider, store };
+  // A new profile on IPFS for an existing account, asked by one of its keys; the extension then writes its value
+  // with the relay. Counted with the relay's operations (daily cap).
+  const UP_GETDATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)"]);
+  async function handleProfile(body, ip) {
+    rateLimitRelay(ip);
+    const { update, errors } = UPRequest.profileUpdate((body && body.update) || {});
+    if (errors.length) throw new HttpError(400, "bad_request", { problems: errors });
+    const { account } = await knownAccount({ account: update.account });
+    let signer;
+    try { signer = ethers.verifyMessage(UPRequest.updateMessage(update), body.signature); } catch (e) { throw new HttpError(400, "bad_signature"); }
+    const permKey = "0x4b80742de2bf82acb3630000" + signer.slice(2).toLowerCase();
+    const perms = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [permKey]) }))[0];
+    if (!perms || perms === "0x" || BigInt(perms) === 0n) throw new HttpError(400, "bad_signature");
+    if (store.relayToday() >= cfg.maxRelayPerDay) throw new HttpError(429, "daily_limit");
+    let pinned;
+    try { pinned = await pinProfile(update.profile, update.images); }
+    catch (e) { console.error("profile pin failed:", e.message); throw new HttpError(503, "unavailable"); }
+    store.relayLog({ account, signer, ops: ["pin"], url: pinned.url, ok: true });
+    return { value: pinned.value, url: pinned.url };
+  }
+
+  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, wallet, provider, store };
 }
 
 // The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
@@ -317,7 +357,7 @@ function serve(cfg) {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
     if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
-    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay"];
+    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile"];
     if (req.method !== "POST" || !ROUTES.includes(url.pathname)) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
@@ -328,7 +368,7 @@ function serve(cfg) {
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (e) { return send(400, { error: "bad_request", problems: ["json"] }); }
       try {
-        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay }[url.pathname];
+        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile }[url.pathname];
         send(200, await handler(body, ip));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }
@@ -370,7 +410,7 @@ async function main() {
     store.update(key, { state: "revoked" }); console.log("revoked"); return;
   }
   if (cmd === "status") {
-    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const w = new ethers.Wallet(secret(cfg.gasKeyFile));
     console.log(`network ${cfg.network}\ngas wallet ${w.address}\nbalance ${ethers.formatEther(await provider.getBalance(w.address))}\ncreated today ${store.usedToday()} of ${cfg.maxPerDay}\nrelayed today ${store.relayToday()} of ${cfg.maxRelayPerDay}`);
     return;
@@ -378,7 +418,7 @@ async function main() {
   if (cmd === "inspect") {
     const up = rest[0];
     if (!up || !ethers.isAddress(up)) { console.error("usage: creator.js inspect <account address>"); process.exit(2); }
-    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const c = new ethers.Contract(up, ["function getData(bytes32) view returns (bytes)"], provider);
     const value = await c.getData(UPDeploy.LSP3_KEY);
     console.log(`network ${cfg.network}\naccount ${ethers.getAddress(up)}\ncode ${(await provider.getCode(up)) !== "0x" ? "yes" : "NO CODE"}`);
@@ -439,7 +479,7 @@ async function main() {
   if (cmd === "withdraw") {
     const to = rest[0];
     if (!to || !ethers.isAddress(to)) { console.error("usage: creator.js withdraw <address> [amount]"); process.exit(2); }
-    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const w = new ethers.Wallet(secret(cfg.gasKeyFile), provider);
     if ((await provider.getCode(to)) !== "0x" && !rest.includes("--contract")) { console.error("the address is a contract (a profile?): add --contract if that is what you want"); process.exit(1); }
     const balance = await provider.getBalance(w.address);
@@ -450,7 +490,7 @@ async function main() {
     if (amount <= 0n || amount + gasLimit * price > balance) { console.error(`not enough: balance ${ethers.formatEther(balance)}`); process.exit(1); }
     const tx = await w.sendTransaction({ to: ethers.getAddress(to), value: amount, gasLimit, maxFeePerGas: fee.maxFeePerGas || undefined, maxPriorityFeePerGas: fee.maxPriorityFeePerGas || undefined, gasPrice: fee.maxFeePerGas ? undefined : fee.gasPrice });
     console.log(`sent ${ethers.formatEther(amount)} to ${ethers.getAddress(to)}: ${tx.hash}`);
-    await tx.wait(1, cfg.confirmSeconds * 1000);
+    if (!(await waitReceipt(provider, tx.hash, cfg.confirmSeconds * 1000))) { console.error("not confirmed yet: check it later"); process.exit(1); }
     console.log(`confirmed; balance now ${ethers.formatEther(await provider.getBalance(w.address))}`);
     return;
   }

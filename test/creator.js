@@ -56,7 +56,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     const config = { network: "lukso-testnet", rpc: RPC, chainId: 4201, gasKeyFile: "gas-key", dataDir: "data",
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 3, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 5, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     const cli = (...args) => execFileSync(process.execPath, [CREATOR, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -137,6 +137,19 @@ async function waitFor(url, body) {
     const newProfile = ethers.concat(["0x00006f357c6a0020", ethers.keccak256("0x1234"), ethers.toUtf8Bytes("ipfs://bafkreigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest99")]);
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.LSP3_KEY, newProfile]));
     check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === newProfile.toLowerCase(), "relay: the profile is updated");
+    // a new profile stored by the service on IPFS, asked by a key of the account, then written with the relay
+    const upd = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Vino toscano, nuova descrizione", tags: [], links: [] }, images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null } }).update;
+    const profilePost = async (body) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/profile`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.8.8.9" }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    let pp = await profilePost({ update: upd, signature: await stranger.signMessage(UPRequest.updateMessage(upd)) });
+    check(pp.status === 400 && pp.body.error === "bad_signature", "profile: a key that is not the account's cannot store a profile");
+    const badUpd = { ...upd, profile: { ...upd.profile, name: "Rossi_Srl" } };
+    pp = await profilePost({ update: badUpd, signature: await admin.signMessage(UPRequest.updateMessage(badUpd)) });
+    check(pp.status === 400 && pp.body.problems.includes("profile.nameRule"), "profile: the name rule holds for an update too");
+    const pinsBefore = pins.length;
+    pp = await profilePost({ update: upd, signature: await admin.signMessage(UPRequest.updateMessage(upd)) });
+    check(pp.status === 200 && /^ipfs:\/\//.test(pp.body.url) && pins.length === pinsBefore + 2, "profile: a key of the account has the new profile and picture stored");
+    rr = await relay(admin, UPRelay.setProfile(pp.body.value));
+    check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === pp.body.value.toLowerCase(), "profile: its value is written with the relay");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("x"))]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a key cannot rename another key");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", ["0x4b80742de2bf82acb3630000" + stranger.address.slice(2).toLowerCase(), ethers.zeroPadValue("0x7f3f06", 32)]));

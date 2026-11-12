@@ -121,5 +121,17 @@
     return `ChainIntegrate account request\n${ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(rest)))}`;
   }
 
-  return { KIND, VERSION, NETWORKS, ROLES, LIMITS, NAME_RE, create, parse, warnings, oneLine, signingMessage };
+  // A profile update (a new LSP3Profile for an existing account): the same checks as at the creation, on the
+  // profile and the images only. { update: { account, profile, images }, errors }.
+  function profileUpdate({ account, profile, images }) {
+    const { request, errors } = clean({ network: NETWORKS[0], profile, images,
+      controllers: [{ address: "0x0000000000000000000000000000000000000001", role: "admin" }] }, false);
+    const errs = errors.filter((e) => e.startsWith("profile") || e.startsWith("images"));
+    if (typeof account !== "string" || !ethers.isAddress(account)) errs.push("account");
+    return { update: errs.includes("account") ? null : { account: ethers.getAddress(account), profile: request.profile, images: request.images }, errors: errs };
+  }
+  // The message a key of the account signs (personal_sign) to have the service store a new profile on IPFS.
+  const updateMessage = (update) => `ChainIntegrate profile update\n${ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(update)))}`;
+
+  return { KIND, VERSION, NETWORKS, ROLES, LIMITS, NAME_RE, create, parse, warnings, oneLine, signingMessage, profileUpdate, updateMessage };
 });

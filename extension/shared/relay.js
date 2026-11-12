@@ -101,5 +101,9 @@
     return { ok: true, items };
   }
 
-  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue };
+  // The calls the extension sends for the account's own changes.
+  const setProfile = (value) => UP.encodeFunctionData("setData", [LSP3_KEY, value]);
+  const setName = (signer, name) => UP.encodeFunctionData("setData", [nameKey(ethers.getAddress(signer)), ethers.hexlify(ethers.toUtf8Bytes(name))]);
+
+  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue, setProfile, setName };
 });

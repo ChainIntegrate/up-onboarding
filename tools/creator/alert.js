@@ -44,7 +44,7 @@ async function problems(cfg) {
     if (!r.ok || !b.ok) out.push(`The service answers ${r.status} at /api/health.`);
   } catch (e) { out.push(`The service does not answer at http://${cfg.host}:${cfg.port}/api/health (${e.message}).`); }
   try {
-    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const w = new ethers.Wallet(fs.readFileSync(cfg.gasKeyFile, "utf8").trim());
     const balance = await provider.getBalance(w.address);
     // The floor plus about ten creations: time to top it up before the service starts refusing.
