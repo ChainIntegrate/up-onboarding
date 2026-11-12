@@ -43,9 +43,12 @@ in the same batch. Remove an item when its release is done.
 
    In every case `inspect` finds the JSON and the picture with their hashes on LUKSO's gateway, and LUKSO's index
    has the name (`chaintest2#7793`). The one account that works is the one without a picture: Universal
-   Everything's own image processing probably fails on WebP and drops the profile. To do: the extension (and the
-   operator's page) encode JPEG; then a Testnet account with a JPEG picture to confirm before the release. To rule
-   out a delay first: `chaintest2` still `#EOA` ten minutes later.
+   Everything's own image processing probably fails on WebP and drops the profile. Checked: the file on IPFS is WebP
+   (`RIFF…WEBP`), although the maintainer chose a PNG: the extension re-encodes every picture
+   (`toDataURL("image/webp")`). To do, in the extension and the operator's page: a picture with transparent pixels
+   (a logo) stays PNG, one without (a photo) becomes JPEG; never WebP. Then a Testnet account with a valid name and
+   each kind of picture, shown on Universal Everything, before the release. To rule out a delay first:
+   `chaintest2` still `#EOA` ten minutes later.
 
 ## Under investigation
 
