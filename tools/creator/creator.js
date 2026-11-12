@@ -8,6 +8,8 @@
 //   node creator.js invites                     the codes: state, expiry, note, account created
 //   node creator.js revoke <code>               a code that may no longer be used
 //   node creator.js status                      the gas wallet's address and balance, today's count
+//   node creator.js inspect <account>           the account's profile: its value on the network, the JSON and the
+//                                               images on the IPFS node and on public gateways, their hashes
 //   node creator.js withdraw <address> [amount]  sends the gas wallet's LYX (all of it, minus the fee, or the
 //                                               amount) to an address of yours: the key never leaves the server
 // The configuration is ./config.json, or the file named by CREATOR_CONFIG (see config.example.json).
@@ -281,6 +283,52 @@ async function main() {
     const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
     const w = new ethers.Wallet(secret(cfg.gasKeyFile));
     console.log(`network ${cfg.network}\ngas wallet ${w.address}\nbalance ${ethers.formatEther(await provider.getBalance(w.address))}\ncreated today ${store.usedToday()} of ${cfg.maxPerDay}`);
+    return;
+  }
+  if (cmd === "inspect") {
+    const up = rest[0];
+    if (!up || !ethers.isAddress(up)) { console.error("usage: creator.js inspect <account address>"); process.exit(2); }
+    const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true });
+    const c = new ethers.Contract(up, ["function getData(bytes32) view returns (bytes)"], provider);
+    const value = await c.getData(UPDeploy.LSP3_KEY);
+    console.log(`network ${cfg.network}\naccount ${ethers.getAddress(up)}\ncode ${(await provider.getCode(up)) !== "0x" ? "yes" : "NO CODE"}`);
+    if (!value || value === "0x") { console.log("LSP3Profile: EMPTY"); return; }
+    const method = ethers.dataSlice(value, 2, 6), len = parseInt(ethers.dataSlice(value, 6, 8), 16);
+    const hash = ethers.dataSlice(value, 8, 8 + len), url = ethers.toUtf8String(ethers.dataSlice(value, 8 + len));
+    console.log(`LSP3Profile: ${ethers.dataLength(value)} bytes, method ${method} ${method === "0x6f357c6a" ? "(keccak256 utf8, ok)" : "(UNEXPECTED)"}\nhash ${hash}\nurl ${url}`);
+    const cid = url.replace(/^ipfs:\/\//, "");
+    // Sources: the node's own API (what the service wrote), its public gateway, LUKSO's (what Universal Everything uses), ipfs.io.
+    const sources = [
+      ["node API", () => fetch(cfg.ipfsApi.replace(/\/+$/, "") + "/api/v0/cat?arg=" + encodeURIComponent(cid), { method: "POST", signal: AbortSignal.timeout(20000) })],
+      ["ipfs.chainintegrate.it", () => fetch("https://ipfs.chainintegrate.it/ipfs/" + cid, { signal: AbortSignal.timeout(30000) })],
+      ["api.universalprofile.cloud (LUKSO, Universal Everything)", () => fetch("https://api.universalprofile.cloud/ipfs/" + cid, { signal: AbortSignal.timeout(30000) })],
+      ["ipfs.io", () => fetch("https://ipfs.io/ipfs/" + cid, { signal: AbortSignal.timeout(30000) })],
+    ];
+    let json = null;
+    for (const [name, get] of sources) {
+      try {
+        const r = await get();
+        const bytes = new Uint8Array(await r.arrayBuffer());
+        const ok = r.ok && ethers.keccak256(bytes) === hash;
+        console.log(`  ${ok ? "OK  " : "FAIL"} ${name}: HTTP ${r.status}, ${bytes.length} bytes${r.ok && !ok ? ", hash differs" : ""}`);
+        if (ok && !json) json = JSON.parse(ethers.toUtf8String(bytes));
+      } catch (e) { console.log(`  FAIL ${name}: ${e.name === "TimeoutError" ? "timeout" : e.message}`); }
+    }
+    if (!json) { console.log("the JSON could not be read with its hash anywhere"); return; }
+    const p = json.LSP3Profile || {};
+    console.log(`JSON: name "${p.name}", ${(p.profileImage || []).length} profile image(s), ${(p.backgroundImage || []).length} cover(s), ${(p.links || []).length} link(s)`);
+    for (const im of [...(p.profileImage || []), ...(p.backgroundImage || [])]) {
+      const icid = String(im.url).replace(/^ipfs:\/\//, "");
+      console.log(`image ${im.url} (${im.width}x${im.height})`);
+      for (const [name, base] of [["ipfs.chainintegrate.it", "https://ipfs.chainintegrate.it/ipfs/"], ["api.universalprofile.cloud", "https://api.universalprofile.cloud/ipfs/"]]) {
+        try {
+          const r = await fetch(base + icid, { signal: AbortSignal.timeout(30000) });
+          const bytes = new Uint8Array(await r.arrayBuffer());
+          const ok = r.ok && im.verification && ethers.keccak256(bytes) === im.verification.data;
+          console.log(`  ${ok ? "OK  " : "FAIL"} ${name}: HTTP ${r.status}, ${bytes.length} bytes`);
+        } catch (e) { console.log(`  FAIL ${name}: ${e.name === "TimeoutError" ? "timeout" : e.message}`); }
+      }
+    }
     return;
   }
   if (cmd === "withdraw") {
