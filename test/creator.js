@@ -204,7 +204,7 @@ async function waitFor(url, body) {
     const relayLog = fs.readFileSync(path.join(dir, "data", "relay.jsonl"), "utf8");
     check(/traceability:mintRawMaterialLotBatch/.test(relayLog), "catalog: the relay log names the project and the operation");
     rr = await relay(stranger, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(stranger.address), ethers.hexlify(ethers.toUtf8Bytes("intruso"))]));
-    check(rr.status === 422 && rr.body.error === "refused", "relay: a key that is not the account's is refused before sending (no gas spent)");
+    check(rr.status === 422 && rr.body.error === "refused" && /^NoPermissionsSet\(/.test(rr.body.reason), "relay: a key that is not the account's is refused before sending (no gas spent), with the Key Manager's reason" + ` [${rr.body.reason}]`);
     rr = await relay(device, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("Telefono 2"))]));
     check(rr.status === 422, "relay: a device key (no EXECUTE_RELAY_CALL) is refused before sending");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Di nuovo"))]), { nonce: 0n });

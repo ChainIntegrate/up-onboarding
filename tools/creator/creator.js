@@ -283,6 +283,28 @@ function makeService(cfg) {
     return { account, keyManager, nonce: nonce.toString(), chainId: cfg.chainId };
   }
 
+  // Why the account's Key Manager (LSP6, LSP25) or the account refused: its custom error by name, else the raw data.
+  const KM_ERRORS = new ethers.Interface([
+    "error NoPermissionsSet(address from)", "error NotAuthorised(address from, string permission)",
+    "error NotAllowedCall(address from, address to, bytes4 selector)", "error NotAllowedERC725YDataKey(address from, bytes32 dataKey)",
+    "error NoERC725YDataKeysAllowed(address from)", "error NoCallsAllowed(address from)",
+    "error InvalidRelayNonce(address signer, uint256 invalidNonce, bytes signature)", "error RelayCallBeforeStartTime()", "error RelayCallExpired()",
+    "error InvalidPayload(bytes payload)", "error InvalidERC725Function(bytes4 invalidFunction)", "error CannotSendValueToSetData()",
+    "error InvalidLSP6Target()", "error LSP6BatchExcessiveValueSent(uint256 totalValues, uint256 msgValue)",
+    "error ERC725Y_DataKeysValuesLengthMismatch()", "error ERC725Y_MsgValueDisallowed()", "error ERC725X_InsufficientBalance(uint256 balance, uint256 value)",
+  ]);
+  function refusal(e) {
+    let data = e && (e.data || (e.info && e.info.error && e.info.error.data) || (e.error && e.error.data));
+    if (data && typeof data === "object" && data.data) data = data.data;
+    if (typeof data === "string" && /^0x[0-9a-fA-F]{8}/.test(data)) {
+      try {
+        const err = KM_ERRORS.parseError(data);
+        if (err) return `${err.name}(${err.args.map((x) => (typeof x === "string" && x.length > 70 ? x.slice(0, 18) + "…" : String(x))).join(", ")})`.slice(0, 200);
+      } catch (x) { /* not one of these */ }
+      return `revert ${data.slice(0, 74)}`;
+    }
+    return String((e && (e.shortMessage || e.reason)) || "reverted").slice(0, 200);
+  }
   const opName = (i) => (i.op === "project" ? `${i.project}:${i.fn.split("(")[0]}` : i.op);
   async function handleRelay(body, ip) {
     rateLimitRelay(ip);
@@ -308,7 +330,11 @@ function makeService(cfg) {
       // The Key Manager checks the signer's permissions and the nonce, the account checks the call: a refusal shows here.
       let gas;
       try { gas = await provider.estimateGas({ from: wallet.address, to: keyManager, data }); }
-      catch (e) { throw new HttpError(422, "refused", { reason: String(e.shortMessage || e.reason || "reverted").slice(0, 120) }); }
+      catch (e) {
+        const reason = refusal(e);
+        console.error(`relay refused ${account} signer ${signer}: ${reason}`);
+        throw new HttpError(422, "refused", { reason });
+      }
       const fee = await provider.getFeeData();
       const balance = await provider.getBalance(wallet.address);
       if (balance < gas * (fee.maxFeePerGas || fee.gasPrice) * 2n + ethers.parseEther(cfg.minBalance)) {
