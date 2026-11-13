@@ -76,6 +76,10 @@ function loadConfig() {
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
     rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    // ChainIntegrate's keys that may use the invitations page (web/invites.html): an address (a key, or an
+    // account checked with ERC-1271). None: the page is off.
+    operators: Array.isArray(c.operators) ? c.operators.filter((a) => ethers.isAddress(a)).map((a) => ethers.getAddress(a)) : [],
+    maxInvitesPerDay: Number(c.maxInvitesPerDay ?? 20),
     siteUrl: String(c.siteUrl || "https://account.chainintegrate.it/").replace(/\/*$/, "/"),
     warmGateways: Array.isArray(c.warmGateways) ? c.warmGateways.map(String) : ["https://api.universalprofile.cloud/ipfs/"],
     backupDir: abs(c.backupDir || "/var/backups/up-onboarding"), backupKeep: Number(c.backupKeep ?? 30),
@@ -101,6 +105,27 @@ class Store {
   load() { try { return JSON.parse(fs.readFileSync(this.file, "utf8")); } catch (e) { if (e.code === "ENOENT") return {}; throw e; } }
   save(all) { const tmp = this.file + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(all, null, 1), { mode: 0o600 }); fs.renameSync(tmp, this.file); }
   update(hash, fields) { const all = this.load(); all[hash] = { ...all[hash], ...fields }; this.save(all); return all[hash]; }
+  // A new invitation code: only its SHA-256 is stored; the code is returned once.
+  newInvite({ days, note = "", by = null }) {
+    const code = newCode();
+    const created = new Date().toISOString(), expires = new Date(Date.now() + days * 86400000).toISOString();
+    const id = crypto.randomBytes(3).toString("hex");
+    this.update(hashCode(code), { state: "open", created, expires, note: String(note).slice(0, 80), id, ...(by ? { by } : {}) });
+    return { code, id, created, expires };
+  }
+  // The codes, oldest first, an expired open code shown as "expired".
+  invites() {
+    return Object.values(this.load()).sort((a, b) => a.created.localeCompare(b.created))
+      .map((i) => ({ ...i, state: i.state === "open" && Date.parse(i.expires) < Date.now() ? "expired" : i.state }));
+  }
+  // { ok: true } or { error: "unknown" } or { error: "not_open", state }.
+  revoke(codeOrId) {
+    const all = this.load(); const h = hashCode(codeOrId);
+    const key = all[h] ? h : Object.keys(all).find((k) => all[k].id === codeOrId);
+    if (!key) return { error: "unknown" };
+    if (all[key].state !== "open") return { error: "not_open", state: all[key].state };
+    this.update(key, { state: "revoked" }); return { ok: true };
+  }
   log(entry) { fs.appendFileSync(path.join(this.dir, "created.jsonl"), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n", { mode: 0o600 }); }
   created() {
     try { return fs.readFileSync(path.join(this.dir, "created.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); }
@@ -445,6 +470,84 @@ function makeService(cfg) {
     return run;
   }
 
+  // ---- invitations from ChainIntegrate's page (web/invites.html), for the keys in `operators` only.
+  // One signature opens a session of 8 hours: the page asks a challenge for its address, the operator signs it
+  // (personal_sign, a key, or an account checked with ERC-1271), the service answers a session token kept in memory
+  // only. Each action names its operator in the journal; a daily limit on the codes made this way.
+  const SESSION_MS = 8 * 3600000;
+  const challenges = new Map(); // nonce -> { address, message, at }
+  const sessions = new Map();   // token -> { operator, until }
+  const recentAdmin = new Map();
+  function rateLimitAdmin(ip) {
+    const now = Date.now();
+    const list = (recentAdmin.get(ip) || []).filter((t) => now - t < 60000);
+    if (list.length >= 30) throw new HttpError(429, "rate_limited");
+    list.push(now); recentAdmin.set(ip, list);
+  }
+  const adminOn = () => { if (!cfg.operators.length) throw new HttpError(403, "disabled"); };
+  const operatorOf = (a) => (typeof a === "string" && ethers.isAddress(a) ? cfg.operators.find((o) => o === ethers.getAddress(a)) : null);
+  const ERC1271 = new ethers.Interface(["function isValidSignature(bytes32, bytes) view returns (bytes4)"]);
+  async function handleAdminChallenge(body, ip) {
+    rateLimitAdmin(ip); adminOn();
+    const operator = operatorOf(body && body.address);
+    if (!operator) throw new HttpError(403, "not_an_operator");
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const message = `ChainIntegrate invitations: sign in\n\nAccount: ${operator}\nSite: ${new URL(cfg.siteUrl).host}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
+    challenges.set(nonce, { operator, message, at: Date.now() });
+    return { nonce, message };
+  }
+  async function handleAdminSession(body, ip) {
+    rateLimitAdmin(ip); adminOn();
+    const ch = body && challenges.get(String(body.nonce || ""));
+    if (ch) challenges.delete(String(body.nonce));
+    if (!ch || Date.now() - ch.at > 5 * 60000) throw new HttpError(401, "challenge_expired");
+    let ok = false;
+    try {
+      const sig = ethers.Signature.from(body.signature).serialized;
+      if (ethers.verifyMessage(ch.message, sig) === ch.operator) ok = true;
+      else if ((await provider.getCode(ch.operator)) !== "0x") {
+        const r = ERC1271.decodeFunctionResult("isValidSignature", await provider.call({ to: ch.operator, data: ERC1271.encodeFunctionData("isValidSignature", [ethers.hashMessage(ch.message), sig]) }))[0];
+        ok = r === "0x1626ba7e";
+      }
+    } catch (e) { ok = false; }
+    if (!ok) { console.error(`invitations: a failed sign-in for ${ch.operator}`); throw new HttpError(401, "bad_signature"); }
+    const token = crypto.randomBytes(32).toString("hex");
+    sessions.set(token, { operator: ch.operator, until: Date.now() + SESSION_MS });
+    console.log(`invitations: ${ch.operator} signed in`);
+    return { token, operator: ch.operator, until: new Date(Date.now() + SESSION_MS).toISOString() };
+  }
+  async function handleAdminInvites(body, ip) {
+    rateLimitAdmin(ip); adminOn();
+    const s = body && typeof body.token === "string" ? sessions.get(body.token) : null;
+    if (!s || s.until < Date.now() || !cfg.operators.includes(s.operator)) { if (s) sessions.delete(body.token); throw new HttpError(401, "signed_out"); }
+    const list = () => store.invites().reverse().slice(0, 200).map((i) => ({ id: i.id, state: i.state, created: i.created, expires: i.expires, note: i.note || "", up: i.up || null, by: i.by || null }));
+    if (body.action === "list") return { invites: list() };
+    if (body.action === "create") {
+      const days = Math.round(Number(body.days || cfg.inviteDays));
+      if (!(days >= 1 && days <= 90)) throw new HttpError(400, "bad_request", { problems: ["days"] });
+      const today = new Date().toISOString().slice(0, 10);
+      if (store.invites().filter((i) => i.by && i.created.startsWith(today)).length >= cfg.maxInvitesPerDay) throw new HttpError(429, "daily_limit");
+      const note = String(body.note || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80);
+      const inv = store.newInvite({ days, note, by: s.operator });
+      console.log(`invitations: ${s.operator} made code ${inv.id} (${note || "no note"})`);
+      return { ...inv, link: `${cfg.siteUrl}#invito=${inv.code}`, invites: list() };
+    }
+    if (body.action === "revoke") {
+      const r = store.revoke(String(body.id || ""));
+      if (r.error === "unknown") throw new HttpError(404, "not_found");
+      if (!r.ok) throw new HttpError(409, "not_open", { state: r.state });
+      console.log(`invitations: ${s.operator} revoked code ${body.id}`);
+      return { invites: list() };
+    }
+    throw new HttpError(400, "bad_request", { problems: ["action"] });
+  }
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of challenges) if (now - v.at > 5 * 60000) challenges.delete(k);
+    for (const [k, v] of sessions) if (v.until < now) sessions.delete(k);
+    for (const [ip, l] of recentAdmin) if (!l.some((t) => now - t < 60000)) recentAdmin.delete(ip);
+  }, 60000).unref();
+
   // ---- reading the network for the extension (the projects' pages and the confirmation window): the extension is
   // public code and cannot hold the node's access key, so it reads through here. Only reading methods, one call per
   // request, small, limited per IP; nothing is logged.
@@ -552,7 +655,7 @@ function makeService(cfg) {
     return { value: pinned.value, url: pinned.url };
   }
 
-  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, wallet, provider, store };
+  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, handleAdminChallenge, handleAdminSession, handleAdminInvites, wallet, provider, store };
 }
 
 // The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
@@ -573,7 +676,7 @@ function serve(cfg) {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
     if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
-    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile", "/api/profile/read", "/api/rpc"];
+    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile", "/api/profile/read", "/api/rpc", "/api/admin/challenge", "/api/admin/session", "/api/admin/invites"];
     if (req.method !== "POST" || !ROUTES.includes(url.pathname)) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
@@ -584,7 +687,8 @@ function serve(cfg) {
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (e) { return send(400, { error: "bad_request", problems: ["json"] }); }
       try {
-        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/profile/read": svc.handleProfileRead, "/api/rpc": svc.handleRpc }[url.pathname];
+        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/profile/read": svc.handleProfileRead, "/api/rpc": svc.handleRpc,
+          "/api/admin/challenge": svc.handleAdminChallenge, "/api/admin/session": svc.handleAdminSession, "/api/admin/invites": svc.handleAdminInvites }[url.pathname];
         send(200, await handler(body, ip));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }
@@ -602,31 +706,25 @@ async function main() {
   const store = new Store(cfg.dataDir);
   if (cmd === "serve") return serve(cfg);
   if (cmd === "invite") {
-    const days = Number(opt("days", cfg.inviteDays));
-    const code = newCode();
-    const expires = new Date(Date.now() + days * 86400000).toISOString();
-    store.update(hashCode(code), { state: "open", created: new Date().toISOString(), expires, note: String(opt("note", "")).slice(0, 80), id: crypto.randomBytes(3).toString("hex") });
+    const { code, expires } = store.newInvite({ days: Number(opt("days", cfg.inviteDays)), note: opt("note", "") });
     console.log(code);
     // The link to send the client: the client's page shows the code (after "#": never sent to the server).
     console.error(`link: ${cfg.siteUrl}#invito=${code}`);
     console.error(`valid until ${expires.slice(0, 10)}`);
     return;
   }
+
   if (cmd === "invites") {
-    for (const i of Object.values(store.load()).sort((a, b) => a.created.localeCompare(b.created))) {
-      const st = i.state === "open" && Date.parse(i.expires) < Date.now() ? "expired" : i.state;
-      console.log([i.id, st.padEnd(8), i.created.slice(0, 10), "until " + i.expires.slice(0, 10), i.up || "", i.note || ""].join("  "));
-    }
+    for (const i of store.invites()) console.log([i.id, i.state.padEnd(8), i.created.slice(0, 10), "until " + i.expires.slice(0, 10), i.up || "", i.note || ""].join("  "));
     return;
   }
+
   if (cmd === "revoke") {
-    const all = store.load(); const h = hashCode(rest[0]);
-    const byId = Object.keys(all).find((k) => all[k].id === rest[0]);
-    const key = all[h] ? h : byId;
-    if (!key) { console.error("unknown code"); process.exit(1); }
-    if (all[key].state !== "open") { console.error(`not open: ${all[key].state}`); process.exit(1); }
-    store.update(key, { state: "revoked" }); console.log("revoked"); return;
+    const r = store.revoke(String(rest[0] || ""));
+    if (!r.ok) { console.error(r.error === "unknown" ? "unknown code" : `not open: ${r.state}`); process.exit(1); }
+    console.log("revoked"); return;
   }
+
   if (cmd === "status") {
     const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const w = new ethers.Wallet(secret(cfg.gasKeyFile));

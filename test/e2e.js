@@ -153,6 +153,74 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     }
     await client.close();
 
+    // ---- the invitations page (ChainIntegrate only): sign in with a wallet, make an invitation and its message,
+    // list and revoke; the account service answered here (its own checks: test/creator.js)
+    {
+      const opw = ethers.Wallet.createRandom();
+      const pg = await browser.newPage();
+      pg.on("pageerror", (e) => check(false, "invitations page error: " + e.message));
+      await pg.exposeFunction("testSign", (hex) => opw.signMessage(ethers.getBytes(hex)));
+      await pg.addInitScript((addr) => {
+        const provider = { request: async ({ method, params }) => {
+          if (method === "eth_requestAccounts") return [addr];
+          if (method === "personal_sign") return window.testSign(params[0]);
+          throw new Error("unsupported " + method);
+        } };
+        const info = { uuid: "test-wallet", name: "Test wallet", icon: "data:,", rdns: "test.wallet" };
+        window.addEventListener("eip6963:requestProvider", () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: { info, provider } })));
+      }, opw.address);
+      const calls = [];
+      let challenge = null, list = [{ id: "a1b2c3", state: "used", created: "2026-11-01T10:00:00Z", expires: "2026-12-01T10:00:00Z", note: "Rossi Srl", up: "0xC335aFd1d95fA790DE419e9BCe482d9B8BC1D773" }];
+      await pg.route(`http://127.0.0.1:${PORT}/api/admin/**`, async (r) => {
+        const route = r.request().url().split("/api/admin/")[1], body = JSON.parse(r.request().postData());
+        calls.push([route, body]);
+        const ok = (b) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
+        if (route === "challenge") { challenge = { nonce: "n1", message: `ChainIntegrate invitations: sign in\n\nAccount: ${body.address}\nSite: account.chainintegrate.it\nNonce: n1\nIssued At: ${new Date().toISOString()}` }; return ok(challenge); }
+        if (route === "session") {
+          if (ethers.verifyMessage(challenge.message, body.signature) !== opw.address) return r.fulfill({ status: 401, contentType: "application/json", body: '{"error":"bad_signature"}' });
+          return ok({ token: "t".repeat(64), operator: opw.address, until: new Date(Date.now() + 8 * 3600000).toISOString() });
+        }
+        if (body.token !== "t".repeat(64)) return r.fulfill({ status: 401, contentType: "application/json", body: '{"error":"signed_out"}' });
+        if (body.action === "list") return ok({ invites: list });
+        if (body.action === "create") {
+          list = [{ id: "d4e5f6", state: "open", created: new Date().toISOString(), expires: new Date(Date.now() + body.days * 86400000).toISOString(), note: body.note, up: null }, ...list];
+          return ok({ code: "ABCD-EFGH-JK2N", id: "d4e5f6", expires: list[0].expires, link: "https://account.chainintegrate.it/#invito=ABCD-EFGH-JK2N", invites: list });
+        }
+        if (body.action === "revoke") { list = list.map((i) => (i.id === body.id ? { ...i, state: "revoked" } : i)); return ok({ invites: list }); }
+      });
+      await pg.goto(`http://127.0.0.1:${PORT}/invites.html?lang=it`);
+      check(await pg.isVisible("#pSignIn") && !(await pg.isVisible("#pWork")), "invitations page: nothing but the sign-in before signing in");
+      await pg.click("#signInBtn");
+      await pg.waitForSelector("#pWork:not([hidden])", { timeout: 10000 });
+      check(calls[0][0] === "challenge" && calls[0][1].address === opw.address && calls[1][0] === "session" && calls[2][1].action === "list" &&
+        /Rossi Srl/.test(await pg.textContent("#list")) && /usato/.test(await pg.textContent("#list")),
+        "invitations page: the operator signs the sign-in message once, then sees the codes");
+      await pg.fill("#note", "Bianchi Spa"); await pg.fill("#days", "14");
+      await pg.click("#createBtn");
+      await pg.waitForSelector("#result:not([hidden])");
+      const textIt = await pg.inputValue("#rText");
+      check(calls.find((c) => c[1].action === "create")[1].note === "Bianchi Spa" && calls.find((c) => c[1].action === "create")[1].days === 14 &&
+        (await pg.textContent("#rCode")) === "ABCD-EFGH-JK2N" && textIt.includes("https://account.chainintegrate.it/#invito=ABCD-EFGH-JK2N") && textIt.includes("Codice di invito: ABCD-EFGH-JK2N") && /Buongiorno/.test(textIt),
+        "invitations page: an invitation made, its code, link and the message ready to copy (Italian)");
+      await pg.selectOption("#lang", "en");
+      const textEn = await pg.inputValue("#rText");
+      check(/^Hello,/.test(textEn) && textEn.includes("Invitation code: ABCD-EFGH-JK2N"), "invitations page: the message in English");
+      for (const [lang, text] of [["it", textIt], ["en", textEn]]) {
+        const hit = text.match(BANNED);
+        check(!hit, `invitations page: the message for the client (${lang}) has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
+      }
+      await pg.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: `http://127.0.0.1:${PORT}` });
+      await pg.click("#copyText");
+      check((await pg.evaluate(() => navigator.clipboard.readText())) === textEn, "invitations page: the message is copied as shown");
+      pg.once("dialog", (d) => d.accept());
+      await pg.click("#list button");
+      await pg.waitForFunction(() => /revocato/.test(document.querySelector("#list").textContent));
+      check(calls.some((c) => c[1].action === "revoke" && c[1].id === "d4e5f6"), "invitations page: an open code revoked, after a confirmation");
+      await pg.click("#signOut");
+      check(await pg.isVisible("#pSignIn"), "invitations page: sign out");
+      await pg.close();
+    }
+
     // ---- the privacy notice: both languages, the link from the client's page
     const pv = await newPage(browser, operator);
     await pv.goto(`http://127.0.0.1:${PORT}/privacy.html`);

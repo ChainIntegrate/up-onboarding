@@ -17,6 +17,7 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
 | `POST /api/relay { account, nonce, validity, payload, signature }` | an operation on the account, signed by one of its keys, sent and paid by the service (below) |
 | `POST /api/profile { update, signature }` | a new profile stored on IPFS, asked by a key of the account, keeping the current picture when none is given; the extension then writes its value with the relay |
 | `POST /api/profile/read { account, signer }` | the profile's name, description and picture, the signer's name and role, the account's computers and its list of keys (after a restore, and for "Your account's computers") |
+| `POST /api/admin/challenge { address }`, `/api/admin/session { nonce, signature }`, `/api/admin/invites { token, action, … }` | the invitations page (`web/invites.html`), for the keys in `operators` only: a sign-in message for the address, signed once (personal_sign; an account checked with ERC-1271), a session of 8 hours in memory; then `create { note, days }` (the code and its link, answered once), `list`, `revoke { id }`; at most `maxInvitesPerDay` codes a day from the page; each action in the journal with its operator |
 | `POST /api/rpc` | reading the network for the extension (only reading methods, one call per request, logs over at most 100,000 blocks and one address, `rpcPerIpPerMinute`, nothing logged): the node's URL carries an access key, which public code cannot hold |
 
 **Creation** (`/api/create { invite, request, signature }`):
@@ -102,6 +103,7 @@ their owner: `sudo -u up-onboarding CREATOR_CONFIG=/etc/up-onboarding/config.jso
 | `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
 | `siteUrl` | the client's page, for the invitation links (`https://account.chainintegrate.it/`) |
+| `operators`, `maxInvitesPerDay` | the addresses (ChainIntegrate's accounts or keys) that may use the invitations page, and how many codes it may make a day (none: the page is off; 20) |
 | `warmGateways` | public IPFS gateways asked for a new profile and picture before the value is written on the account, so LUKSO's indexer (Universal Everything) finds them at once (`["https://api.universalprofile.cloud/ipfs/"]`) |
 | `backupDir`, `backupKeep` | where `creator.js backup` keeps its dated copies of the data folder, and how many (`/var/backups/up-onboarding`, 30) |
 | `explorerApi` | LUKSO's explorer (Blockscout API v2), read only by `creator.js rebuild` (the mainnet or testnet explorer by `network`) |

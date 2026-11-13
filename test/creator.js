@@ -78,11 +78,12 @@ async function waitFor(url, body) {
     const fixtures = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/lukso-contracts.json")));
     for (const [addr, v] of Object.entries(fixtures)) if (addr.startsWith("0x")) await prov.send("hardhat_setCode", [addr, v.code]);
     const gas = ethers.Wallet.createRandom();
+    const opw = ethers.Wallet.createRandom(); // a ChainIntegrate key allowed on the invitations page
     await prov.send("hardhat_setBalance", [gas.address, "0x" + ethers.parseEther("10").toString(16)]);
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
-    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
+    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", operators: [opw.address], maxInvitesPerDay: 2, backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
       ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 11, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
@@ -151,6 +152,36 @@ async function waitFor(url, body) {
     check(l.status === 200 && l.body.up === created && l.body.network === "lukso", "an account is found by one of its keys");
     l = await look(stranger.address);
     check(l.status === 404, "a key with no account is not found");
+    // ---- the invitations page's service: a ChainIntegrate key signs in once, then makes, lists and revokes codes
+    const adm = async (route, body, port = PORT) => { const x = await fetch(`http://127.0.0.1:${port}/api/admin/${route}`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.3.3.3" }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    let ad = await adm("challenge", { address: stranger.address });
+    check(ad.status === 403 && ad.body.error === "not_an_operator", "invitations: a key not in the configuration cannot sign in");
+    ad = await adm("challenge", { address: opw.address });
+    check(ad.status === 200 && /ChainIntegrate invitations: sign in/.test(ad.body.message) && ad.body.message.includes(opw.address), "invitations: a sign-in message for an operator's key");
+    let se = await adm("session", { nonce: ad.body.nonce, signature: await stranger.signMessage(ad.body.message) });
+    check(se.status === 401 && se.body.error === "bad_signature", "invitations: a signature by another key is refused");
+    se = await adm("session", { nonce: ad.body.nonce, signature: await opw.signMessage(ad.body.message) });
+    check(se.status === 401 && se.body.error === "challenge_expired", "invitations: a sign-in message is used once");
+    ad = await adm("challenge", { address: opw.address });
+    se = await adm("session", { nonce: ad.body.nonce, signature: await opw.signMessage(ad.body.message) });
+    check(se.status === 200 && /^[0-9a-f]{64}$/.test(se.body.token) && se.body.operator === opw.address, "invitations: the operator signs in once (a session)");
+    const tok = se.body.token;
+    check((await adm("invites", { token: "0".repeat(64), action: "list" })).status === 401, "invitations: no action without a session");
+    let iv = await adm("invites", { token: tok, action: "create", note: "Bianchi Spa\u0007", days: 14 });
+    const pageCode = iv.body.code;
+    check(iv.status === 200 && /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(pageCode) && iv.body.link === `https://account.chainintegrate.it/#invito=${pageCode}` &&
+      Math.abs(Date.parse(iv.body.expires) - Date.now() - 14 * 86400000) < 60000 && iv.body.invites[0].note === "Bianchi Spa" && iv.body.invites[0].by === opw.address,
+      "invitations: a code made from the page, with its link, expiry and note; the operator recorded");
+    check(!fs.readFileSync(path.join(dir, "data", "invites.json"), "utf8").includes(pageCode.replace(/-/g, "")) && !JSON.stringify(iv.body.invites).includes(pageCode), "invitations: the code is answered once, never stored or listed");
+    check(cli("invites").includes(iv.body.id), "invitations: the code is in the same list as the command line's");
+    const iv2 = await adm("invites", { token: tok, action: "create", note: "", days: 30 });
+    check((await adm("invites", { token: tok, action: "create", days: 30 })).status === 429, "invitations: the daily limit of codes made from the page");
+    check((await adm("invites", { token: tok, action: "create", days: 365 })).status === 400, "invitations: the expiry is between 1 and 90 days");
+    iv = await adm("invites", { token: tok, action: "revoke", id: iv2.body.id });
+    check(iv.status === 200 && iv.body.invites.find((i) => i.id === iv2.body.id).state === "revoked", "invitations: an open code revoked from the page");
+    check((await adm("invites", { token: tok, action: "revoke", id: iv2.body.id })).status === 409, "invitations: a code not open cannot be revoked");
+    const revokedTry = await post({ invite: iv2.body.code, request, signature: await sign(admin, request) }, "10.2.2.2");
+    check(revokedTry.status === 403, "invitations: a revoked code no longer creates an account");
     // ---- the profile read back for an extension restored from its backup
     const rd = await fetch(`http://127.0.0.1:${PORT}/api/profile/read`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.6.6.6" }, body: JSON.stringify({ account: created, signer: admin.address }) });
     const rdb = await rd.json();
@@ -334,7 +365,7 @@ async function waitFor(url, body) {
     r = await post({ invite: code4, request: req2, signature: await sign(admin2, req2) });
     check(r.status === 429 && r.body.error === "daily_limit", "the daily limit holds");
     check(/created today 2 of 2/.test(cli("status")), "status counts today's accounts");
-    check(cli("invites").split("\n").length === 4, "the codes are listed");
+    check(cli("invites").split("\n").length === 6, "the codes are listed (4 from the command line, 2 from the page)");
 
     // ---- alerts (alert.js check), e-mails to a file
     const outbox = path.join(dir, "outbox.jsonl");
@@ -369,6 +400,20 @@ async function waitFor(url, body) {
     cli("withdraw", mine);
     const left = await prov.getBalance(gas.address);
     check(left === 0n && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee (nothing left)" + ` [left ${left}]`);
+    // ---- an account (Universal Profile) as the operator: its signature checked with ERC-1271 through its Key Manager
+    if (created) {
+      fs.writeFileSync(path.join(dir, "config-op.json"), JSON.stringify({ ...config, port: PORT + 5, operators: [created] }));
+      const svc2 = spawn(process.execPath, [CREATOR, "serve"], { env: { ...env, CREATOR_CONFIG: path.join(dir, "config-op.json") }, stdio: "ignore" });
+      try {
+        await waitFor(`http://127.0.0.1:${PORT + 5}/api/health`);
+        const ch = await adm("challenge", { address: created }, PORT + 5);
+        const ok = await adm("session", { nonce: ch.body.nonce, signature: admin.signingKey.sign(ethers.hashMessage(ch.body.message)).serialized }, PORT + 5);
+        check(ok.status === 200 && ok.body.operator === created, "invitations: an account signs in through one of its keys with permission to sign (ERC-1271)");
+        const ch2 = await adm("challenge", { address: created }, PORT + 5);
+        const no = await adm("session", { nonce: ch2.body.nonce, signature: stranger.signingKey.sign(ethers.hashMessage(ch2.body.message)).serialized }, PORT + 5);
+        check(no.status === 401, "invitations: a key that is not the account's cannot sign in for it");
+      } finally { svc2.kill(); }
+    }
   } finally {
     if (svc) svc.kill();
     try { process.kill(-node.pid); } catch (e) { node.kill(); } ipfs.close(); explorer.close(); // npx and the node it starts

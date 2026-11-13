@@ -136,6 +136,17 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config.json node creator.js status
    ```
 
+**The invitations page** (`/invites.html`, ChainIntegrate only): in the configuration, `"operators"` lists the
+addresses allowed to use it (your account, as connected in LUKSO's extension or UP Wallet, or a key), and
+`"maxInvitesPerDay"` (default 20); restart the service. The site file has its location (`connect-src 'self'`), so
+copy it again and reload nginx:
+
+```bash
+sudo node -e 'const f="/etc/up-onboarding/config.json",fs=require("fs"),c=JSON.parse(fs.readFileSync(f));c.operators=["0x…"];fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");console.log(c.operators)'
+sudo cp /var/www/up-onboarding/tools/nginx/account.chainintegrate.it.conf /etc/nginx/sites-available/account.chainintegrate.it && sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl restart up-onboarding-creator
+```
+
 ## Every update
 
 ```bash

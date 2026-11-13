@@ -22,6 +22,7 @@ when the changes are nearly complete). What is done and what is next: [BACKLOG.m
 |---|---|
 | The client's page: "Create your ChainIntegrate account" (install the extension) | https://account.chainintegrate.it/ |
 | The privacy notice (extension and account service) | https://account.chainintegrate.it/privacy.html |
+| The invitations page (ChainIntegrate only): invitation codes and the message to send the client | https://account.chainintegrate.it/invites.html |
 | The operator's page (ChainIntegrate only) | https://account.chainintegrate.it/operator.html |
 | The extension's releases | [GitHub releases](https://github.com/ChainIntegrate/up-onboarding/releases), `extension-v<version>` |
 | How the site and the service are published | [DEPLOY.md](DEPLOY.md), nginx files in [`tools/nginx/`](tools/nginx/) |
@@ -33,7 +34,7 @@ when the changes are nearly complete). What is done and what is next: [BACKLOG.m
 | **Browser extension** "ChainIntegrate Account" | The client's access on a computer: its own key, protected by the computer's lock or a password, with a required backup copy; the account's creation with an invitation code; changes to the profile; the account's computers (add, authorize, revoke); the access to the projects' pages, each request confirmed in its own window | [`extension/`](extension/) |
 | **Account service** | Creates the accounts (invitation codes, daily and per-address limits) and sends the operations a key of the account signs (LSP25 relay), paying the gas with its own wallet; reads the network for the extension from ChainIntegrate's node; e-mail alerts, nightly backup | [`tools/creator/`](tools/creator/) |
 | **The projects' catalog** | What each project's pages may ask of an account and how to say it in plain words: read by the extension (to describe and allow) and by the service (to relay), one file | [`shared/catalog.js`](shared/catalog.js), [`docs/integration.md`](docs/integration.md) |
-| **Web pages** | `index.html`, for the client: the three steps and the extension's download. `operator.html`, for ChainIntegrate only: creates an account by hand. `privacy.html` | [`web/`](web/) |
+| **Web pages** | `index.html`, for the client: the three steps, the extension's download, the invitation code from the link. `invites.html` and `operator.html`, for ChainIntegrate only: invitations, and an account created by hand. `privacy.html` | [`web/`](web/) |
 | **Shared code** | The request and its signature, the key store, the creation call, the relay, the catalog, IPFS: one copy used by the extension, the service and the pages (`npm run sync` copies it) | [`shared/`](shared/) |
 | **Android app** | The same as the extension, on the phone | [`android/`](android/) (design) |
 
@@ -94,6 +95,7 @@ load only their own scripts and ethers 6.13.4 from cdnjs with its integrity hash
 |---|---|---|
 | `web/index.html` | the client | "Create your ChainIntegrate account": the three steps in plain words, the extension's download (`releases/latest`) and how to install it in a folder that is not synced, the questions people ask |
 | `web/privacy.html` | everyone | The privacy notice of the extension and the account service |
+| `web/invites.html` | ChainIntegrate | Signs in with a ChainIntegrate account allowed by the service (`operators`), makes an invitation (note, expiry) and gives the message to send the client, in Italian or English, with the link `…/#invito=<code>`; lists the codes and revokes an open one; not indexed |
 | `web/operator.html` | ChainIntegrate | Creates an account by hand (a request file or filled in), with the operator's own wallet, and checks it; not indexed |
 
 ## Tests
@@ -111,7 +113,8 @@ npm run pack:extension   # the extension's zip, in dist/ (reproducible)
 - `npm run test:e2e` (`test/e2e.js`): a local Hardhat chain with LUKSO's own contracts at their official addresses
   (`test/fixtures/lukso-contracts.json`, bytecode from `@lukso/lsp-smart-contracts@0.14.0` and
   `@lukso/lsp23-contracts@0.15.0`), the operator's page creating and checking an account, the keys' permissions,
-  the client's page (no crypto term), the language toggle and the layout at phone width.
+  the client's page (no crypto term, the invitation link), the invitations page (sign-in, an invitation and its
+  message, revoke), the language toggle and the layout at phone width.
 - `npm run test:creator` (`test/creator.js`): the account service on that chain with LUKSO's chain id: creation and
   its limits, the relay (profile, names, the projects' catalog with its on-chain checks, devices authorized and
   revoked, everything the Key Manager refuses), `/api/rpc`, the alerts, backup and rebuild, withdraw.

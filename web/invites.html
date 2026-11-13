@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'">
+<script src="lib/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Inviti — ChainIntegrate</title>
+<link rel="icon" href="favicon.ico">
+<script src="lib/ui.js"></script>
+<style>
+  /* ChainIntegrate's look (as operator.html); the dark theme is in lib/theme.js. */
+  :root {
+    --bg: #f7f7f7; --panel: #ffffff; --border: #dde3e6; --field: #fbfcfc; --chip: #e8eef1; --disabled: #c5ced3;
+    --text: #1b1e21; --text-dim: #5b6b74;
+    --brand: #22b8c9; --slate: #6090a2; --accent: #0e7f8c; --btn: #0e7f8c;
+    --ok: #1a8a4a; --warn: #a8650a; --err: #c93535;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+  .brand-row { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid var(--brand); }
+  .brand-logo { display: block; height: 72px; width: auto; max-width: 100%; border-radius: 10px; background: #f7f7f7; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 28px; }
+  #langToggle { width: auto; background: var(--chip); padding: 8px 14px; font-size: 12.5px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); color: var(--text); cursor: pointer; margin-top: 2px; flex-shrink: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; overflow-wrap: anywhere; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.03em; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; }
+  input, textarea, select { width: 100%; background: var(--field); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; font-family: inherit; }
+  textarea { min-height: 230px; resize: vertical; line-height: 1.5; }
+  button { width: 100%; background: var(--btn); color: white; border: none; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  button:disabled { background: var(--disabled); cursor: not-allowed; }
+  button.secondary { background: var(--chip); color: var(--text); }
+  button.small { width: auto; padding: 6px 12px; font-size: 12.5px; margin: 0; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 160px; }
+  .note { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; }
+  .msg { font-size: 13.5px; margin-top: 10px; white-space: pre-wrap; }
+  .line-ok { color: var(--ok); } .line-err { color: var(--err); } .line-dim { color: var(--text-dim); } .line-warn { color: var(--warn); }
+  .code { font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 0.08em; text-align: center; background: var(--field); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 8px; }
+  .link { font-family: monospace; font-size: 13px; word-break: break-all; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 12px; }
+  .st-open { color: var(--ok); font-weight: 600; } .st-used { color: var(--accent); } .st-revoked, .st-expired { color: var(--text-dim); } .st-review { color: var(--warn); font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="brand-row"><img src="logo.png" alt="ChainIntegrate" class="brand-logo" width="830" height="240"></div>
+<div class="header-row">
+  <div>
+    <h1 data-i18n="h1">Inviti</h1>
+    <div class="subtitle" data-i18n="subtitle"></div>
+  </div>
+  <button id="langToggle" type="button">English</button>
+</div>
+
+<div class="panel" id="pSignIn">
+  <h2 data-i18n="signInTitle">Accedi</h2>
+  <div class="note" data-i18n-html="signInNote"></div>
+  <button id="signInBtn" type="button" data-i18n="signInBtn">Collega il wallet e accedi</button>
+  <div id="walletPick"></div>
+  <div class="msg" id="signInMsg"></div>
+</div>
+
+<div id="pWork" hidden>
+  <div class="panel">
+    <h2 data-i18n="newTitle">Nuovo invito</h2>
+    <div class="row">
+      <div><label for="note" data-i18n="noteLabel">Nota (per te: l'azienda, la persona)</label><input type="text" id="note" maxlength="80" autocomplete="off"></div>
+      <div><label for="days" data-i18n="daysLabel">Valido per (giorni)</label><input type="number" id="days" min="1" max="90" value="30"></div>
+      <div><label for="lang" data-i18n="langLabel">Lingua del messaggio</label>
+        <select id="lang"><option value="it">Italiano</option><option value="en">English</option></select></div>
+    </div>
+    <button id="createBtn" type="button" data-i18n="createBtn">Crea l'invito</button>
+    <div class="msg" id="createMsg"></div>
+    <div id="result" hidden>
+      <div class="note" data-i18n-html="onceNote"></div>
+      <div class="code" id="rCode"></div>
+      <div class="link" id="rLink"></div>
+      <label for="rText" data-i18n="textLabel">Messaggio da mandare al cliente</label>
+      <textarea id="rText" readonly></textarea>
+      <div class="row">
+        <button id="copyText" type="button" data-i18n="copyText">Copia il messaggio</button>
+        <button id="copyLink" class="secondary" type="button" data-i18n="copyLink">Copia solo il link</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="listTitle">Inviti</h2>
+    <div style="overflow-x:auto;"><table>
+      <thead><tr><th data-i18n="thNote">Nota</th><th data-i18n="thState">Stato</th><th data-i18n="thDates">Creato · scade</th><th data-i18n="thAccount">Account</th><th></th></tr></thead>
+      <tbody id="list"></tbody>
+    </table></div>
+    <div class="msg" id="listMsg"></div>
+  </div>
+  <div class="note" id="who"></div>
+  <button id="signOut" class="secondary" type="button" data-i18n="signOut" style="width:auto;">Esci</button>
+</div>
+
+<script src="invites.js"></script>
+</body>
+</html>
