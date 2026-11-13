@@ -263,13 +263,28 @@ function makeService(cfg) {
     return run;
   }
 
-  function handleLookup(body, ip) {
+  // The account a key controls today: among the accounts this service created, the one where the key has
+  // permissions on the network (so a device authorized later is found, and a revoked one is not). Without the
+  // network, the keys written at the creation.
+  async function handleLookup(body, ip) {
     rateLimitLookup(ip);
     if (!body || typeof body.address !== "string" || !ethers.isAddress(body.address)) throw new HttpError(400, "bad_request", { problems: ["address"] });
     const want = ethers.getAddress(body.address);
-    const hit = store.created().reverse().find((e) => Array.isArray(e.keys) && e.keys.includes(want));
-    if (!hit) throw new HttpError(404, "not_found");
-    return { up: hit.up, network: hit.network };
+    const created = store.created().filter((e) => e.up).reverse();
+    const accounts = [...new Map(created.map((e) => [ethers.getAddress(e.up), e])).values()];
+    try {
+      const data = UP_DATA.encodeFunctionData("getData", [UPRelay.permKey(want)]);
+      for (const e of accounts) {
+        const v = UP_DATA.decodeFunctionResult("getData", await provider.call({ to: e.up, data }))[0];
+        if (v && v !== "0x" && BigInt(v) !== 0n) return { up: ethers.getAddress(e.up), network: e.network };
+      }
+      throw new HttpError(404, "not_found");
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      const hit = created.find((e) => Array.isArray(e.keys) && e.keys.includes(want));
+      if (!hit) throw new HttpError(404, "not_found");
+      return { up: hit.up, network: hit.network };
+    }
   }
   const recentLookups = new Map();
   function rateLimitLookup(ip) {
@@ -291,6 +306,24 @@ function makeService(cfg) {
     list.push(now); recentRelays.set(ip, list);
   }
   const UP_OWNER = new ethers.Interface(["function owner() view returns (address)"]);
+  // The account's keys, read from the network: [{ address, perms, name, index }] in the list's order.
+  const UP_DATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)", "function getDataBatch(bytes32[]) view returns (bytes[])"]);
+  async function readControllers(account) {
+    const call = async (fn, args) => UP_DATA.decodeFunctionResult(fn, await provider.call({ to: account, data: UP_DATA.encodeFunctionData(fn, args) }))[0];
+    const lv = await call("getData", [UPRelay.ARRAY_KEY]);
+    const n = lv && lv !== "0x" ? Number(BigInt(lv)) : 0;
+    if (!n) return [];
+    if (n > 50) throw new HttpError(409, "too_many_keys");
+    const addrs = (await call("getDataBatch", [[...Array(n).keys()].map((i) => UPRelay.indexKey(i))])).map((v) => ethers.getAddress(ethers.dataSlice(v, 0, 20)));
+    const more = await call("getDataBatch", [[...addrs.map((a) => UPRelay.permKey(a)), ...addrs.map((a) => UPRelay.nameKey(a))]]);
+    return addrs.map((address, i) => {
+      const pv = more[i], nv = more[n + i];
+      let name = "";
+      try { name = nv && nv !== "0x" ? ethers.toUtf8String(nv).slice(0, 64) : ""; } catch (e) { name = ""; }
+      return { address, perms: pv && pv !== "0x" ? BigInt(pv) : 0n, name, index: i };
+    });
+  }
+  const roleOf = (perms) => (perms === UPRelay.ADMIN_PERMS ? "admin" : perms === UPRelay.ACCESS_PERMS ? "access" : perms === UPDeploy.DEVICE_PERMS ? "device" : null);
   async function knownAccount(body) {
     if (!body || typeof body.account !== "string" || !ethers.isAddress(body.account)) throw new HttpError(400, "bad_request", { problems: ["account"] });
     const account = ethers.getAddress(body.account);
@@ -333,7 +366,7 @@ function makeService(cfg) {
     }
     return String((e && (e.shortMessage || e.reason)) || "reverted").slice(0, 200);
   }
-  const opName = (i) => (i.op === "project" ? `${i.project}:${i.fn.split("(")[0]}` : i.op);
+  const opName = (i) => (i.op === "project" ? `${i.project}:${i.fn.split("(")[0]}` : i.op === "addDevice" ? `addDevice:${i.role}:${i.address}` : i.op === "removeDevice" ? `removeDevice:${i.address}` : i.op);
   async function handleRelay(body, ip) {
     rateLimitRelay(ip);
     const { account, keyManager } = await knownAccount(body);
@@ -349,6 +382,20 @@ function makeService(cfg) {
     const signer = ethers.recoverAddress(digest, signature);
     const allowed = UPRelay.check(payload, { signer, chainId: cfg.chainId });
     if (!allowed.ok) throw new HttpError(400, "not_allowed", { reason: allowed.error });
+    // A device authorized or revoked: checked against the account's current list of keys, and the payload must be
+    // exactly the one shared/relay.js builds from it (nothing else written).
+    const dc = allowed.items[0] && (allowed.items[0].op === "addDevice" || allowed.items[0].op === "removeDevice") ? allowed.items[0] : null;
+    if (dc) {
+      const list = await readControllers(account);
+      const addrs = list.map((c) => c.address);
+      if (list.length !== dc.length) throw new HttpError(409, "not_allowed", { reason: "keys_changed" });
+      if (dc.op === "addDevice" && addrs.includes(dc.address)) throw new HttpError(409, "not_allowed", { reason: "already_a_key" });
+      if (dc.op === "removeDevice") {
+        const it = list.find((c) => c.address === dc.address);
+        if (!it || !roleOf(it.perms)) throw new HttpError(400, "not_allowed", { reason: "not_a_device" });
+        if (UPRelay.removeDevice({ list: addrs, address: dc.address }).toLowerCase() !== payload.toLowerCase()) throw new HttpError(400, "not_allowed", { reason: "device_change" });
+      }
+    }
     let isProject;
     try { isProject = await UPCatalog.verifyNeeds(provider, allowed.needs); } catch (e) { throw new HttpError(503, "unavailable"); }
     if (!isProject) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
@@ -467,7 +514,13 @@ function makeService(cfg) {
       } catch (e) { deviceName = null; }
     }
     const text = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
-    return { account, name: text(p.name, 64), description: text(p.description, 1000), picture: pics.length ? pics[0].url : null, deviceName };
+    // The account's devices (its keys but LUKSO's LSP1 delegate), for the extension's list; null when unreadable.
+    let ctrl = null;
+    try { ctrl = await readControllers(account); } catch (e) { ctrl = null; }
+    const devices = ctrl && ctrl.filter((c) => roleOf(c.perms)).map((c) => ({ address: c.address, name: c.name, role: roleOf(c.perms) }));
+    const me = devices && typeof body.signer === "string" && ethers.isAddress(body.signer) ? devices.find((d) => d.address === ethers.getAddress(body.signer)) : null;
+    return { account, name: text(p.name, 64), description: text(p.description, 1000), picture: pics.length ? pics[0].url : null, deviceName,
+      devices, keys: ctrl && ctrl.map((c) => c.address), role: me ? me.role : null };
   }
 
 

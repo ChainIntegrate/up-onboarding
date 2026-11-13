@@ -4,6 +4,21 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
+## In 0.5.0
+
+A second computer with its own key (item 8, asked by the maintainer 2026-11-13; item 10 decided with it):
+- on the new computer, "Add this computer to an existing account": its own key, protected and backed up as a new
+  access, its code shown in groups of 4; as soon as it is authorized the service finds the account (`/api/lookup`
+  now reads the keys on the network, so authorized keys are found and revoked ones are not) and a backup copy
+  naming the account is required, as after a creation;
+- on a computer that has the account (an administrator), "Your account's computers": the list (name, role, this
+  computer), "Authorize another computer" (its code, a name, administrator or access) and "Revoke" for the others,
+  each confirmed on the page; sent over the relay, the service paying (`shared/relay.js` addDevice, removeDevice:
+  the service checks the account's current list on the network and rebuilds the payload byte for byte);
+- roles: administrator as at the creation; access (maintainer's decision) = SIGN, EXECUTE_RELAY_CALL, SUPER_CALL
+  (the relay allows only the catalog's calls) and SETDATA of its own name only: no transfer of value, no profile, no
+  keys. An access computer does not see the profile's edit nor authorize/revoke.
+
 ## In 0.4.3 (released 2026-11-13)
 
 GasTrace (gas-cylinder-registry) is served (item 13): its site `gastrace.chainintegrate.it` and its factory
@@ -67,7 +82,7 @@ judging what Universal Everything shows (item 4).
    prefilled with "Computer" (never the placeholder used as a value), written into the account at the creation;
    the ready screen says the name written in the account. The field that kept a name on the computer only is
    gone. Changing the name in the account later: item 8.
-8. **Changes to an existing account, gas paid by the service** (design): the computer's name, the profile (name,
+8. **Changes to an existing account, gas paid by the service** (design; *profile and name in 0.4.0, a second device in 0.5.0*): the computer's name, the profile (name,
    description, picture), a second device (the Android app, a second computer). Each is a data write through the
    account's Key Manager signed by one of its keys; the key holds no LYX, so the service would send it and pay
    (LSP25 `executeRelayCall`, signed by the key, sent by the service's wallet), with limits like the creation's.
@@ -77,10 +92,10 @@ judging what Universal Everything shows (item 4).
    linked from the client's page and from the extension's footer; updated for 0.4.0 (the relay, the projects' sites,
    LUKSO's public node).
 
-10. **Device keys cannot use the relay** (2026-11-12): the "device" permissions (`UPDeploy.DEVICE_PERMS`, as
-    Cross_Chain's "Authorize a device") lack EXECUTE_RELAY_CALL, which LSP25 requires. Today every extension key is
-    an administrator, so it does not matter; before a phone (the Android app) is added as a device, give device
-    keys EXECUTE_RELAY_CALL (new accounts) and decide how existing ones get it.
+10. **Device keys cannot use the relay** (2026-11-12; *decided in 0.5.0*): the extension's "access" role has
+    EXECUTE_RELAY_CALL and no SUPER_TRANSFERVALUE (`UPRelay.ACCESS_PERMS`). The creation's "device" role
+    (`UPDeploy.DEVICE_PERMS`, the operator page and the coming Android app) is unchanged: align it with "access"
+    before the Android app adds a phone.
 
 11. **The backup copy names the account** (2026-11-12, asked by the maintainer; *done in 0.4.0, required*). The backup holds only the key
     (encrypted) and its address: the account itself needs no backup (it lives on the network and the key controls

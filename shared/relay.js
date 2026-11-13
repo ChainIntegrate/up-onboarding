@@ -11,7 +11,12 @@
 // What may be sent (the rest is refused, whoever signs):
 //   - the profile: setData(LSP3Profile, a VerifiableURI with keccak256(utf8) and an ipfs:// URL);
 //   - the signer's own name on the account: setData(the name key of the signer, UTF-8 text, at most 64 chars);
-//   - setDataBatch made only of the two above.
+//   - setDataBatch made only of the two above;
+//   - a device authorized (addDevice) or revoked (removeDevice): the exact setDataBatch that addDevice() and
+//     removeDevice() build, for a controller of role "admin" (ADMIN_PERMS) or "access" (ACCESS_PERMS). check() gives
+//     what it reads from the payload; the caller compares it with the account on the network (current list of
+//     keys) and rebuilds the payload to compare byte for byte. The Key Manager also requires the signer to be an
+//     administrator (ADDCONTROLLER, EDITPERMISSIONS).
 //   - execute(CALL, target, 0, data) of a call in the catalog of ChainIntegrate's projects (shared/catalog.js); its
 //     on-chain checks (`needs`, e.g. "a registry made by the project's factory") are the caller's to make.
 //
@@ -28,6 +33,19 @@
   const LSP3_KEY = "0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5";
   const NAME_PREFIX = "0x344e172b69e28979f8df0000"; // UPWalletControllerName mapping, as shared/deploy.js
   const nameKey = (a) => NAME_PREFIX + a.slice(2).toLowerCase();
+  // LSP6 keys of the controllers' list, as shared/deploy.js writes them at the creation.
+  const ARRAY_KEY = "0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3"; // AddressPermissions[]
+  const indexKey = (i) => ARRAY_KEY.slice(0, 34) + BigInt(i).toString(16).padStart(32, "0");
+  const permKey = (a) => "0x4b80742de2bf82acb3630000" + a.slice(2).toLowerCase();
+  const dataKeysKey = (a) => "0x4b80742de2bf866c29110000" + a.slice(2).toLowerCase();
+  // Administrator: as at the creation (shared/deploy.js). Access: SUPER_CALL (the relay allows only the catalog's
+  // calls), SETDATA limited to its own name on the account, SIGN, EXECUTE_RELAY_CALL; no transfer of value, no
+  // change to the profile or to the keys (maintainer's decision, 2026-11-13).
+  const ADMIN_PERMS = 0x7f3f06n;
+  const ACCESS_PERMS = 0x400n | 0x40000n | 0x200000n | 0x400000n;
+  const ROLE_PERMS = { admin: ADMIN_PERMS, access: ACCESS_PERMS };
+  const permValue = (p) => ethers.zeroPadValue(ethers.toBeHex(p), 32);
+  const accessDataKeys = (a) => ethers.concat(["0x0020", nameKey(a)]);
   const UP = new ethers.Interface([
     "function setData(bytes32 dataKey, bytes dataValue)",
     "function setDataBatch(bytes32[] dataKeys, bytes[] dataValues)",
@@ -75,7 +93,51 @@
     } catch (e) { return null; }
   }
 
-  // { ok: true, items: [{ op: "profile", url } | { op: "deviceName", name }] } or { ok: false, error }.
+  // A new device on the account: `length` is the current length of the account's list of keys.
+  function addDevice({ length, address, role, name }) {
+    const a = ethers.getAddress(address), n = BigInt(length);
+    if (!ROLE_PERMS[role]) throw new Error("role");
+    const nm = nameValue(ethers.hexlify(ethers.toUtf8Bytes(String(name || ""))));
+    if (nm === null) throw new Error("name");
+    const keys = [ARRAY_KEY, indexKey(n), permKey(a)], values = [ethers.toBeHex(n + 1n, 16), a, permValue(ROLE_PERMS[role])];
+    if (role === "access") { keys.push(dataKeysKey(a)); values.push(accessDataKeys(a)); }
+    keys.push(nameKey(a)); values.push(ethers.hexlify(ethers.toUtf8Bytes(nm)));
+    return UP.encodeFunctionData("setDataBatch", [keys, values]);
+  }
+  // A device removed: `list` is the account's list of keys, in order; the last one takes its place.
+  function removeDevice({ list, address }) {
+    const a = ethers.getAddress(address), all = list.map((x) => ethers.getAddress(x));
+    const i = all.indexOf(a), last = all.length - 1;
+    if (i < 0) throw new Error("not in the list");
+    const keys = [], values = [];
+    if (i !== last) { keys.push(indexKey(i)); values.push(all[last]); }
+    keys.push(indexKey(last), ARRAY_KEY, permKey(a), dataKeysKey(a), nameKey(a));
+    values.push("0x", ethers.toBeHex(BigInt(last), 16), "0x", "0x", "0x");
+    return UP.encodeFunctionData("setDataBatch", [keys, values]);
+  }
+  // What a device change says: { op: "addDevice", address, role, name, length } or { op: "removeDevice", address,
+  // length } (the list's current length), or null when the batch is not one.
+  function readDeviceChange(keys, values) {
+    const ks = keys.map((k) => String(k).toLowerCase());
+    const perms = ks.filter((k) => k.startsWith("0x4b80742de2bf82acb3630000"));
+    if (perms.length !== 1 || !ks.includes(ARRAY_KEY)) return null;
+    const address = ethers.getAddress("0x" + perms[0].slice(26));
+    const pv = values[ks.indexOf(perms[0])], lv = values[ks.indexOf(ARRAY_KEY)];
+    let length;
+    try { if (ethers.getBytes(lv).length !== 16) return null; length = BigInt(lv); } catch (e) { return null; }
+    if (length > 1000n) return null;
+    if (pv && pv !== "0x") {
+      let perm; try { perm = BigInt(pv); } catch (e) { return null; }
+      const role = Object.keys(ROLE_PERMS).find((r) => ROLE_PERMS[r] === perm);
+      const nv = ks.includes(nameKey(address)) ? nameValue(values[ks.indexOf(nameKey(address))]) : null;
+      if (!role || nv === null || length < 1n) return null;
+      return { op: "addDevice", address, role, name: nv, length: Number(length - 1n) };
+    }
+    return { op: "removeDevice", address, length: Number(length + 1n) };
+  }
+
+  // { ok: true, items: [{ op: "profile", url } | { op: "deviceName", name } | { op: "addDevice", … } |
+  //   { op: "removeDevice", … }] } or { ok: false, error }.
   function check(payload, { signer, chainId } = {}) {
     const d = decode(payload);
     if (!d) return { ok: false, error: "payload" };
@@ -86,6 +148,17 @@
       const c = cat.call({ chainId, to: d.call.target, data: d.call.data, value: d.call.value });
       if (!c.ok) return c;
       return { ok: true, items: [{ op: "project", project: c.project, fn: c.fn, target: ethers.getAddress(d.call.target) }], needs: c.needs, said: c };
+    }
+    if (d.fn === "setDataBatch" && d.keys.map((k) => String(k).toLowerCase()).includes(ARRAY_KEY)) {
+      const c = d.keys.length === d.values.length ? readDeviceChange(d.keys, d.values) : null;
+      if (!c) return { ok: false, error: "device_change" };
+      if (c.op === "removeDevice" && signer && c.address === ethers.getAddress(signer)) return { ok: false, error: "own_key" };
+      if (c.op === "addDevice") {
+        let same = false;
+        try { same = addDevice(c).toLowerCase() === String(payload).toLowerCase(); } catch (e) { same = false; }
+        if (!same) return { ok: false, error: "device_change" };
+      }
+      return { ok: true, items: [c] };
     }
     if (!d.keys.length || d.keys.length > 4 || d.keys.length !== d.values.length) return { ok: false, error: "payload" };
     const items = [];
@@ -122,5 +195,6 @@
   const setProfile = (value) => UP.encodeFunctionData("setData", [LSP3_KEY, value]);
   const setName = (signer, name) => UP.encodeFunctionData("setData", [nameKey(ethers.getAddress(signer)), ethers.hexlify(ethers.toUtf8Bytes(name))]);
 
-  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue, setProfile, setName, projectCall };
+  return { LSP25_VERSION, LSP3_KEY, nameKey, UP, KM, validity, splitValidity, digest, decode, check, profileValue, setProfile, setName, projectCall,
+    ARRAY_KEY, indexKey, permKey, dataKeysKey, ADMIN_PERMS, ACCESS_PERMS, addDevice, removeDevice };
 });

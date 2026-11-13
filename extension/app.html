@@ -139,6 +139,7 @@
   <div class="lead" data-i18n-html="welcomeHtml"></div>
   <button id="startNew" type="button" data-i18n="startNewBtn">Inizia: crea il tuo accesso</button>
   <button id="startRestore" class="secondary" type="button" data-i18n="startRestoreBtn">Ho già un accesso: ripristina dalla copia di backup</button>
+  <button id="startJoin" class="secondary" type="button" data-i18n="startJoinBtn">Aggiungi questo computer a un account esistente</button>
 </div>
 
 <!-- Restore: the backup file and its password -->
@@ -211,6 +212,15 @@
 
 <!-- Ready -->
 <div class="screen" id="sMain" hidden>
+  <div class="panel" id="pJoin" hidden>
+    <h2 data-i18n="joinTitle">Aggiungi questo computer al tuo account</h2>
+    <div class="lead" data-i18n-html="joinHtml"></div>
+    <div class="code" id="joinCode" style="font-size:18px; letter-spacing:0.04em;"></div>
+    <button id="copyJoin" class="secondary" type="button" data-i18n="copyBtn">Copia il codice</button>
+    <div class="note" style="margin-top:10px;" data-i18n="joinWait"></div>
+    <button id="joinCheck" type="button" data-i18n="joinCheckBtn">Controlla adesso</button>
+    <div class="msg" id="joinMsg"></div>
+  </div>
   <div class="panel" id="pCreate" hidden>
     <h2 data-i18n="createTitle">Crea il tuo account</h2>
     <div class="lead" data-i18n-html="createHtml"></div>
@@ -246,6 +256,7 @@
     <details id="editBox" style="margin-top:14px;">
       <summary data-i18n="editTitle" style="cursor:pointer; font-weight:600;">Modifica il profilo o il nome di questo computer</summary>
       <div class="note" style="margin-top:10px;" data-i18n-html="editNote"></div>
+      <div id="eProfileBox">
       <label for="eName" data-i18n="nameLabel">Nome del profilo</label>
       <input type="text" id="eName" maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="off">
       <div class="note" id="eNameHint" style="margin-top:6px;"></div>
@@ -254,6 +265,7 @@
       <label for="eAvatar" data-i18n="avatarLabel">Immagine o logo (facoltativo)</label>
       <input type="file" id="eAvatar" accept="image/png,image/jpeg,image/webp,image/gif">
       <div class="img-prev" id="ePrev"></div>
+      </div>
       <div id="editPwBox" hidden>
         <label for="editPw" data-i18n="unlockPwLabel">Password di questo computer</label>
         <input type="password" id="editPw" autocomplete="current-password">
@@ -264,6 +276,37 @@
       <button id="rNameBtn" class="secondary" type="button" data-i18n="rNameBtn">Cambia il nome nell'account</button>
       <div class="msg" id="editMsg"></div>
     </details>
+  </div>
+  <div class="panel" id="pDevices" hidden>
+    <h2 data-i18n="devicesTitle">I computer del tuo account</h2>
+    <div class="note" data-i18n="devicesNote"></div>
+    <div id="devList"></div>
+    <div id="devRevokeConfirm" hidden style="margin-top:14px; padding:14px; border:2px solid var(--err); border-radius:8px;">
+      <div class="lead" id="devRevokeText"></div>
+      <button id="devRevokeCancel" class="secondary" type="button" data-i18n="removeCancel">Annulla</button>
+      <button id="devRevokeYes" class="danger" type="button" data-i18n="devRevokeYes">Sì, revoca</button>
+    </div>
+    <details id="devAddBox" style="margin-top:14px;" hidden>
+      <summary data-i18n="devAddTitle" style="cursor:pointer; font-weight:600;">Autorizza un altro computer</summary>
+      <div class="note" style="margin-top:10px;" data-i18n-html="devAddNote"></div>
+      <label for="devCode" data-i18n="devCodeLabel">Codice del computer da autorizzare</label>
+      <input type="text" id="devCode" maxlength="60" autocomplete="off" spellcheck="false" style="font-family:monospace;" placeholder="0x1234 5678 …">
+      <label for="devName" data-i18n="devNameLabel">Nome del computer</label>
+      <input type="text" id="devName" maxlength="64" autocomplete="off">
+      <div class="choice" style="margin-top:12px;"><label class="check-row"><input type="radio" name="devRole" value="access" checked> <span data-i18n-html="devRoleAccess"></span></label></div>
+      <div class="choice"><label class="check-row"><input type="radio" name="devRole" value="admin"> <span data-i18n-html="devRoleAdmin"></span></label></div>
+      <button id="devAddBtn" type="button" data-i18n="devAddBtn">Autorizza questo computer</button>
+      <div id="devAddConfirm" hidden style="margin-top:14px; padding:14px; border:2px solid var(--brand); border-radius:8px;">
+        <div class="lead" id="devAddText"></div>
+        <button id="devAddCancel" class="secondary" type="button" data-i18n="removeCancel">Annulla</button>
+        <button id="devAddYes" type="button" data-i18n="devAddYes">Sì, autorizza</button>
+      </div>
+    </details>
+    <div id="devKeyBox" hidden>
+      <label for="devKeyPw" data-i18n="unlockPwLabel">Password di questo computer</label>
+      <input type="password" id="devKeyPw" autocomplete="current-password">
+    </div>
+    <div class="msg" id="devMsg"></div>
   </div>
   <div class="panel" id="sitesBox" hidden>
     <h2 data-i18n="sitesTitle">Siti collegati</h2>

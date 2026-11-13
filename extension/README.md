@@ -2,7 +2,7 @@
 
 The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
 later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
-words. **Status: 0.4.3: the access, the backup copy (required again after the creation, naming the account), the
+words. **Status: 0.5.0: a computer added to an existing account with its own key, the account's computers listed, authorized and revoked; the access, the backup copy (required again after the creation, naming the account), the
 restore, the creation of the account with an invitation code, changes to the profile and to this computer's name,
 and the access to ChainIntegrate's projects: their pages find the extension, each request is confirmed in its own
 window (sign-in messages, typed data, operations sent by ChainIntegrate's service, which pays their cost).**

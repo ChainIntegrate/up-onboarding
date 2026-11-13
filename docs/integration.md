@@ -99,6 +99,15 @@ the call, the Key Manager's nonce for that key and a validity window; anyone may
 The same mechanism serves the extension's own changes to the account (backlog item 8): the profile, the computer's
 name, a second device.
 
+## 6b. A computer per key (0.5.0)
+
+Each computer has its own key on the account, revocable alone. A new computer creates its key ("Add this computer to
+an existing account") and shows its code; an administrator authorizes it from a computer that has the account, as
+"administrator" or "access" (`UPRelay.ACCESS_PERMS`: sign, operations through the relay, its own name; no profile,
+no keys, no transfer of value); the service sends the change (LSP25) after checking it against the account's list of
+keys on the network; the new computer finds the account by itself. The ready screen lists the account's computers,
+with "Revoke" for the others (administrators only).
+
 ## 7. Phases
 
 Phases 1 to 3 were joined in 0.4.0 (maintainer's decision, 2026-11-12).

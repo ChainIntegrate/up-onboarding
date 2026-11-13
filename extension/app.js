@@ -27,6 +27,36 @@
       welcomeHtml: "Questa estensione è il tuo <b>accesso all'account ChainIntegrate</b> da questo computer. In pochi passi:<ol class=\"steps\"><li>scegli come proteggere l'accesso (il blocco del computer o una password);</li><li>crei la <b>copia di backup</b> e la controlli: ti serve se cambi computer o se questo si rompe;</li><li>mandi a ChainIntegrate il <b>codice</b> di questo computer.</li></ol>",
       startNewBtn: "Inizia: crea il tuo accesso",
       startRestoreBtn: "Ho già un accesso: ripristina dalla copia di backup",
+      startJoinBtn: "Aggiungi questo computer a un account esistente",
+      joinTitle: "Aggiungi questo computer al tuo account",
+      joinHtml: "Questo computer ha il suo accesso, protetto e con la sua copia di backup. Ora deve essere <b>autorizzato</b>: sul computer che usa già il tuo account apri questa estensione, in <b>«I computer del tuo account»</b> scegli <b>«Autorizza un altro computer»</b> e scrivi questo codice:",
+      joinWait: "Appena è autorizzato, qui compare il tuo account da solo (controllo ogni 15 secondi). Il codice non è segreto.",
+      joinCheckBtn: "Controlla adesso",
+      joinNotYet: "Non ancora autorizzato. Riprova dopo l'autorizzazione dall'altro computer.",
+      devicesTitle: "I computer del tuo account",
+      devicesNote: "Ogni computer ha il suo accesso. Se ne perdi uno, revocalo da qui: gli altri continuano a funzionare.",
+      devThis: "questo computer",
+      devNoName: "Senza nome",
+      devRole_admin: "amministratore",
+      devRole_access: "accesso",
+      devRole_device: "dispositivo",
+      devRevoke: "Revoca",
+      devRevokeYes: "Sì, revoca",
+      devRevokeText: (v) => `Revocare l'accesso del computer <b>${v.name}</b> (${v.code})? Da quel computer non si potrà più usare il tuo account.`,
+      devRevoked: (v) => `✅ Il computer ${v.name} non ha più accesso al tuo account.`,
+      devAddTitle: "Autorizza un altro computer",
+      devAddNote: "Sul computer nuovo installa l'estensione e scegli <b>«Aggiungi questo computer a un account esistente»</b>: ti mostra il suo codice. Scrivilo qui.",
+      devCodeLabel: "Codice del computer da autorizzare",
+      devNameLabel: "Nome del computer (es. «Computer ufficio»)",
+      devRoleAccess: "<b>Accesso</b>: usa il tuo account nei servizi di ChainIntegrate e conferma le operazioni. Non può cambiare il profilo né autorizzare o revocare altri computer.",
+      devRoleAdmin: "<b>Amministratore</b>: può fare tutto, come questo computer, anche autorizzare e revocare altri computer.",
+      devAddBtn: "Autorizza questo computer",
+      devAddYes: "Sì, autorizza",
+      devAddText: (v) => `Autorizzare il computer <b>${v.name}</b> (${v.code}) come <b>${v.role}</b>?`,
+      devAdded: (v) => `✅ Il computer ${v.name} è autorizzato: su quel computer il tuo account comparirà da solo.`,
+      devCodeBad: "❌ Questo codice non è valido: copialo di nuovo dal computer nuovo.",
+      devCodeKnown: "❌ Questo computer ha già accesso al tuo account.",
+      devNameMissing: "❌ Scrivi un nome per il computer.",
       restoreTitle: "Ripristina dalla copia di backup",
       restoreHtml: "Scegli il file della copia di backup e scrivi la sua password. Ritroverai lo stesso accesso, con lo stesso codice.",
       backupFileLabel: "File della copia di backup",
@@ -159,6 +189,36 @@
       welcomeHtml: "This extension is your <b>access to your ChainIntegrate account</b> from this computer. In a few steps:<ol class=\"steps\"><li>choose how to protect the access (the computer's lock or a password);</li><li>create the <b>backup copy</b> and check it: you need it if you change computer or this one breaks;</li><li>send ChainIntegrate this computer's <b>code</b>.</li></ol>",
       startNewBtn: "Start: create your access",
       startRestoreBtn: "I already have an access: restore from the backup copy",
+      startJoinBtn: "Add this computer to an existing account",
+      joinTitle: "Add this computer to your account",
+      joinHtml: "This computer has its own access, protected and with its own backup copy. Now it must be <b>authorized</b>: on the computer that already uses your account open this extension, in <b>“Your account's computers”</b> choose <b>“Authorize another computer”</b> and type this code:",
+      joinWait: "As soon as it is authorized, your account appears here by itself (checked every 15 seconds). The code is not secret.",
+      joinCheckBtn: "Check now",
+      joinNotYet: "Not authorized yet. Try again after authorizing it from the other computer.",
+      devicesTitle: "Your account's computers",
+      devicesNote: "Each computer has its own access. If you lose one, revoke it here: the others keep working.",
+      devThis: "this computer",
+      devNoName: "No name",
+      devRole_admin: "administrator",
+      devRole_access: "access",
+      devRole_device: "device",
+      devRevoke: "Revoke",
+      devRevokeYes: "Yes, revoke",
+      devRevokeText: (v) => `Revoke the access of the computer <b>${v.name}</b> (${v.code})? Your account can no longer be used from that computer.`,
+      devRevoked: (v) => `✅ The computer ${v.name} no longer has access to your account.`,
+      devAddTitle: "Authorize another computer",
+      devAddNote: "On the new computer install the extension and choose <b>“Add this computer to an existing account”</b>: it shows its code. Type it here.",
+      devCodeLabel: "Code of the computer to authorize",
+      devNameLabel: "Name of the computer (e.g. “Office computer”)",
+      devRoleAccess: "<b>Access</b>: uses your account in ChainIntegrate's services and confirms operations. It cannot change the profile nor authorize or revoke other computers.",
+      devRoleAdmin: "<b>Administrator</b>: can do everything, like this computer, including authorizing and revoking other computers.",
+      devAddBtn: "Authorize this computer",
+      devAddYes: "Yes, authorize",
+      devAddText: (v) => `Authorize the computer <b>${v.name}</b> (${v.code}) as <b>${v.role}</b>?`,
+      devAdded: (v) => `✅ The computer ${v.name} is authorized: on that computer your account will appear by itself.`,
+      devCodeBad: "❌ This code is not valid: copy it again from the new computer.",
+      devCodeKnown: "❌ This computer already has access to your account.",
+      devNameMissing: "❌ Type a name for the computer.",
       restoreTitle: "Restore from the backup copy",
       restoreHtml: "Choose the backup file and type its password. You will get the same access back, with the same code.",
       backupFileLabel: "Backup file",
@@ -347,6 +407,7 @@
 
   // ---- first start
   $("startNew").addEventListener("click", async () => { if (!(await guard())) return; endPending(); pending = { mode: "new" }; show("sProtect"); });
+  $("startJoin").addEventListener("click", async () => { if (!(await guard())) return; endPending(); pending = { mode: "new", join: true }; show("sProtect"); });
   $("startRestore").addEventListener("click", async () => { if (!(await guard())) return; endPending(); show("sRestore"); });
   document.querySelectorAll(".back").forEach((b) => b.addEventListener("click", () => { endPending(); show("sWelcome"); }));
 
@@ -445,7 +506,7 @@
       $("verifyPw").value = ""; $("verifyFile").value = "";
       const now = new Date().toISOString();
       if (verifyMode === "setup" && pending && pending.mode === "new") {
-        await save({ record: pending.deviceRecord, name: "", created: now, backupCheckedAt: now });
+        await save({ record: pending.deviceRecord, name: "", created: now, backupCheckedAt: now, ...(pending.join ? { join: true } : {}) });
       } else {
         await save({ ...account, backupCheckedAt: now, ...(namesAccount ? { backupHasAccount: true } : {}) });
       }
@@ -456,6 +517,123 @@
   });
 
   // ---- ready
+  // ---- a computer added to an existing account: its own key, authorized from a computer that has the account
+  // (an administrator), then found by the service on the network (/api/lookup), as after a restore.
+  const grouped = (a) => "0x" + ethers.getAddress(a).slice(2).match(/.{4}/g).join(" ");
+  const parseCode = (v) => { const x = String(v || "").replace(/\s+/g, ""); const h = /^0x/i.test(x) ? x : "0x" + x; return ethers.isAddress(h.toLowerCase()) ? ethers.getAddress(h.toLowerCase()) : null; };
+  let joinTimer = null;
+  async function joinLookup(manual) {
+    try {
+      const res = await fetch(CONFIG.lookup, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: account.record.address }) });
+      if (res.ok) {
+        const b = await res.json();
+        if (b.up && ethers.isAddress(b.up) && account && !account.up) {
+          stopJoinPoll();
+          const { join, ...rest } = account; void join;
+          await save({ ...rest, up: ethers.getAddress(b.up), network: b.network || "lukso", backupHasAccount: false });
+          await showMain();
+          return;
+        }
+      }
+      if (manual) say("joinMsg", t("joinNotYet"), "line-dim");
+    } catch (e) { if (manual) say("joinMsg", t("err_network"), "line-err"); }
+  }
+  function startJoinPoll() { if (!joinTimer) joinTimer = setInterval(() => joinLookup(false), 15000); }
+  function stopJoinPoll() { if (joinTimer) { clearInterval(joinTimer); joinTimer = null; } }
+  $("joinCheck").addEventListener("click", () => joinLookup(true));
+  $("copyJoin").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(account.record.address); say("joinMsg", t("copied"), "line-ok"); } catch (e) { /* select by hand */ }
+  });
+
+  // ---- the account's computers: listed from the network; authorized and revoked by an administrator, over the
+  // relay (shared/relay.js addDevice, removeDevice), the service paying as for the profile.
+  let devState = { keys: null, devices: [], role: null };
+  const readDevices = async () => {
+    const res = await fetch(CONFIG.profileRead, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account: account.up, signer: account.record.address }) });
+    if (!res.ok) throw Object.assign(new Error(t("err_unavailable")), { shown: true });
+    const b = await res.json();
+    if (!b || b.account !== account.up || !Array.isArray(b.keys)) throw Object.assign(new Error(t("err_unavailable")), { shown: true });
+    return b;
+  };
+  async function refreshDevices() {
+    try { const b = await readDevices(); devState = { keys: b.keys, devices: b.devices || [], role: b.role }; } catch (e) { return; }
+    renderDevices();
+  }
+  function renderDevices() {
+    const box = $("devList"); box.innerHTML = "";
+    const me = account && account.record ? ethers.getAddress(account.record.address) : null;
+    const admin = devState.role === "admin";
+    for (const d of devState.devices) {
+      const row = document.createElement("div"); row.style.cssText = "display:flex; gap:10px; align-items:center; margin-top:8px;";
+      const text = document.createElement("div"); text.style.flex = "1"; text.className = "lead";
+      const b = document.createElement("b"); b.textContent = d.name || t("devNoName");
+      const small = document.createElement("div"); small.className = "note"; small.style.margin = "0";
+      small.textContent = `${t("devRole_" + d.role)} · ${grouped(d.address).slice(0, 14)}…${d.address === me ? " · " + t("devThis") : ""}`;
+      text.append(b, small); row.appendChild(text);
+      if (admin && d.address !== me) {
+        const r = Object.assign(document.createElement("button"), { type: "button", className: "secondary", textContent: t("devRevoke") }); r.style.width = "auto";
+        r.addEventListener("click", () => askRevoke(d));
+        row.appendChild(r);
+      }
+      box.appendChild(row);
+    }
+    $("devAddBox").hidden = !admin;
+    $("devKeyBox").hidden = !admin || account.record.method !== "password";
+    // An access key cannot change the profile (the account refuses it): only its own name.
+    $("eProfileBox").hidden = devState.role === "access"; $("eProfileBtn").hidden = devState.role === "access";
+  }
+  const esc2 = (v) => String(v || "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  let revoking = null, adding = null;
+  function askRevoke(d) {
+    revoking = d; adding = null; $("devAddConfirm").hidden = true;
+    $("devRevokeText").innerHTML = t("devRevokeText", { name: esc2(d.name || t("devNoName")), code: esc2(grouped(d.address)) });
+    $("devRevokeConfirm").hidden = false; $("devRevokeCancel").focus();
+  }
+  $("devRevokeCancel").addEventListener("click", () => { revoking = null; $("devRevokeConfirm").hidden = true; });
+  // The key unlocked once for one change of the list, then wiped; the list read again just before, so the change
+  // is made on the account as it is now.
+  async function withDeviceKey(fn) {
+    if (!(await guard("devMsg"))) return false;
+    busy(true, "devMsg");
+    let secret = null;
+    try {
+      const unlock = account.record.method === "secret" ? { secret: (secret = await Passkey.secret(account.record.meta)) } : { password: $("devKeyPw").value };
+      await K.withKey(account.record, unlock, async (sk) => { say("devMsg", t("updating"), "line-dim"); await fn(sk); });
+      $("devKeyPw").value = "";
+      return true;
+    } catch (e) { say("devMsg", explain(e), "line-err"); return false; } finally { if (secret) K.wipe(secret); busy(false); }
+  }
+  $("devRevokeYes").addEventListener("click", async () => {
+    const d = revoking; if (!d) return;
+    $("devRevokeConfirm").hidden = true; revoking = null;
+    const ok = await withDeviceKey(async (sk) => {
+      const now = await readDevices();
+      await relaySend(sk, UPRelay.removeDevice({ list: now.keys, address: d.address }));
+    });
+    if (ok) { await refreshDevices(); say("devMsg", t("devRevoked", { name: d.name || t("devNoName") }), "line-ok"); }
+  });
+  $("devAddBtn").addEventListener("click", () => {
+    const address = parseCode($("devCode").value), name = oneLine($("devName").value);
+    const role = document.querySelector("input[name=devRole]:checked").value;
+    if (!address) { say("devMsg", t("devCodeBad"), "line-err"); return; }
+    if ((devState.keys || []).includes(address)) { say("devMsg", t("devCodeKnown"), "line-err"); return; }
+    if (!name) { say("devMsg", t("devNameMissing"), "line-err"); return; }
+    adding = { address, name, role }; revoking = null; $("devRevokeConfirm").hidden = true;
+    $("devAddText").innerHTML = t("devAddText", { name: esc2(name), code: esc2(grouped(address)), role: esc2(t("devRole_" + role)) });
+    $("devAddConfirm").hidden = false; $("devAddCancel").focus();
+  });
+  $("devAddCancel").addEventListener("click", () => { adding = null; $("devAddConfirm").hidden = true; });
+  $("devAddYes").addEventListener("click", async () => {
+    const a = adding; if (!a) return;
+    $("devAddConfirm").hidden = true; adding = null;
+    const ok = await withDeviceKey(async (sk) => {
+      const now = await readDevices();
+      if (now.keys.includes(a.address)) throw Object.assign(new Error(t("devCodeKnown")), { shown: true });
+      await relaySend(sk, UPRelay.addDevice({ length: now.keys.length, address: a.address, role: a.role, name: a.name }));
+    });
+    if (ok) { $("devCode").value = ""; $("devName").value = ""; await refreshDevices(); say("devMsg", t("devAdded", { name: a.name }), "line-ok"); }
+  });
+
   // ---- after a restore the extension knows only the key and the account: the profile (name, description, picture)
   // and this computer's name are read back from the account, through the service. Nothing is written.
   async function fillFromNetwork() {
@@ -504,9 +682,12 @@
     if (account.up && account.nameInAccount) $("devNameLine").innerHTML = t("devNameLine", { name: esc(account.nameInAccount) });
     $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
     const has = !!account.up;
-    $("pCreate").hidden = has; $("pAccount").hidden = !has;
+    const join = !has && !!account.join;
+    $("pCreate").hidden = has || join; $("pAccount").hidden = !has; $("pJoin").hidden = !join;
+    if (join) { $("joinCode").textContent = grouped(account.record.address); startJoinPoll(); } else stopJoinPoll();
+    $("pDevices").hidden = !has; if (has) refreshDevices();
     $("createPwBox").hidden = has || account.record.method !== "password";
-    if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else findAccount();
+    if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else if (!join) findAccount();
     $("sitesBox").hidden = !has; if (has) renderSites();
     if (has && !account.profileName) fillFromNetwork();
     $("unlockBox").hidden = true;
@@ -717,7 +898,7 @@
     $("langToggle").textContent = t("langToggleBtn");
     if (latest) showUpdate();
     if (account && !account.up) { syncName(); showAvatar(); }
-    if (account && account.up) { syncEditName(); showEditAvatar(); }
+    if (account && account.up) { syncEditName(); showEditAvatar(); renderDevices(); }
     if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });

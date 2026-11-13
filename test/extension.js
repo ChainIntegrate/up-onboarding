@@ -210,6 +210,46 @@ async function verify(page, file, pw) {
     "updating the profile: the request to store it is signed by this computer's key; no new picture keeps the current one");
   const rel2 = sent.find((x) => x[0] === "relay")[1];
   check(UPRelay.check(rel2.payload, { signer: code }).items[0].op === "profile", "then the new profile is written with the relay");
+  // ---- the account's computers: listed, another one authorized and one revoked (the service answered here)
+  const OTHER = ethers.Wallet.createRandom().address, NEWPC = ethers.Wallet.createRandom().address, URDA = "0x7870C5B8BC9572A8001C3f96f7ff59961B23500D";
+  let devAnswer = { account: UP, name: "rossi-srl", description: "Vino toscano, dal 1950", picture: null, deviceName: "Portatile Simone", role: "admin",
+    keys: [URDA, code, OTHER], devices: [{ address: code, name: "Portatile Simone", role: "admin" }, { address: OTHER, name: "Vecchio PC", role: "access" }] };
+  await ctx.route("https://account.chainintegrate.it/api/profile/read", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(devAnswer) }));
+  await page.reload(); await visible(page, "pDevices");
+  await page.waitForFunction(() => /Vecchio PC/.test(document.querySelector("#devList").textContent));
+  check((await page.locator("#devList button").count()) === 1 && /questo computer/.test(await page.textContent("#devList")) && await page.isVisible("#devAddBox"),
+    "the account's computers are listed; an administrator can revoke the others, not this one");
+  await page.click("#devAddBox summary");
+  const spaced = NEWPC.toLowerCase().slice(2).match(/.{4}/g).join(" ");
+  await page.fill("#devCode", spaced); await page.fill("#devName", "Computer ufficio");
+  await page.click("#devAddBtn"); await visible(page, "devAddConfirm");
+  check((await page.evaluate(() => document.activeElement.id)) === "devAddCancel" && /Computer ufficio/.test(await page.textContent("#devAddText")) && /accesso/.test(await page.textContent("#devAddText")),
+    "authorizing a computer asks for a confirmation that names it and its role, with Cancel focused");
+  sent.length = 0;
+  await page.fill("#devKeyPw", PW); await page.click("#devAddYes");
+  await page.waitForFunction(() => /autorizzato/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
+  const addOp = sent.find((x) => x[0] === "relay")[1];
+  const addCheck = UPRelay.check(addOp.payload, { signer: code });
+  check(addCheck.ok && addCheck.items[0].op === "addDevice" && addCheck.items[0].address === NEWPC && addCheck.items[0].role === "access" && addCheck.items[0].name === "Computer ufficio" && addCheck.items[0].length === 3 &&
+    ethers.recoverAddress(UPRelay.digest({ chainId: 42, keyManager: KMADDR, nonce: 7n, validity: BigInt(addOp.validity), payload: addOp.payload }), addOp.signature) === code,
+    "the new computer's code (typed in groups, lower case) is authorized as access, signed by this computer's key");
+  page.once("dialog", (d) => d.dismiss());
+  await page.click("#devList button"); await visible(page, "devRevokeConfirm");
+  check(/Vecchio PC/.test(await page.textContent("#devRevokeText")) && (await page.evaluate(() => document.activeElement.id)) === "devRevokeCancel", "revoking asks for a confirmation that names the computer, with Cancel focused");
+  sent.length = 0;
+  await page.fill("#devKeyPw", PW); await page.click("#devRevokeYes");
+  await page.waitForFunction(() => /non ha più accesso/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
+  const rmOp = sent.find((x) => x[0] === "relay")[1];
+  check(rmOp.payload.toLowerCase() === UPRelay.removeDevice({ list: [URDA, code, OTHER], address: OTHER }).toLowerCase(), "revoking sends the removal of that computer from the account's list");
+  // an access computer: no profile change, no authorizing or revoking
+  devAnswer = { ...devAnswer, role: "access" };
+  await page.reload(); await visible(page, "pDevices");
+  await page.waitForFunction(() => document.querySelector("#devAddBox").hidden);
+  check((await page.locator("#devList button").count()) === 0 && !(await page.isVisible("#eProfileBox")) && !(await page.isVisible("#eProfileBtn")),
+    "an access computer sees the list, cannot authorize, revoke or change the profile");
+  devAnswer = { ...devAnswer, role: "admin" };
+  await page.reload(); await visible(page, "pDevices");
+
   // ---- a project's page (provider.js, bridge.js, background.js, confirm.js); the network and the service answered here
   const REG = ethers.Wallet.createRandom().address, NOTREG = ethers.Wallet.createRandom().address;
   const PROJ = "https://traceability.chainintegrate.it";
@@ -390,6 +430,32 @@ async function verify(page, file, pw) {
   check(asked === code && (await page.evaluate(() => chrome.storage.local.get("account"))).account.up === FOUND,
     "restoring an earlier copy (without the account): the service finds the account by its key");
   check(!(await page.isVisible("#sMain")), "and a backup copy naming the account is required before anything else");
+  await ctx.close();
+
+  // ---- 2c. a new computer added to the existing account: its own access, authorized from another computer
+  ({ ctx, page } = await launch());
+  let joinFound = false;
+  await ctx.route("https://account.chainintegrate.it/api/lookup", (r) => (joinFound
+    ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ up: UP, network: "lukso" }) })
+    : r.fulfill({ status: 404, contentType: "application/json", body: '{"error":"not_found"}' })));
+  await ctx.route("https://account.chainintegrate.it/api/profile/read", (r) => r.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ account: UP, name: "rossi-srl", description: "Vino", picture: null, deviceName: "Computer ufficio", role: "access", keys: [], devices: [] }) }));
+  await page.click("#startJoin"); await visible(page, "sProtect");
+  await page.check("input[name=how][value=password]"); await page.fill("#devPw", PW); await page.fill("#devPw2", PW);
+  await page.click("#protectBtn"); await visible(page, "sBackup");
+  const fileJoin = await downloadBackup(page, "backup-join.json");
+  await verify(page, fileJoin, BK); await visible(page, "pJoin");
+  const joinKey = K.readBackup(JSON.parse(fs.readFileSync(fileJoin))).address;
+  const shown = (await page.textContent("#joinCode")).trim();
+  check(shown.replace(/\s+/g, "") === joinKey && /^0x[0-9a-fA-F]{4}( [0-9a-fA-F]{4}){9}$/.test(shown) && !(await page.isVisible("#pCreate")) && joinKey !== code,
+    "a new computer has its own key, protected and backed up, and shows its code in groups of 4 (no creation form)");
+  await page.click("#joinCheck");
+  await page.waitForFunction(() => /Non ancora/.test(document.querySelector("#joinMsg").textContent));
+  check(true, "before the authorization the account is not found yet");
+  joinFound = true;
+  await page.click("#joinCheck");
+  await visible(page, "sNeedBackup");
+  check(true, "once authorized, the account is found by itself and a backup copy naming it is required");
   await ctx.close();
 
   // ---- 2b. restore from the copy that names the account, with the service unreachable

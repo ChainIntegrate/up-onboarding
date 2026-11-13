@@ -83,7 +83,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
     const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 7, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 10, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     // Commands that talk to the explorer stub (served by this process) run without blocking it.
@@ -262,6 +262,49 @@ async function waitFor(url, body) {
     check(rr.status === 400 && rr.body.problems.includes("validity"), "relay: an expired request is refused");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Altro"))]), { account: stranger.address });
     check(rr.status === 403 && rr.body.error === "unknown_account", "relay: only accounts the service created");
+    // ---- a second device on the account: authorized by an administrator, with its own key, and revoked
+    const third = ethers.Wallet.createRandom();
+    const readP = async (signer) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/profile/read`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.4.4.4" }, body: JSON.stringify({ account: created, signer }) }); return x.json(); };
+    const lookDev = async (address) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/lookup`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.5.5.5" }, body: JSON.stringify({ address }) }); return { status: x.status, body: await x.json() }; };
+    let pr = await readP(admin.address);
+    check(pr.role === "admin" && pr.keys.length === 3 && pr.devices.length === 2 && pr.devices.find((d) => d.address === device.address).role === "device",
+      "devices: the account's keys are listed with their role (LUKSO's delegate left out)");
+    check((await lookDev(third.address)).status === 404, "devices: a new computer's key is unknown before it is authorized");
+    const addPayload = UPRelay.addDevice({ length: pr.keys.length, address: third.address, role: "access", name: "Computer ufficio" });
+    rr = await relay(device, addPayload);
+    check(rr.status === 422, "devices: a device key cannot authorize another one");
+    const parts = UPRelay.UP.decodeFunctionData("setDataBatch", addPayload);
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setDataBatch", [[...parts[0], UPRelay.LSP3_KEY], [...parts[1], "0x1234"]]));
+    check(rr.status === 400 && rr.body.reason === "device_change", "devices: an authorization with anything more written is refused");
+    rr = await relay(admin, UPRelay.UP.encodeFunctionData("setDataBatch", [parts[0], [parts[1][0], parts[1][1], ethers.zeroPadValue("0x7f3f07", 32), ...parts[1].slice(3)]]));
+    check(rr.status === 400 && rr.body.reason === "device_change", "devices: permissions other than administrator or access are refused");
+    rr = await relay(admin, UPRelay.addDevice({ length: pr.keys.length - 1, address: third.address, role: "access", name: "Computer ufficio" }));
+    check(rr.status === 409 && rr.body.reason === "keys_changed", "devices: a request made on an outdated list of keys is refused");
+    rr = await relay(admin, addPayload);
+    const permOf = async (a) => { const v = await read1.getData(UPRelay.permKey(a)); return v === "0x" ? 0n : BigInt(v); };
+    check(rr.status === 200 && rr.body.ops[0].op === "addDevice" && (await permOf(third.address)) === UPRelay.ACCESS_PERMS && (await nameOf(third)) === "Computer ufficio",
+      "devices: an administrator authorizes a new computer (access), the service pays");
+    const lk = await lookDev(third.address);
+    check(lk.status === 200 && lk.body.up === created, "devices: the new computer finds the account by itself (lookup on the network)");
+    pr = await readP(third.address);
+    check(pr.role === "access" && pr.devices.length === 3, "devices: the new computer sees its role and the list");
+    rr = await relay(third, UPRelay.setName(third.address, "PC ufficio 2"));
+    check(rr.status === 200 && (await nameOf(third)) === "PC ufficio 2", "devices: an access key renames its own computer");
+    rr = await relay(third, UPRelay.setProfile(ethers.concat(["0x00006f357c6a0020", ethers.keccak256("0x12"), ethers.toUtf8Bytes("ipfs://bafkreigdyrztktx5b5m2y4sogf2hf5uq3k5knv5c5k2pvx7aq5ekhtest01")])));
+    check(rr.status === 422 && /NotAllowedERC725YDataKey/.test(rr.body.reason), "devices: an access key cannot change the profile" + ` [${rr.body.reason}]`);
+    rr = await relay(third, UPRelay.addDevice({ length: pr.keys.length, address: stranger.address, role: "admin", name: "x" }));
+    check(rr.status === 422 && /NotAuthorised/.test(rr.body.reason), "devices: an access key cannot authorize devices" + ` [${rr.body.reason}]`);
+    rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: admin.address }));
+    check(rr.status === 400 && rr.body.reason === "own_key", "devices: a computer cannot revoke itself");
+    rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: pr.keys[0] }));
+    check(rr.status === 400 && rr.body.reason === "not_a_device", "devices: LUKSO's delegate cannot be removed");
+    rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: device.address }));
+    pr = await readP(admin.address);
+    check(rr.status === 200 && (await permOf(device.address)) === 0n && (await nameOf(device)) === "" && pr.keys.length === 3 && pr.keys.includes(third.address) && !pr.keys.includes(device.address),
+      "devices: an administrator revokes a device (not the last of the list: the last takes its place)");
+    check((await lookDev(device.address)).status === 404, "devices: a revoked key no longer finds the account");
+    rr = await relay(device, UPRelay.setName(device.address, "ancora io"));
+    check(rr.status === 422, "devices: a revoked key can do nothing more");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Terzo"))]));
     check(rr.status === 200 && (await nameOf(admin)) === "Terzo", "relay: a third operation, under the cap");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Quarto"))]));

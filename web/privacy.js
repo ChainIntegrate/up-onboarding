@@ -10,7 +10,7 @@
     it: {
       pageTitle: "Informativa sulla privacy — ChainIntegrate Account",
       h1: "Informativa sulla privacy",
-      subtitle: "Ultimo aggiornamento: 12 novembre 2026 (estensione 0.4.2). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
+      subtitle: "Ultimo aggiornamento: 12 novembre 2026 (estensione 0.5.0). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
       langToggleBtn: "English",
       s1t: "1 · In breve",
       s1: `<ul>
@@ -32,6 +32,7 @@
       s4: `<ul>
         <li><b>Quando crei l'account</b>, l'estensione manda al servizio di account.chainintegrate.it: il codice di invito, il nome, la descrizione e l'immagine del profilo, il nome del computer, il codice del dispositivo e la firma della richiesta. Il servizio li usa solo per creare l'account e li scrive nel registro pubblico (punto 5).</li>
         <li><b>Quando ripristini l'accesso</b> su un altro computer, l'estensione chiede al servizio quale account corrisponde al codice del dispositivo, e poi il nome, la descrizione e l'immagine del profilo e il nome del computer scritti nell'account (dati già pubblici).</li>
+        <li><b>Quando autorizzi o revochi un computer</b>, l'estensione manda al servizio il codice di quel computer, il nome che gli dai e il tipo di accesso, con la tua conferma firmata; il servizio la invia come le altre modifiche (punto seguente). Per mostrarti i computer del tuo account, l'estensione li chiede al servizio, che li legge dall'account (dati già pubblici).</li>
         <li><b>Quando modifichi l'account</b> (profilo, nome del computer) <b>o confermi un'operazione</b> su un sito di un progetto ChainIntegrate, l'estensione manda al servizio l'indirizzo dell'account, il codice del dispositivo, l'operazione firmata e, per il profilo, il nuovo profilo da salvare. Il servizio la controlla, la invia pagandone il costo e annota account, codice del dispositivo, tipo di operazione, riferimento e data, per i limiti giornalieri e per poter rispondere a una tua segnalazione. Le operazioni restano comunque visibili nel registro pubblico (punto 5).</li>
         <li><b>A ogni apertura</b>, l'estensione chiede al sito qual è l'ultima versione disponibile e l'elenco delle impronte dei suoi file, per controllare di non essere stata modificata.</li>
         <li><b>L'indirizzo IP</b>: il servizio lo usa per limitare le richieste ripetute, in memoria per al massimo un minuto, senza salvarlo; il server web lo registra come per ogni sito (punto 6).</li>
@@ -63,7 +64,7 @@
     en: {
       pageTitle: "Privacy policy — ChainIntegrate Account",
       h1: "Privacy policy",
-      subtitle: "Last updated: 12 November 2026 (extension 0.4.2). Covers the ChainIntegrate Account extension and the account creation service at account.chainintegrate.it.",
+      subtitle: "Last updated: 12 November 2026 (extension 0.5.0). Covers the ChainIntegrate Account extension and the account creation service at account.chainintegrate.it.",
       langToggleBtn: "Italiano",
       s1t: "1 · In short",
       s1: `<ul>
@@ -85,6 +86,7 @@
       s4: `<ul>
         <li><b>When you create the account</b>, the extension sends the service at account.chainintegrate.it: the invitation code, the profile's name, description and picture, the computer's name, the device code and the request's signature. The service uses them only to create the account and writes them in the public record (section 5).</li>
         <li><b>When you restore the access</b> on another computer, the extension asks the service which account matches the device code, then the profile's name, description and picture and the computer's name written in the account (public data already).</li>
+        <li><b>When you authorize or revoke a computer</b>, the extension sends the service that computer's code, the name you give it and the kind of access, with your signed confirmation; the service sends it as the other changes (next item). To show you your account's computers, the extension asks the service, which reads them from the account (public data already).</li>
         <li><b>When you change the account</b> (profile, computer's name) <b>or confirm an operation</b> on a site of a ChainIntegrate project, the extension sends the service the account's address, the device code, the signed operation and, for the profile, the new profile to store. The service checks it, sends it paying its cost and notes account, device code, kind of operation, reference and date, for the daily limits and to answer a report of yours. The operations are anyway visible in the public record (section 5).</li>
         <li><b>Each time it opens</b>, the extension asks the site for the latest version and the list of its files' fingerprints, to check it has not been modified.</li>
         <li><b>The IP address</b>: the service uses it to limit repeated requests, in memory for at most one minute, without saving it; the web server logs it as every site does (section 6).</li>
