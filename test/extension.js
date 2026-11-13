@@ -362,11 +362,22 @@ async function verify(page, file, pw) {
   // ---- 2b. restore from the copy that names the account, with the service unreachable
   ({ ctx, page } = await launch());
   await ctx.route("https://account.chainintegrate.it/api/lookup", (r) => r.abort());
+  // The profile and this computer's name, read back from the account through the service (the backup has neither).
+  const PIC = "bafkreidnnxnralgvfzodayh6my4dm4ztudkqktimor76hinwb2p4pt2dbi";
+  let readAsked = null;
+  await ctx.route("https://account.chainintegrate.it/api/profile/read", (r) => { readAsked = JSON.parse(r.request().postData()); r.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ account: UP, name: "rossi-srl", description: "Vino toscano, dal 1950", picture: "ipfs://" + PIC, deviceName: "Portatile Simone" }) }); });
+  await ctx.route("https://api.universalprofile.cloud/ipfs/**", (r) => r.fulfill({ status: 200, contentType: "image/png", body: fs.readFileSync(path.join(__dirname, "..", "web", "icon-192.png")) }));
   await page.click("#startRestore"); await visible(page, "sRestore");
   await page.setInputFiles("#restoreFile", fileAcc); await page.fill("#restorePw", BK); await page.click("#restoreBtn"); await visible(page, "sProtect");
   await page.check("input[name=how][value=password]"); await page.fill("#devPw", PW); await page.fill("#devPw2", PW);
   await page.click("#protectBtn"); await visible(page, "pAccount");
   check((await page.textContent("#code")).trim() === code && (await page.textContent("#accountAddr")).trim() === UP, "restoring the copy that names the account finds it from the file, without the service");
+  await page.waitForFunction(() => /rossi-srl/.test(document.querySelector("#accountCard").textContent), null, { timeout: 10000 });
+  await page.click("#editBox summary");
+  check(readAsked && readAsked.account === UP && readAsked.signer === code && (await page.inputValue("#eName")) === "rossi-srl" && (await page.inputValue("#eDesc")) === "Vino toscano, dal 1950" &&
+    (await page.inputValue("#rName")) === "Portatile Simone" && (await page.getAttribute("#accountCard img", "src")) === "https://api.universalprofile.cloud/ipfs/" + PIC,
+    "after a restore the profile (name, description, picture) and this computer's name are read back from the account");
   await ctx.close();
 
   // ---- 3. setup with the computer's lock (virtual authenticator with PRF)

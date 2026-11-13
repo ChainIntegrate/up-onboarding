@@ -4,6 +4,17 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
+## In 0.4.2
+
+Found in the live test on LUKSO (2026-11-13):
+- after a restore from the backup the extension knew only the key and the account: the edit form was empty and the
+  ready screen had no name or picture. It now reads them back from the account through the service
+  (`/api/profile/read`: the profile's name, description and picture, this computer's name on the account);
+- Universal Everything kept showing "anonymous-profile" after a creation or a change: its indexer fetches the new
+  profile from LUKSO's gateway as soon as the account changes, and a file just added to ChainIntegrate's node is
+  not found there yet; it does not retry. The service now asks that gateway for the new profile and picture
+  (`warmGateways`) before the value is written on the account (server side: works with every version).
+
 ## In 0.4.1 (released 2026-11-12)
 
 The relay no longer depends on the computer's clock (found in the live test on LUKSO: the Key Manager refused with

@@ -456,6 +456,22 @@
   });
 
   // ---- ready
+  // ---- after a restore the extension knows only the key and the account: the profile (name, description, picture)
+  // and this computer's name are read back from the account, through the service. Nothing is written.
+  async function fillFromNetwork() {
+    let b;
+    try {
+      const res = await fetch(CONFIG.profileRead, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account: account.up, signer: account.record.address }) });
+      if (!res.ok) return;
+      b = await res.json();
+    } catch (e) { return; }
+    if (!b || !account || b.account !== account.up || !b.name) return;
+    const cid = typeof b.picture === "string" ? b.picture.replace(/^ipfs:\/\//, "") : "";
+    await save({ ...account, profileName: b.name, profileDesc: b.description || "", picture: /^[a-zA-Z0-9]{46,100}$/.test(cid) ? CONFIG.gateway + cid : account.picture || null,
+      ...(b.deviceName ? { nameInAccount: b.deviceName, name: b.deviceName } : {}) });
+    if (!$("sMain").hidden) await showMain();
+  }
+
   // ---- the projects' sites connected to the account (background.js, confirm.js)
   async function renderSites() {
     const sites = (await chrome.storage.local.get("sites")).sites || {};
@@ -492,6 +508,7 @@
     $("createPwBox").hidden = has || account.record.method !== "password";
     if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else findAccount();
     $("sitesBox").hidden = !has; if (has) renderSites();
+    if (has && !account.profileName) fillFromNetwork();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
     if (!has) resetCreateForm();

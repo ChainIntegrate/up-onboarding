@@ -10,6 +10,10 @@ const CONFIG = {
   relayNonce: "https://account.chainintegrate.it/api/relay/nonce",
   relay: "https://account.chainintegrate.it/api/relay",
   profile: "https://account.chainintegrate.it/api/profile",
+  // The account's current profile (name, description, picture) and this computer's name on it, after a restore.
+  profileRead: "https://account.chainintegrate.it/api/profile/read",
+  // Where the profile's picture is shown from (the IPFS gateway Universal Everything uses).
+  gateway: "https://api.universalprofile.cloud/ipfs/",
   // The SHA-256 of each released version's files, served by ChainIntegrate's site (web/extension/<v>/SHA256SUMS):
   // the extension checks its own files against them before unlocking the key.
   sums: "https://account.chainintegrate.it/extension/",

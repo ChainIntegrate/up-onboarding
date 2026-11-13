@@ -37,10 +37,16 @@ async function waitFor(url, body) {
   const pins = [];
   // Kubo's /api/v0/add (one JSON line per file) and /api/v0/cat, as the node answers them; the files are kept.
   const ipfsFiles = new Map();
+  const warmed = [];
   const ipfs = http.createServer((req, res) => {
     const chunks = []; req.on("data", (c) => chunks.push(c));
     req.on("end", () => {
       const u = new URL(req.url, "http://x");
+      if (u.pathname.startsWith("/ipfs/")) { // a public gateway (warmGateways): asked for the new files before the account is written
+        warmed.push(u.pathname.slice(6));
+        const f = ipfsFiles.get(u.pathname.slice(6));
+        res.writeHead(f ? 200 : 404); return res.end(f || "");
+      }
       if (u.pathname === "/api/v0/cat") {
         const f = ipfsFiles.get(u.searchParams.get("arg"));
         res.writeHead(f ? 200 : 404); return res.end(f || "");
@@ -76,7 +82,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "gas-key"), gas.privateKey, { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
-    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
+    const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
       ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 7, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
@@ -134,6 +140,8 @@ async function waitFor(url, body) {
         pins.every((p) => p.path === "/api/v0/add" && p.pin === "true" && p.cid === "1" && p.auth === "Basic dGVzdDp0ZXN0"),
         "the image and the profile are added and pinned on the IPFS node");
       check(km && (await prov.getCode(km)) !== "0x", "the Key Manager exists");
+      const profileCid = ethers.toUtf8String(ethers.dataSlice(lsp3, 40)).replace("ipfs://", "");
+      check(warmed.includes(profileCid) && warmed.length >= 2, "before writing the account, the gateway of LUKSO's indexer is asked for the new profile and picture");
     }
     const look = async (address) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/lookup`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.9.9.9" }, body: JSON.stringify({ address }) }); return { status: x.status, body: await x.json() }; };
     const created = r.body.up;
@@ -141,6 +149,11 @@ async function waitFor(url, body) {
     check(l.status === 200 && l.body.up === created && l.body.network === "lukso", "an account is found by one of its keys");
     l = await look(stranger.address);
     check(l.status === 404, "a key with no account is not found");
+    // ---- the profile read back for an extension restored from its backup
+    const rd = await fetch(`http://127.0.0.1:${PORT}/api/profile/read`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.6.6.6" }, body: JSON.stringify({ account: created, signer: admin.address }) });
+    const rdb = await rd.json();
+    check(rd.status === 200 && rdb.name === request.profile.name && rdb.description === request.profile.description && /^ipfs:\/\//.test(rdb.picture) && rdb.deviceName === "PC ufficio",
+      "profile read: the account's name, description, picture and the key's name on it" + ` [${JSON.stringify(rdb).slice(0, 160)}]`);
     // ---- the list of created accounts: backed up, and rebuilt from the network when lost
     const out = cli("backup");
     const copies = fs.readdirSync(path.join(dir, "backups"));

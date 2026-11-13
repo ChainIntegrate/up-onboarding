@@ -71,6 +71,7 @@ function loadConfig() {
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
     rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    warmGateways: Array.isArray(c.warmGateways) ? c.warmGateways.map(String) : ["https://api.universalprofile.cloud/ipfs/"],
     backupDir: abs(c.backupDir || "/var/backups/up-onboarding"), backupKeep: Number(c.backupKeep ?? 30),
     explorerApi: String(c.explorerApi || (c.network === "lukso" ? "https://explorer.execution.mainnet.lukso.network/api/v2" : "https://explorer.execution.testnet.lukso.network/api/v2")).replace(/\/+$/, ""),
   };
@@ -179,6 +180,18 @@ function makeService(cfg) {
   }
 
   // The images and the LSP3Profile JSON on IPFS: the profile value (VerifiableURI) and its URL.
+  // One file asked from each public gateway in warmGateways until it answers (about a minute at most); never fatal.
+  async function warm(ipfsUrl) {
+    const cid = String(ipfsUrl).replace(/^ipfs:\/\//, "");
+    for (const gw of cfg.warmGateways) {
+      let ok = false;
+      for (let i = 0; i < 4 && !ok; i++) {
+        try { const r = await fetch(gw + cid, { signal: AbortSignal.timeout(15000) }); ok = r.ok; await r.arrayBuffer(); } catch (e) { ok = false; }
+        if (!ok && i < 3) await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!ok) console.error(`warm: ${cid} not yet on ${new URL(gw).host}`);
+    }
+  }
   async function pinProfile(profile, imgs) {
     const images = {};
     for (const [kind, name] of [["avatar", "profile-image"], ["cover", "background-image"]]) {
@@ -190,6 +203,11 @@ function makeService(cfg) {
     }
     const json = ethers.toUtf8Bytes(UPDeploy.lsp3Json(profile, images));
     const url = await pin(cfg, json, "LSP3Profile.json", "application/json");
+    // Before the value is written on the account: the gateway of LUKSO's indexer (Universal Everything) asked for
+    // the new files, so it has them when the change is seen. Content just added to ChainIntegrate's node takes a
+    // while to be found by others, and the indexer does not retry: a profile it could not fetch stays "anonymous".
+    const urls = [url, ...Object.values(images).filter((im) => im && im.url).map((im) => im.url)];
+    await Promise.all(urls.map(warm));
     return { value: UPDeploy.profileValue(json, url), url };
   }
 
@@ -411,19 +429,47 @@ function makeService(cfg) {
   const UP_GETDATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)"]);
   // The current profile's picture entries, read from the account and the IPFS node, checked against the hash written
   // on the account: [] when there is none or it cannot be read.
-  async function currentPictures(account) {
+  // The account's current profile (LSP3Profile), read from the account and the IPFS node and checked against the hash
+  // written on the account: the JSON's LSP3Profile object, or null when there is none or it cannot be read.
+  async function currentProfile(account) {
     try {
       const value = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [UPDeploy.LSP3_KEY]) }))[0];
       const b = ethers.getBytes(value);
-      if (b.length < 40 || ethers.hexlify(b.slice(0, 8)) !== "0x00006f357c6a0020") return [];
+      if (b.length < 40 || ethers.hexlify(b.slice(0, 8)) !== "0x00006f357c6a0020") return null;
       const hash = ethers.hexlify(b.slice(8, 40)), cid = ethers.toUtf8String(b.slice(40)).replace(/^ipfs:\/\//, "");
       const res = await fetch(cfg.ipfsApi.replace(/\/+$/, "") + "/api/v0/cat?arg=" + encodeURIComponent(cid), { method: "POST", headers: cfg.ipfsAuthFile ? { Authorization: secret(cfg.ipfsAuthFile) } : {}, signal: AbortSignal.timeout(20000) });
       const bytes = new Uint8Array(await res.arrayBuffer());
-      if (!res.ok || ethers.keccak256(bytes) !== hash) return [];
-      const list = (JSON.parse(ethers.toUtf8String(bytes)).LSP3Profile || {}).profileImage;
-      return Array.isArray(list) ? list.slice(0, 4).filter((e) => e && typeof e.url === "string" && /^ipfs:\/\//.test(e.url)) : [];
-    } catch (e) { return []; }
+      if (!res.ok || ethers.keccak256(bytes) !== hash) return null;
+      const p = JSON.parse(ethers.toUtf8String(bytes)).LSP3Profile;
+      return p && typeof p === "object" ? p : null;
+    } catch (e) { return null; }
   }
+  // Its picture entries (ipfs:// only): [] when none.
+  async function currentPictures(account) {
+    const p = await currentProfile(account);
+    const list = p && p.profileImage;
+    return Array.isArray(list) ? list.slice(0, 4).filter((e) => e && typeof e.url === "string" && /^ipfs:\/\//.test(e.url)) : [];
+  }
+
+  // What the extension shows of the account after a restore from the backup (it kept nothing else): the profile's
+  // name, description and picture, and the signer's name on the account. All public on the network already.
+  async function handleProfileRead(body, ip) {
+    rateLimitRelay(ip);
+    const { account } = await knownAccount(body);
+    const p = (await currentProfile(account)) || {};
+    const pics = Array.isArray(p.profileImage) ? p.profileImage.filter((e) => e && typeof e.url === "string" && /^ipfs:\/\/[a-zA-Z0-9]{46,100}$/.test(e.url)) : [];
+    pics.sort((a, b) => Math.abs((a.width || 0) - 256) - Math.abs((b.width || 0) - 256));
+    let deviceName = null;
+    if (typeof body.signer === "string" && ethers.isAddress(body.signer)) {
+      try {
+        const v = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [UPRelay.nameKey(ethers.getAddress(body.signer))]) }))[0];
+        deviceName = v && v !== "0x" ? ethers.toUtf8String(v).slice(0, 64) : null;
+      } catch (e) { deviceName = null; }
+    }
+    const text = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+    return { account, name: text(p.name, 64), description: text(p.description, 1000), picture: pics.length ? pics[0].url : null, deviceName };
+  }
+
 
   async function handleProfile(body, ip) {
     rateLimitRelay(ip);
@@ -445,7 +491,7 @@ function makeService(cfg) {
     return { value: pinned.value, url: pinned.url };
   }
 
-  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleRpc, wallet, provider, store };
+  return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, wallet, provider, store };
 }
 
 // The extension's latest *released* version (web/extension/latest.txt, updated right after each release, so a
@@ -466,7 +512,7 @@ function serve(cfg) {
     const send = (status, obj) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
     const url = new URL(req.url, "http://x");
     if (req.method === "GET" && url.pathname === "/api/health") return send(200, { ok: true, network: cfg.network, extension: latestExtension() });
-    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile", "/api/rpc"];
+    const ROUTES = ["/api/create", "/api/lookup", "/api/relay/nonce", "/api/relay", "/api/profile", "/api/profile/read", "/api/rpc"];
     if (req.method !== "POST" || !ROUTES.includes(url.pathname)) return send(404, { error: "not_found" });
     // nginx sets X-Real-IP; the service listens on localhost only, so the header comes from nginx.
     const ip = String(req.headers["x-real-ip"] || req.socket.remoteAddress);
@@ -477,7 +523,7 @@ function serve(cfg) {
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (e) { return send(400, { error: "bad_request", problems: ["json"] }); }
       try {
-        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/rpc": svc.handleRpc }[url.pathname];
+        const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/profile/read": svc.handleProfileRead, "/api/rpc": svc.handleRpc }[url.pathname];
         send(200, await handler(body, ip));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }

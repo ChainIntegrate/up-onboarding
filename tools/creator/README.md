@@ -81,6 +81,7 @@ their owner: `sudo -u up-onboarding env CREATOR_CONFIG=/etc/up-onboarding/config
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
 | `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
+| `warmGateways` | public IPFS gateways asked for a new profile and picture before the value is written on the account, so LUKSO's indexer (Universal Everything) finds them at once (`["https://api.universalprofile.cloud/ipfs/"]`) |
 | `backupDir`, `backupKeep` | where `creator.js backup` keeps its dated copies of the data folder, and how many (`/var/backups/up-onboarding`, 30) |
 | `explorerApi` | LUKSO's explorer (Blockscout API v2), read only by `creator.js rebuild` (the mainnet or testnet explorer by `network`) |
 
