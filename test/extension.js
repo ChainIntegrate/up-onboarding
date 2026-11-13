@@ -302,9 +302,42 @@ async function verify(page, file, pw) {
   await otherSite.waitForTimeout(800);
   check(await otherSite.evaluate(() => window.got.length === 0), "on a subdomain that is not a project the extension does not announce itself");
   await otherSite.close();
+  // ---- GasTrace: the owner's EIP-712 requests (the registry checked on the project's factory, as on the network)
+  const GT = "https://gastrace.chainintegrate.it";
+  await ctx.route(GT + "/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
+  const gt = await ctx.newPage();
+  await gt.goto(GT + "/admin.html");
+  await gt.waitForFunction(() => window.got.length > 0, null, { timeout: 10000 });
+  const askGt = (method, params) => gt.evaluate(([m, p]) => window.got[0].provider.request({ method: m, params: p }).then((r) => ({ r }), (e) => ({ e: { code: e.code, message: e.message } })), [method, params]);
+  pop = ctx.waitForEvent("page");
+  pending = askGt("eth_requestAccounts", []);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])"); await w.click("#ok");
+  check(JSON.stringify((await pending).r) === JSON.stringify([UP]), "GasTrace: the owner's page connects to the account");
+  const PHONE = ethers.Wallet.createRandom().address;
+  const OP_TYPES = { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+  const opTyped = (registry) => ({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: registry },
+    types: { EIP712Domain: [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }], ...OP_TYPES },
+    primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", deadline: String(Math.floor(Date.now() / 1000) + 600) } });
+  pop = ctx.waitForEvent("page");
+  pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(REG))]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  check(/Autorizzare il telefono/.test(await w.textContent("#what")) && /GasTrace/.test(await w.textContent("#title")), "GasTrace: authorizing a phone is shown in plain words");
+  await w.fill("#pw", PW); await w.click("#ok");
+  const t0 = opTyped(REG);
+  const opSig = (await pending).r;
+  check(!!opSig && ethers.recoverAddress(ethers.TypedDataEncoder.hash(t0.domain, OP_TYPES, t0.message), opSig) === code, "GasTrace: the request is signed with this computer's key (EIP-712, as the registry checks it through the account)");
+  pop = ctx.waitForEvent("page");
+  pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(NOTREG))]);
+  w = await pop; await w.waitForSelector("#ok:not([hidden])");
+  await w.fill("#pw", PW); await w.click("#ok");
+  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")), "GasTrace: a registry not made by the project's factory is refused");
+  await w.close();
+  await gt.close();
+
   // the site listed in the extension's page, and disconnected from there
   await page.reload(); await visible(page, "sitesBox");
-  check(/traceability\.chainintegrate\.it/.test(await page.textContent("#sitesList")), "the extension's page lists the connected site");
+  check(/traceability\.chainintegrate\.it/.test(await page.textContent("#sitesList")) && /gastrace\.chainintegrate\.it/.test(await page.textContent("#sitesList")), "the extension's page lists the connected sites");
+  await page.click("#sitesList button"); await page.waitForFunction(() => document.querySelectorAll("#sitesList button").length === 1);
   await page.click("#sitesList button");
   await page.waitForFunction(() => /Nessun sito/.test(document.querySelector("#sitesList").textContent));
   check((await ask("eth_accounts", [])).r.length === 0, "disconnected, the site no longer sees the address");

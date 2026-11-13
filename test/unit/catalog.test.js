@@ -97,17 +97,62 @@ test("the relay accepts a catalogued execute, nothing else", () => {
   assert.strictEqual(R.check(R.projectCall(SUPPLIER_REGISTRY, data), { signer: account, chainId: 4201 }).error, "not_in_catalog");
 });
 
-test("typed data of the gas cylinder registry: refused until its site and factory are set", () => {
-  const p = C.projectById("gas-cylinders");
-  assert.deepStrictEqual(p.sites, []);
-  const typed = { domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: account },
-    types: { EIP712Domain: [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }],
-      SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
-    primaryType: "SetOperator", message: { operator: account, enabled: true, nonce: 0, deadline: Math.floor(Date.now() / 1000) + 600 } };
-  assert.strictEqual(C.typedData(p, typed, { account, chainId: 42 }).error, "not_configured");
-  // The checks that come before still hold.
-  assert.strictEqual(C.typedData(p, { ...typed, primaryType: "RecordDocument" }, { account, chainId: 42 }).error, "not_in_catalog");
-  assert.strictEqual(C.typedData(p, { ...typed, types: { ...typed.types, Extra: [{ name: "a", type: "uint256" }] } }, { account, chainId: 42 }).error, "not_in_catalog");
+const GT = "https://gastrace.chainintegrate.it", GT_FACTORY = "0xA128e7162fa8Dc779bf31EF569F06B53a499A50e", GT_REG = "0xEae1a8B84977694e5c9925028a23599bc345b801";
+const DOMAIN_TYPE = [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }];
+const TYPES = {
+  SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+  SetData: [{ name: "dataKeys", type: "bytes32[]" }, { name: "dataValuesHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+  TransferOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+  AcceptOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+};
+const deadline = () => Math.floor(Date.now() / 1000) + 600;
+const typedOf = (primaryType, message, extra = {}) => ({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: GT_REG },
+  types: { EIP712Domain: DOMAIN_TYPE, [primaryType]: TYPES[primaryType] }, primaryType, message, ...extra });
+const phone = ethers.Wallet.createRandom().address;
+
+test("GasTrace: its site, and the four owner requests described, with the registry checked on its factory", () => {
+  const p = C.projectForOrigin(GT);
+  assert.strictEqual(p.id, "gas-cylinders");
+  assert.strictEqual(C.projectForOrigin("https://gastrace.chainintegrate.it:444"), null);
+  const ctx = { account, chainId: 42 };
+  const cases = [
+    ["SetOperator", { operator: phone, enabled: true, nonce: 0, deadline: deadline() }, /Authorize the phone/],
+    ["SetOperator", { operator: phone, enabled: false, nonce: 1, deadline: deadline() }, /Revoke the phone/],
+    ["SetData", { dataKeys: [ethers.id("a"), ethers.id("b")], dataValuesHash: ethers.id("v"), nonce: 2, deadline: deadline() }, /2 items/],
+    ["TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }, /Hand the registry over/],
+    ["AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }, /Accept the ownership/],
+  ];
+  for (const [type, msg, re] of cases) {
+    const t = typedOf(type, msg);
+    const r = C.typedData(p, t, ctx);
+    assert.strictEqual(r.ok, true, type);
+    assert.match(r.lines[0].en, re);
+    assert.deepStrictEqual(r.needs, [{ factory: GT_FACTORY, check: "isRegistry(address)", address: GT_REG }]);
+    // The digest is the EIP-712 hash the registry checks (ERC-1271 through the account).
+    assert.strictEqual(r.digest, ethers.TypedDataEncoder.hash(t.domain, { [type]: TYPES[type] }, msg));
+    // The same as a JSON string, as pages send it.
+    assert.strictEqual(C.typedData(p, JSON.stringify(t), ctx).digest, r.digest);
+  }
+});
+
+test("GasTrace: requests outside the catalog are refused", () => {
+  const p = C.projectById("gas-cylinders"), ctx = { account, chainId: 42 };
+  const op = { operator: phone, enabled: true, nonce: 0, deadline: deadline() };
+  const typed = typedOf("SetOperator", op);
+  // the drivers' request, signed by their phones, never by the extension
+  const rec = { domain: typed.domain, types: { RecordDocument: [{ name: "signer", type: "address" }, { name: "payloadHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
+    primaryType: "RecordDocument", message: { signer: account, payloadHash: ethers.ZeroHash, nonce: 0, deadline: deadline() } };
+  assert.strictEqual(C.typedData(p, rec, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, types: { ...typed.types, Extra: [{ name: "a", type: "uint256" }] } }, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, types: { EIP712Domain: DOMAIN_TYPE, SetOperator: TYPES.SetOperator.slice(0, 3) } }, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, name: "OtherRegistry" } }, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, version: "2" } }, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, salt: ethers.ZeroHash } }, ctx).error, "not_in_catalog");
   assert.strictEqual(C.typedData(p, typed, { account, chainId: 4201 }).error, "other_network");
-  assert.strictEqual(C.typedData(C.projectById("traceability"), typed, { account, chainId: 42 }).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, typedOf("SetOperator", { ...op, deadline: 1000 }), ctx).error, "expired");
+  // another project's site cannot ask for it
+  assert.strictEqual(C.typedData(C.projectById("traceability"), typed, ctx).error, "not_in_catalog");
+  // and GasTrace's site asks for no transaction or sign-in message
+  assert.strictEqual(C.message(p, "gastrace.chainintegrate.it wants you to sign in with your Ethereum account:\n" + account + "\n\nx\n\nURI: " + GT + "\nVersion: 1\nNonce: 1\nIssued At: " + new Date().toISOString(), { origin: GT, account, chainId: 42 }).error, "not_in_catalog");
+  assert.strictEqual(C.call({ chainId: 42, to: GT_REG, data: "0x12345678" }, p).error, "not_in_catalog");
 });

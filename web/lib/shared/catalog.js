@@ -61,10 +61,9 @@
   };
   const SUPPLIER_REGISTRY = "0xFa143308D85b81Ed57547049F4A7718c3117A064";
 
-  // The gas cylinder registry (gas-cylinder-registry): each supplier owns a registry; as its owner the client
-  // signs EIP-712 requests that the project's own relayer sends. Its site and factory are not public yet:
-  // until they are set here, the project is not served.
-  const CYLINDER_FACTORY = null;
+  // GasTrace, the gas cylinder registry (gas-cylinder-registry): each supplier owns a registry, made by the
+  // project's factory; as its owner the client signs EIP-712 requests that the project's own relayer sends.
+  const CYLINDER_FACTORY = "0xA128e7162fa8Dc779bf31EF569F06B53a499A50e"; // GasCylinderRegistryFactory, LUKSO
 
   const PROJECTS = [
     {
@@ -116,8 +115,8 @@
     },
     {
       id: "gas-cylinders",
-      name: "Gas cylinder registry",
-      sites: [],
+      name: "GasTrace",
+      sites: ["gastrace.chainintegrate.it"],
       typed: {
         domain: { name: "GasCylinderRegistry", version: "1" },
         madeBy: CYLINDER_FACTORY ? { factory: CYLINDER_FACTORY, check: "isRegistry(address)" } : null,

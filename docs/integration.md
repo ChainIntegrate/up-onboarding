@@ -10,7 +10,8 @@ owner comes after the drivers' app is published.
 Done (0.4.0, released 2026-11-12): the relay in the account service (section 6), for the account's own changes (profile, the signer's
 name) and for the calls of the projects' catalog, with the catalog's on-chain checks, tested on a local chain with
 LUKSO's Key Manager; the catalog (`shared/catalog.js`, section 5) of TraceabilityRegistry and Supplier Trust (sign-in
-messages and transactions) and of the gas cylinder registry (EIP-712, not served until its site and factory are set);
+messages and transactions) and of GasTrace, the gas cylinder registry (EIP-712, `gastrace.chainintegrate.it`, factory
+`0xA128e7162fa8Dc779bf31EF569F06B53a499A50e`; from 0.4.3);
 the page provider (EIP-6963, `extension/provider.js` and `bridge.js`), the confirmation window (`confirm.html`) and
 "Connected sites" in the extension's page; the network read through the account service (`/api/rpc`) from
 ChainIntegrate's node, whose access key stays on the server (the extension is public code), LUKSO's public node as

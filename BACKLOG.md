@@ -4,6 +4,13 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
+## In 0.4.3
+
+GasTrace (gas-cylinder-registry) is served (item 13): its site `gastrace.chainintegrate.it` and its factory
+`0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` on LUKSO are in the catalog; the owner's four EIP-712 requests
+(`SetOperator`, `SetData`, `TransferOwnership`, `AcceptOwnership`) are signed in the confirmation window, for
+registries made by that factory only.
+
 ## In 0.4.2 (released 2026-11-13)
 
 Found in the live test on LUKSO (2026-11-13):
@@ -95,10 +102,10 @@ judging what Universal Everything shows (item 4).
     the others; nothing else changes (same messages, same calls). Supplier Trust's sign-in names the domain from its
     backend: it must be the page's own host, or the extension refuses it (`other_site`).
 
-13. **The gas cylinder registry in the catalog** (2026-11-12): its owner operations (EIP-712 `SetOperator`,
-    `SetData`, `TransferOwnership`, `AcceptOwnership`) are in `shared/catalog.js`, refused until its site and
-    `GasCylinderRegistryFactory` address are written there (decided in that project's conversation, after the
-    drivers' app is published). Then: a release of the extension.
+13. **The gas cylinder registry in the catalog** (2026-11-12; *done in 0.4.3*): GasTrace's site and factory are
+    in `shared/catalog.js`; its admin page was checked against the catalog in its own conversation (6 requests of 6
+    accepted). Next: the live test with the demo registry `0xEae1a8B84977694e5c9925028a23599bc345b801`, owned by
+    Argonia's account.
 
 ## Under investigation
 
