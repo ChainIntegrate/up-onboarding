@@ -250,6 +250,31 @@
     },
   };
   const t = (k) => I18N[LANG][k];
+  // The screenshots of each section (web/guide/<lang>/, made by tools/guide-screenshots.js from the extension itself,
+  // with example data): [file, Italian caption, English caption].
+  const FIGS = {
+    accesso: [["welcome", "La prima schermata dell'estensione.", "The extension's first screen."],
+      ["protect", "Proteggere l'accesso: blocco del computer o password.", "Protecting the access: the computer's lock or a password."],
+      ["backup", "La copia di backup: una password scelta ora, poi il file da scaricare.", "The backup copy: a password chosen now, then the file to download."],
+      ["verify", "Il controllo della copia: il file ricaricato e la sua password.", "Checking the copy: the file loaded again and its password."]],
+    account: [["create", "Il modulo per creare l'account.", "The form to create the account."]],
+    pronto: [["account", "Il tuo account: nome, immagine, indirizzo.", "Your account: name, picture, address."]],
+    siti: [["window-connect", "La finestra dell'estensione per collegare un sito.", "The extension's window to connect a site."],
+      ["window-request", "Una richiesta di un servizio, descritta in parole semplici: Annulla è selezionato.", "A service's request, described in plain words: Cancel is selected."]],
+    computer: [["join", "Sul computer nuovo: il suo codice, a gruppi di 4 caratteri.", "On the new computer: its code, in groups of 4 characters."],
+      ["devices", "Sul computer che ha già l'account: i computer e «Autorizza un altro computer».", "On the computer that has the account: the computers and “Authorize another computer”."],
+      ["devices-confirm", "Il riepilogo prima di autorizzare.", "The summary before authorizing."]],
+  };
+  function figures(id) {
+    const box = document.createElement("div");
+    for (const [file, it, en] of FIGS[id] || []) {
+      const f = document.createElement("figure");
+      const img = document.createElement("img"); img.src = `guide/${LANG}/${file}.png`; img.alt = LANG === "en" ? en : it; img.loading = "lazy";
+      const c = document.createElement("figcaption"); c.textContent = LANG === "en" ? en : it;
+      f.append(img, c); box.appendChild(f);
+    }
+    return box;
+  }
 
   function render() {
     document.documentElement.lang = LANG;
@@ -264,7 +289,7 @@
       const p = document.createElement("div"); p.className = "panel";
       const h = document.createElement("h2"); h.id = s.id; h.textContent = s.title;
       const body = document.createElement("div"); body.innerHTML = s.html; // fixed text of this file only
-      p.append(h, body); box.appendChild(p);
+      p.append(h, body, figures(s.id)); box.appendChild(p);
     }
     if (location.hash) { const el = document.getElementById(location.hash.slice(1)); if (el) el.scrollIntoView(); }
   }

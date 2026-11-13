@@ -95,7 +95,7 @@ load only their own scripts and ethers 6.13.4 from cdnjs with its integrity hash
 | Page | For | What it does |
 |---|---|---|
 | `web/index.html` | the client | "Create your ChainIntegrate account": the three steps in plain words, the extension's download (`releases/latest`) and how to install it in a folder that is not synced, the questions people ask |
-| `web/guida.html` | the client | The guide: installing, the access and the backup copy, the account, the projects' sites and the confirmation window, another computer, restoring, a lost computer, updates, safety; the names of the buttons as the extension shows them |
+| `web/guida.html` | the client | The guide (screenshots in `web/guide/`, made by `tools/guide-screenshots.js` from the extension itself): installing, the access and the backup copy, the account, the projects' sites and the confirmation window, another computer, restoring, a lost computer, updates, safety; the names of the buttons as the extension shows them |
 | `web/privacy.html` | everyone | The privacy notice of the extension and the account service |
 | `web/invites.html` | ChainIntegrate | Signs in with a ChainIntegrate account allowed by the service (`operators`), makes an invitation (note, expiry) and gives the message to send the client, in Italian or English, with the link `…/#invito=<code>`; lists the codes and revokes an open one; not indexed |
 | `web/operator.html` | ChainIntegrate | Creates an account by hand (a request file or filled in), with the operator's own wallet, and checks it; not indexed |

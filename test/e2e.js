@@ -166,6 +166,11 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
         const hit = words.match(BANNED);
         check(!hit, `the guide in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
         check((await g.locator("#toc li").count()) === 13 && (await g.locator("#sections h2").count()) === 13 && /ChainIntegrate Account/.test(words), `the guide in ${lang}: 13 sections and their index`);
+        await g.evaluate(() => document.querySelectorAll("figure img").forEach((i) => { i.loading = "eager"; }));
+        await g.waitForFunction(() => [...document.querySelectorAll("figure img")].every((i) => i.complete), null, { timeout: 10000 });
+        const imgs = await g.evaluate(() => [...document.querySelectorAll("figure img")].map((i) => [i.getAttribute("src"), i.naturalWidth]));
+        check(imgs.length === 11 && imgs.every(([, w]) => w > 300), `the guide in ${lang}: its 11 screenshots load` + ` [${imgs.filter(([, w]) => !w).map(([s]) => s).join(", ")}]`);
+        check(imgs.every(([src]) => src.startsWith(`guide/${lang}/`)), `the guide in ${lang}: the screenshots in its language`);
       }
       await g.close();
     }

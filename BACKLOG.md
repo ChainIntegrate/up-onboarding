@@ -31,7 +31,9 @@ and conversations that cite them stay readable.
 
 - **The guide** (`web/guida.html`, asked by the maintainer 2026-11-13): every step for the client in Italian and
   English, with the extension's button names; linked from the client's page and from the invitation message. The
-  extension's footer will link it in its next version. Screenshots may be added later (from the extension's tests).
+  extension's footer will link it in its next version. Its screenshots (`web/guide/<lang>/`, 11 per language) are
+  made from the extension itself with example data by `node tools/guide-screenshots.js`: run it again after any
+  change to the extension's screens, and check the guide's text still matches.
 
 ## Release history
 
