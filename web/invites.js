@@ -53,7 +53,7 @@
       who: (v) => `Accesso come ${v.op}, fino alle ${v.until}.`,
       signOut: "Esci",
       // The message for the client: no crypto term (they do not use crypto).
-      text: (v) => `Buongiorno,\n\necco il suo invito per creare l'account ChainIntegrate:\n${v.link}\n\nApra il link dal computer, in Chrome, Edge o Brave, e segua i tre passi: installare l'estensione ChainIntegrate Account, proteggere l'accesso e creare la copia di backup, poi inserire il codice di invito.\n\nCodice di invito: ${v.code}\nVale per un solo account, fino al ${v.date}.\n\nPer qualsiasi dubbio risponda pure a questo messaggio.`,
+      text: (v) => `Buongiorno,\n\necco il suo invito per creare l'account ChainIntegrate:\n${v.link}\n\nApra il link dal computer, in Chrome, Edge o Brave, e segua i tre passi: installare l'estensione ChainIntegrate Account, proteggere l'accesso e creare la copia di backup, poi inserire il codice di invito.\n\nCodice di invito: ${v.code}\nVale per un solo account, fino al ${v.date}.\n\nLa guida passo per passo: ${v.guide}\n\nPer qualsiasi dubbio risponda pure a questo messaggio.`,
     },
     en: {
       langToggleBtn: "Italiano",
@@ -96,7 +96,7 @@
       empty: "No invitations.",
       who: (v) => `Signed in as ${v.op}, until ${v.until}.`,
       signOut: "Sign out",
-      text: (v) => `Hello,\n\nhere is your invitation to create your ChainIntegrate account:\n${v.link}\n\nOpen the link on your computer, in Chrome, Edge or Brave, and follow the three steps: install the ChainIntegrate Account extension, protect the access and create the backup copy, then type the invitation code.\n\nInvitation code: ${v.code}\nGood for one account, until ${v.date}.\n\nIf anything is unclear, just reply to this message.`,
+      text: (v) => `Hello,\n\nhere is your invitation to create your ChainIntegrate account:\n${v.link}\n\nOpen the link on your computer, in Chrome, Edge or Brave, and follow the three steps: install the ChainIntegrate Account extension, protect the access and create the backup copy, then type the invitation code.\n\nInvitation code: ${v.code}\nGood for one account, until ${v.date}.\n\nThe step-by-step guide: ${v.guide}\n\nIf anything is unclear, just reply to this message.`,
     },
   };
   const t = (k, v) => { const x = I18N[LANG][k]; return typeof x === "function" ? x(v || {}) : x; };
@@ -173,7 +173,8 @@
   function message() {
     if (!last) return "";
     const lang = $("lang").value === "en" ? "en" : "it";
-    return I18N[lang].text({ link: last.link, code: last.code, date: fmtDate(last.expires, lang) });
+    const guide = `https://${SITE}/guida.html${lang === "en" ? "?lang=en" : ""}`;
+    return I18N[lang].text({ link: last.link, code: last.code, date: fmtDate(last.expires, lang), guide });
   }
   $("lang").addEventListener("change", () => { $("rText").value = message(); });
   $("createBtn").addEventListener("click", async () => {

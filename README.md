@@ -21,6 +21,7 @@ when the changes are nearly complete). What is done and what is next: [BACKLOG.m
 | | |
 |---|---|
 | The client's page: "Create your ChainIntegrate account" (install the extension) | https://account.chainintegrate.it/ |
+| The guide for the client (every step, in Italian and English) | https://account.chainintegrate.it/guida.html |
 | The privacy notice (extension and account service) | https://account.chainintegrate.it/privacy.html |
 | The invitations page (ChainIntegrate only): invitation codes and the message to send the client | https://account.chainintegrate.it/invites.html |
 | The operator's page (ChainIntegrate only) | https://account.chainintegrate.it/operator.html |
@@ -94,6 +95,7 @@ load only their own scripts and ethers 6.13.4 from cdnjs with its integrity hash
 | Page | For | What it does |
 |---|---|---|
 | `web/index.html` | the client | "Create your ChainIntegrate account": the three steps in plain words, the extension's download (`releases/latest`) and how to install it in a folder that is not synced, the questions people ask |
+| `web/guida.html` | the client | The guide: installing, the access and the backup copy, the account, the projects' sites and the confirmation window, another computer, restoring, a lost computer, updates, safety; the names of the buttons as the extension shows them |
 | `web/privacy.html` | everyone | The privacy notice of the extension and the account service |
 | `web/invites.html` | ChainIntegrate | Signs in with a ChainIntegrate account allowed by the service (`operators`), makes an invitation (note, expiry) and gives the message to send the client, in Italian or English, with the link `…/#invito=<code>`; lists the codes and revokes an open one; not indexed |
 | `web/operator.html` | ChainIntegrate | Creates an account by hand (a request file or filled in), with the operator's own wallet, and checks it; not indexed |
@@ -113,7 +115,7 @@ npm run pack:extension   # the extension's zip, in dist/ (reproducible)
 - `npm run test:e2e` (`test/e2e.js`): a local Hardhat chain with LUKSO's own contracts at their official addresses
   (`test/fixtures/lukso-contracts.json`, bytecode from `@lukso/lsp-smart-contracts@0.14.0` and
   `@lukso/lsp23-contracts@0.15.0`), the operator's page creating and checking an account, the keys' permissions,
-  the client's page (no crypto term, the invitation link), the invitations page (sign-in, an invitation and its
+  the client's page (no crypto term, the invitation link), the guide (no crypto term, both languages), the invitations page (sign-in, an invitation and its
   message, revoke), the language toggle and the layout at phone width.
 - `npm run test:creator` (`test/creator.js`): the account service on that chain with LUKSO's chain id: creation and
   its limits, the relay (profile, names, the projects' catalog with its on-chain checks, devices authorized and

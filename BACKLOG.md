@@ -27,6 +27,12 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
+## Pages, after 0.5.0 (no new extension version)
+
+- **The guide** (`web/guida.html`, asked by the maintainer 2026-11-13): every step for the client in Italian and
+  English, with the extension's button names; linked from the client's page and from the invitation message. The
+  extension's footer will link it in its next version. Screenshots may be added later (from the extension's tests).
+
 ## Release history
 
 ### 0.5.0 (released 2026-11-13)

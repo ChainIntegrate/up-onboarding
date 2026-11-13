@@ -153,6 +153,23 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     }
     await client.close();
 
+    // ---- the guide: every section in both languages, no crypto term, linked from the client's page
+    {
+      const g = await browser.newPage();
+      g.on("pageerror", (e) => check(false, "guide page error: " + e.message));
+      await g.goto(`http://127.0.0.1:${PORT}/index.html`);
+      check((await g.getAttribute("a.cta[href='guida.html']", "href")) === "guida.html", "the client's page links the guide");
+      await g.goto(`http://127.0.0.1:${PORT}/guida.html?lang=it`);
+      for (const lang of ["it", "en"]) {
+        if ((await g.evaluate(() => document.documentElement.lang)) !== lang) await g.click("#langToggle");
+        const words = await g.evaluate(() => [document.title, document.body.innerText].join("\n"));
+        const hit = words.match(BANNED);
+        check(!hit, `the guide in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
+        check((await g.locator("#toc li").count()) === 13 && (await g.locator("#sections h2").count()) === 13 && /ChainIntegrate Account/.test(words), `the guide in ${lang}: 13 sections and their index`);
+      }
+      await g.close();
+    }
+
     // ---- the invitations page (ChainIntegrate only): sign in with a wallet, make an invitation and its message,
     // list and revoke; the account service answered here (its own checks: test/creator.js)
     {
@@ -204,7 +221,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
         "invitations page: an invitation made, its code, link and the message ready to copy (Italian)");
       await pg.selectOption("#lang", "en");
       const textEn = await pg.inputValue("#rText");
-      check(/^Hello,/.test(textEn) && textEn.includes("Invitation code: ABCD-EFGH-JK2N"), "invitations page: the message in English");
+      check(/^Hello,/.test(textEn) && textEn.includes("Invitation code: ABCD-EFGH-JK2N") && textEn.includes("https://account.chainintegrate.it/guida.html?lang=en") && textIt.includes("https://account.chainintegrate.it/guida.html"), "invitations page: the message in English; both link the guide");
       for (const [lang, text] of [["it", textIt], ["en", textEn]]) {
         const hit = text.match(BANNED);
         check(!hit, `invitations page: the message for the client (${lang}) has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
