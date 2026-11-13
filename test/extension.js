@@ -19,6 +19,16 @@ const EXT = path.join(__dirname, "..", "extension");
 const OUT = path.join(__dirname, "out");
 const PW = "una password lunga 1", BK = "backup password lunga 2";
 const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|gas|lyx\w*|lukso|ethereum|ether|eth|bitcoin|btc|nft\w*|ipfs|universal profile|up|web3|smart contract|chiav[ei] privat[ae]|private key|seed|mining|minare|transazion[ei]|transactions?|on-?chain|dapp|ledger|metamask)\b/i;
+// The confirmation window says what the operation does: no crypto term, nor costs or payments.
+const WINDOW_BANNED = new RegExp(BANNED.source.replace("metamask)", "metamask|cost[oai]?|costs?|pagament[oi]|payments?|paga|pays?|gratis|free|fee)"), "i");
+async function plainWords(w, label) {
+  for (let i = 0; i < 2; i++) {
+    const txt = (await w.textContent("#box")) + " " + (await w.textContent(".top"));
+    const hit = txt.match(WINDOW_BANNED);
+    check(!hit, `the confirmation window (${label}, ${i ? "second language" : "first language"}) has no crypto term, cost or payment${hit ? ` (found "${hit[0]}")` : ""}`);
+    await w.click("#langToggle");
+  }
+}
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? "ok  " : "FAIL"} ${label}`); if (!ok) failures++; };
 
@@ -287,6 +297,7 @@ async function verify(page, file, pw) {
   let pending = ask("eth_requestAccounts", []);
   let w = await pop; await w.waitForSelector("#ok:not([hidden])");
   check((await w.evaluate(() => document.activeElement.id)) === "cancel" && /traceability\.chainintegrate\.it/.test(await w.textContent("#site")), "connecting opens the extension's window, naming the site, with Cancel focused");
+  await plainWords(w, "connect");
   await w.click("#ok");
   check(JSON.stringify((await pending).r) === JSON.stringify([UP]) && JSON.stringify((await ask("eth_accounts", [])).r) === JSON.stringify([UP]), "once connected the site sees the account's address");
   // a sign-in message of the project
@@ -297,6 +308,7 @@ async function verify(page, file, pw) {
   pending = ask("personal_sign", [ethers.hexlify(ethers.toUtf8Bytes(siwe)), UP]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
   check(/caricare un documento/.test(await w.textContent("#what")) && await w.isVisible("#pw"), "a sign-in message is shown in plain words, with the password field");
+  await plainWords(w, "sign-in");
   await w.fill("#pw", PW); await w.click("#ok");
   const sig = (await pending).r;
   check(!!sig && ethers.recoverAddress(ethers.hashMessage(siwe), sig) === code, "the message is signed with this computer's key");
@@ -309,7 +321,8 @@ async function verify(page, file, pw) {
   pop = ctx.waitForEvent("page");
   pending = ask("eth_sendTransaction", [{ from: UP, to: REG, data: lots }]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
-  check(/2 lotti di materia prima/.test(await w.textContent("#what")) && /ChainIntegrate/.test(await w.textContent("#note")), "an operation is described from its own data, and says who pays");
+  check(/2 lotti di materia prima/.test(await w.textContent("#what")) && /a nome del tuo account/.test(await w.textContent("#note")), "an operation is described from its own data");
+  await plainWords(w, "operation");
   await w.fill("#pw", PW); await w.click("#ok");
   check((await pending).r === "0x01", "the page receives the operation's reference");
   const op = sent.find((x) => x[0] === "relay")[1];
@@ -362,6 +375,7 @@ async function verify(page, file, pw) {
   pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(REG))]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
   check(/Autorizzare il telefono/.test(await w.textContent("#what")) && /GasTrace/.test(await w.textContent("#title")), "GasTrace: authorizing a phone is shown in plain words");
+  await plainWords(w, "GasTrace");
   await w.fill("#pw", PW); await w.click("#ok");
   const t0 = opTyped(REG);
   const opSig = (await pending).r;

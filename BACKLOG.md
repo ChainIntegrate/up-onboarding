@@ -6,6 +6,9 @@ in the same batch. Remove an item when its release is done.
 
 ## In 0.5.0
 
+Also items 10 (the creation's "device" role = the extension's "access") and 14 (no costs or payments in the
+confirmation window).
+
 A second computer with its own key (item 8, asked by the maintainer 2026-11-13; item 10 decided with it):
 - on the new computer, "Add this computer to an existing account": its own key, protected and backed up as a new
   access, its code shown in groups of 4; as soon as it is authorized the service finds the account (`/api/lookup`
@@ -92,10 +95,10 @@ judging what Universal Everything shows (item 4).
    linked from the client's page and from the extension's footer; updated for 0.4.0 (the relay, the projects' sites,
    LUKSO's public node).
 
-10. **Device keys cannot use the relay** (2026-11-12; *decided in 0.5.0*): the extension's "access" role has
-    EXECUTE_RELAY_CALL and no SUPER_TRANSFERVALUE (`UPRelay.ACCESS_PERMS`). The creation's "device" role
-    (`UPDeploy.DEVICE_PERMS`, the operator page and the coming Android app) is unchanged: align it with "access"
-    before the Android app adds a phone.
+10. **Device keys cannot use the relay** (2026-11-12; *done in 0.5.0*): the extension's "access" role and the
+    creation's "device" role (`UPDeploy.DEVICE_PERMS`, the operator page and the coming Android app) are the same:
+    SIGN, EXECUTE_RELAY_CALL, SUPER_CALL and SETDATA of its own name only; no transfer of value, no profile, no keys.
+    Devices created before 0.5.0 (test accounts only) keep their old permissions and can be revoked.
 
 11. **The backup copy names the account** (2026-11-12, asked by the maintainer; *done in 0.4.0, required*). The backup holds only the key
     (encrypted) and its address: the account itself needs no backup (it lives on the network and the key controls
@@ -122,14 +125,10 @@ judging what Universal Everything shows (item 4).
     accepted). Next: the live test with the demo registry `0xEae1a8B84977694e5c9925028a23599bc345b801`, owned by
     Argonia's account.
 
-14. **The confirmation window's words** (2026-11-13, asked by the maintainer; not changed yet): the client knows
-    nothing of what is underneath, so the window must not talk about costs, payments or what is written: drop "non
-    costa nulla" / "non è un pagamento" / "non scrive nulla" (`shared/catalog.js`, the sign-in descriptions) and the
-    notes "non costa nulla e non cambia nulla nel tuo account" / "Il costo è a carico di ChainIntegrate"
-    (`extension/confirm.js`, `noteSign`, `noteCall`), in both languages; say only what the operation does. The
-    projects' own statements inside the messages (TraceabilityRegistry's "[IT] Firma di conferma…") are matched,
-    never shown. Also: the extension test's check for crypto terms covers the extension's page only; extend it to
-    the confirmation window and to every description of the catalog (both languages).
+14. **The confirmation window's words** (2026-11-13, asked by the maintainer; *done in 0.5.0*): no costs, payments
+    or "writes nothing" in the window nor in the catalog's descriptions, in both languages; the window says what the
+    operation does. Tests: every description of the catalog (unit) and the confirmation windows (extension, both
+    languages) are checked for crypto terms, costs and payments.
 
 ## Under investigation
 

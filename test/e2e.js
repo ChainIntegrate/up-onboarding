@@ -5,7 +5,7 @@
 // CDN (ethers, same bytes as the page's integrity hash) and LUKSO's RPC are served locally, and a test wallet
 // announced through EIP-6963 sends with the node's first account. Checked:
 // - the page creates the UP, and its own check after the transaction passes;
-// - on the new UP, a device key can update LSP3Profile but cannot add a controller; an administrator can;
+// - on the new UP, a device key can change its own name but not LSP3Profile nor add a controller; an administrator can;
 // - the LYX step funds each key; the request file is saved and loads back;
 // - IPFS mode (the node's API answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
 // - the client's page uses no crypto term, in Italian or in English.
@@ -110,7 +110,8 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
       await prov.send("hardhat_impersonateAccount", [who]); await prov.send("hardhat_setBalance", [who, "0x1000000000000000000"]);
       try { await (await new ethers.JsonRpcSigner(prov, who).sendTransaction({ to: km, data: kmI.encodeFunctionData("execute", [upI.encodeFunctionData("setData", [key, val])]) })).wait(); return true; } catch (e) { return false; }
     };
-    check(await as(k3, LSP3, "0x1234"), "a device key can update LSP3Profile");
+    check(!(await as(k3, LSP3, "0x1234")), "a device key cannot change the profile (LSP3Profile)");
+    check(await as(k3, "0x344e172b69e28979f8df0000" + k3.slice(2).toLowerCase(), ethers.hexlify(ethers.toUtf8Bytes("Telefono"))), "a device key can change its own name on the account");
     check(!(await as(k3, permKey(), ethers.zeroPadValue("0x7f3f06", 32))), "a device key cannot add a controller");
     check(await as(k2, permKey(), ethers.zeroPadValue("0x200000", 32)), "an administrator can add a controller");
 

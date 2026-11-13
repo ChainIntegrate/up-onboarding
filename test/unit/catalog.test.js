@@ -156,3 +156,44 @@ test("GasTrace: requests outside the catalog are refused", () => {
   assert.strictEqual(C.message(p, "gastrace.chainintegrate.it wants you to sign in with your Ethereum account:\n" + account + "\n\nx\n\nURI: " + GT + "\nVersion: 1\nNonce: 1\nIssued At: " + new Date().toISOString(), { origin: GT, account, chainId: 42 }).error, "not_in_catalog");
   assert.strictEqual(C.call({ chainId: 42, to: GT_REG, data: "0x12345678" }, p).error, "not_in_catalog");
 });
+
+// The client does not use crypto and need not learn it (test/extension.js checks the extension's pages the same way);
+// nor is the window to talk about costs or payments.
+const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|gas|lyx\w*|lukso|ethereum|ether|eth|bitcoin|btc|nft\w*|ipfs|universal profile|up|web3|smart contract|chiav[ei] privat[ae]|private key|seed|mining|minare|transazion[ei]|transactions?|on-?chain|dapp|ledger|metamask|cost[oai]?|costs?|pagament[oi]|payments?|paga|pays?|gratis|free|fee)\b/i;
+const sample = (p) => {
+  if (p.baseType === "array") return [sample(p.arrayChildren), sample(p.arrayChildren)];
+  if (p.type === "address") return ethers.Wallet.createRandom().address;
+  if (p.type === "bool") return true;
+  if (p.type === "string") return "Registro 2026";
+  if (/^u?int/.test(p.type)) return 3n;
+  if (p.type === "bytes32") return ethers.ZeroHash;
+  if (p.type === "bytes") return "0x12";
+  throw new Error(p.type);
+};
+test("no crypto term, cost or payment in any description of the catalog, in both languages", () => {
+  const texts = [];
+  for (const p of C.PROJECTS) {
+    for (const c of p.contracts) for (const [sig, describe] of Object.entries(c.functions)) {
+      const args = c.iface.getFunction(sig).inputs.map(sample);
+      texts.push(describe(args));
+      if (sig.startsWith("addEvaluation")) texts.push(describe([ethers.ZeroHash, 1n, 1n, ethers.ZeroHash, "x", true, 0n]));
+    }
+    if (p.typed) for (const [type, k] of Object.entries(p.typed.types)) {
+      const msg = { operator: account, enabled: true, newOwner: account, dataKeys: [ethers.ZeroHash], dataValuesHash: ethers.ZeroHash, nonce: 0n, deadline: 1n };
+      texts.push(k.describe(msg));
+      if (type === "SetOperator") texts.push(k.describe({ ...msg, enabled: false }));
+    }
+  }
+  const p = C.projectForOrigin(TRACE);
+  for (const op of ["Caricamento documento / Upload document", "Consultazione delle librerie, valida 1 ora / Library access, valid 1 hour"]) {
+    const r = C.message(p, traceSiwe({ op, expiresAt: Date.now() + 3600000 }), { origin: TRACE, account, chainId: 42 });
+    texts.push(r.title, ...r.lines);
+  }
+  const s = C.message(C.projectForOrigin(SUPPLIER), supplierChallenge(), { origin: SUPPLIER, account, chainId: 42 });
+  texts.push(s.title, ...s.lines);
+  assert.ok(texts.length > 25);
+  for (const t of texts) for (const lang of ["it", "en"]) {
+    const hit = String(t[lang]).match(BANNED);
+    assert.strictEqual(hit, null, `${lang}: "${t[lang]}"`);
+  }
+});

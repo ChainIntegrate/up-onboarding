@@ -40,7 +40,8 @@
   const dataKeysKey = (a) => "0x4b80742de2bf866c29110000" + a.slice(2).toLowerCase();
   // Administrator: as at the creation (shared/deploy.js). Access: SUPER_CALL (the relay allows only the catalog's
   // calls), SETDATA limited to its own name on the account, SIGN, EXECUTE_RELAY_CALL; no transfer of value, no
-  // change to the profile or to the keys (maintainer's decision, 2026-11-13).
+  // change to the profile or to the keys (maintainer's decision, 2026-11-13). The same as shared/deploy.js gives a
+  // "device" at the creation.
   const ADMIN_PERMS = 0x7f3f06n;
   const ACCESS_PERMS = 0x400n | 0x40000n | 0x200000n | 0x400000n;
   const ROLE_PERMS = { admin: ADMIN_PERMS, access: ACCESS_PERMS };

@@ -38,13 +38,13 @@
   // A name for each key, as Cross_Chain's UP Wallet keeps it: bytes10(keccak256("UPWalletControllerName")) + 0000 + address.
   const nameKey = (a) => "0x344e172b69e28979f8df0000" + a.slice(2).toLowerCase();
 
-  // Permissions. Administrator: what LUKSO's extension gives its main controller. Device: SUPER_CALL,
-  // SUPER_TRANSFERVALUE, SIGN, ERC4337 and SETDATA limited to LSP3Profile, as Cross_Chain's "Authorize a device".
+  // Permissions. Administrator: what LUKSO's extension gives its main controller. Device: the extension's "access"
+  // (shared/relay.js ACCESS_PERMS, maintainer's decision 2026-11-13): SUPER_CALL, SIGN, EXECUTE_RELAY_CALL and SETDATA
+  // limited to its own name on the account; no transfer of value, no profile, no keys.
   // LSP1 delegate: REENTRANCY + SUPER_SETDATA + SETDATA, as LUKSO sets it.
-  const ERC4337 = 1n << 23n;
   const ADMIN_PERMS = 0x7f3f06n;
-  const DEVICE_PERMS = 0x100n | 0x400n | 0x40000n | 0x200000n | ERC4337;
-  const DEVICE_DATA_KEYS = ethers.concat(["0x0020", LSP3_KEY]);
+  const DEVICE_PERMS = 0x400n | 0x40000n | 0x200000n | 0x400000n;
+  const deviceDataKeys = (a) => ethers.concat(["0x0020", nameKey(a)]);
   const URD_PERMS = 0x60080n;
 
   const FACTORY_IFACE = new ethers.Interface([
@@ -85,7 +85,7 @@
     all.forEach((c, i) => {
       keys.push(indexKey(i)); values.push(c.address);
       keys.push(permKey(c.address)); values.push(ethers.zeroPadValue(ethers.toBeHex(c.perms), 32));
-      if (c.role === "device") { keys.push(dataKeysKey(c.address)); values.push(DEVICE_DATA_KEYS); }
+      if (c.role === "device") { keys.push(dataKeysKey(c.address)); values.push(deviceDataKeys(c.address)); }
       if (c.name) { keys.push(nameKey(c.address)); values.push(nameValue(c.name)); }
     });
     const postCalldata = ethers.AbiCoder.defaultAbiCoder().encode(["bytes32[]", "bytes[]"], [keys, values]);

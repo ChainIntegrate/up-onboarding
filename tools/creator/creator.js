@@ -323,7 +323,9 @@ function makeService(cfg) {
       return { address, perms: pv && pv !== "0x" ? BigInt(pv) : 0n, name, index: i };
     });
   }
-  const roleOf = (perms) => (perms === UPRelay.ADMIN_PERMS ? "admin" : perms === UPRelay.ACCESS_PERMS ? "access" : perms === UPDeploy.DEVICE_PERMS ? "device" : null);
+  // "device": the permissions a device had at the creation before 0.5.0 (as UP Wallet's), still revocable.
+  const OLD_DEVICE_PERMS = 0x100n | 0x400n | 0x40000n | 0x200000n | (1n << 23n);
+  const roleOf = (perms) => (perms === UPRelay.ADMIN_PERMS ? "admin" : perms === UPRelay.ACCESS_PERMS ? "access" : perms === OLD_DEVICE_PERMS ? "device" : null);
   async function knownAccount(body) {
     if (!body || typeof body.account !== "string" || !ethers.isAddress(body.account)) throw new HttpError(400, "bad_request", { problems: ["account"] });
     const account = ethers.getAddress(body.account);

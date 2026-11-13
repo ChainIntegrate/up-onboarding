@@ -4,8 +4,8 @@
 // - the profile (name, description, tags, links, images) becomes an LSP3Profile JSON, stored on IPFS
 //   (ChainIntegrate's node, shared/ipfs.js) or inside the value itself as a data: URL;
 // - the client's keys (addresses only: the page never sees a private key) become the UP's controllers, as an
-//   administrator (the permissions LUKSO's extension gives its main controller) or as a device (the
-//   permissions of the Backup page's "Authorize a device");
+//   administrator (the permissions LUKSO's extension gives its main controller) or as a device (the extension's
+//   "access": sign, operations through the relay, its own name; shared/deploy.js DEVICE_PERMS);
 // - one call to LUKSO's LSP23LinkedContractsFactory creates the UP and its Key Manager, through LUKSO's
 //   UniversalProfileInitPostDeploymentModule, exactly as LUKSO's tools do. The operator's wallet sends it and
 //   pays the gas: whoever sends it has no power over the UP, which belongs to the keys written in it.
@@ -52,7 +52,7 @@
       imgRemove: "Togli",
       imgBad: "❌ Immagine non leggibile.",
       panel3Title: "3 · Le chiavi del cliente",
-      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b>: usa la UP e i suoi fondi e aggiorna il profilo, ma non gestisce le chiavi (i permessi di \"Autorizza un dispositivo\"). Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. ChainIntegrate non aggiunge mai una propria chiave: l'account è solo del cliente.",
+      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b>: usa la UP nei servizi di ChainIntegrate, firma e conferma le operazioni e cambia il proprio nome, ma non sposta fondi, non cambia il profilo e non gestisce le chiavi (come un computer di tipo \"Accesso\" nell'estensione). Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. ChainIntegrate non aggiunge mai una propria chiave: l'account è solo del cliente.",
       addCtrlBtn: "+ Aggiungi una chiave",
       ctrlAddrPh: "Indirizzo 0x…",
       ctrlNamePh: "Nome (es. PC ufficio, estensione)",
@@ -156,7 +156,7 @@
       imgRemove: "Remove",
       imgBad: "❌ Unreadable image.",
       panel3Title: "3 · The client's keys",
-      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b>: uses the UP and its funds and updates the profile, but does not manage keys (the permissions of \"Authorize a device\"). You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. ChainIntegrate never adds a key of its own: the account belongs to the client alone.",
+      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b>: uses the UP in ChainIntegrate's services, signs and confirms operations and changes its own name, but moves no funds, does not change the profile and does not manage keys (as the extension's \"Access\"). You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. ChainIntegrate never adds a key of its own: the account belongs to the client alone.",
       addCtrlBtn: "+ Add a key",
       ctrlAddrPh: "Address 0x…",
       ctrlNamePh: "Name (e.g. Office PC, extension)",

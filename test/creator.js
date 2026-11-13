@@ -83,7 +83,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
     const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 10, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 11, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     // Commands that talk to the explorer stub (served by this process) run without blocking it.
@@ -133,7 +133,7 @@ async function waitFor(url, body) {
       check((await prov.getCode(up)) !== "0x", "the account exists on the network");
       const read = new ethers.Contract(up, ["function getDataBatch(bytes32[]) view returns (bytes[])"], prov);
       const perm = async (a) => { const v = (await read.getDataBatch(["0x4b80742de2bf82acb3630000" + a.slice(2).toLowerCase()]))[0]; return v === "0x" ? 0n : BigInt(v); };
-      check((await perm(admin.address)) === UPDeploy.ADMIN_PERMS && (await perm(device.address)) === UPDeploy.DEVICE_PERMS && (await perm(gas.address)) === 0n,
+      check((await perm(admin.address)) === UPDeploy.ADMIN_PERMS && (await perm(device.address)) === UPRelay.ACCESS_PERMS && UPDeploy.DEVICE_PERMS === UPRelay.ACCESS_PERMS && (await perm(gas.address)) === 0n,
         "the keys have their permissions, the service's wallet has none");
       const [lsp3] = await read.getDataBatch([UPDeploy.LSP3_KEY]);
       check(ethers.toUtf8String(ethers.dataSlice(lsp3, 40)).startsWith("ipfs://bafybei") && pins.length === 2 &&
@@ -254,7 +254,9 @@ async function waitFor(url, body) {
     rr = await relay(stranger, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(stranger.address), ethers.hexlify(ethers.toUtf8Bytes("intruso"))]));
     check(rr.status === 422 && rr.body.error === "refused" && /^NoPermissionsSet\(/.test(rr.body.reason), "relay: a key that is not the account's is refused before sending (no gas spent), with the Key Manager's reason" + ` [${rr.body.reason}]`);
     rr = await relay(device, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("Telefono 2"))]));
-    check(rr.status === 422, "relay: a device key (no EXECUTE_RELAY_CALL) is refused before sending");
+    check(rr.status === 200 && (await nameOf(device)) === "Telefono 2", "relay: a device key (the extension's access) renames its own computer");
+    rr = await relay(device, UPRelay.setName(admin.address, "non mio"));
+    check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a device key cannot rename another key");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Di nuovo"))]), { nonce: 0n });
     check(rr.status === 422, "relay: a used nonce is refused (no replay)");
     const old = Math.floor(Date.now() / 1000) - 7200;
@@ -267,7 +269,7 @@ async function waitFor(url, body) {
     const readP = async (signer) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/profile/read`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.4.4.4" }, body: JSON.stringify({ account: created, signer }) }); return x.json(); };
     const lookDev = async (address) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/lookup`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.5.5.5" }, body: JSON.stringify({ address }) }); return { status: x.status, body: await x.json() }; };
     let pr = await readP(admin.address);
-    check(pr.role === "admin" && pr.keys.length === 3 && pr.devices.length === 2 && pr.devices.find((d) => d.address === device.address).role === "device",
+    check(pr.role === "admin" && pr.keys.length === 3 && pr.devices.length === 2 && pr.devices.find((d) => d.address === device.address).role === "access",
       "devices: the account's keys are listed with their role (LUKSO's delegate left out)");
     check((await lookDev(third.address)).status === 404, "devices: a new computer's key is unknown before it is authorized");
     const addPayload = UPRelay.addDevice({ length: pr.keys.length, address: third.address, role: "access", name: "Computer ufficio" });

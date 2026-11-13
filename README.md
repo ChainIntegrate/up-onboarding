@@ -48,9 +48,9 @@ What the creation writes, the same whether the service or the operator's page cr
 
 1. **The client's keys.** The client gives the operator the *addresses* of their keys, never a private key.
    Each key is an **administrator** (uses the UP and adds or removes keys: the permissions LUKSO's own
-   extension gives its main key, `0x7f3f06`) or a **device** (uses the UP and its funds and updates the
-   profile, but cannot manage keys: SUPER_CALL, SUPER_TRANSFERVALUE, SIGN, ERC4337 and SETDATA limited to
-   `LSP3Profile`, as Cross_Chain's "Authorize a device"). At least two administrators, kept in different places,
+   extension gives its main key, `0x7f3f06`) or a **device** (the extension's "access": signs, uses the
+   UP in ChainIntegrate's services through the relay and changes its own name, but moves no funds, does not change
+   the profile and cannot manage keys: SUPER_CALL, SIGN, EXECUTE_RELAY_CALL and SETDATA limited to its own name). At least two administrators, kept in different places,
    are recommended; the page warns when there is only one.
 2. **The profile.** Name, description, tags, links, profile and cover image, as an LSP3Profile JSON stored
    either on ChainIntegrate's IPFS node (pinned through its API, served by `ipfs.chainintegrate.it`) or inside

@@ -74,7 +74,7 @@
         const m = /^(.*) \[Operazione \/ Operation: ([^\]]+)\]$/.exec(s);
         if (!m || m[1] !== TRACE_STATEMENT || !TRACE_OPERATIONS[m[2]]) return null;
         const op = TRACE_OPERATIONS[m[2]];
-        return T(`Conferma di essere tu, per ${op.it}. Non è un pagamento e non scrive nulla.`, `Confirm it is you, to ${op.en}. It is not a payment and writes nothing.`);
+        return T(`Conferma di essere tu, per ${op.it}.`, `Confirm it is you, to ${op.en}.`);
       } },
       contracts: [
         { chainId: MAINNET, address: TRACE_FACTORY, kind: "factory", functions: {
@@ -100,7 +100,7 @@
       sites: ["supplier-trust-registry.chainintegrate.it"],
       signIn: { header: "Universal Profile", statement: (s) => {
         const op = SUPPLIER_STATEMENTS[s];
-        return op ? T(`Conferma di essere tu, per ${op.it}. Non è un pagamento e non scrive nulla.`, `Confirm it is you, to ${op.en}. It is not a payment and writes nothing.`) : null;
+        return op ? T(`Conferma di essere tu, per ${op.it}.`, `Confirm it is you, to ${op.en}.`) : null;
       } },
       contracts: [
         { chainId: MAINNET, address: SUPPLIER_REGISTRY, kind: "registry", functions: {
