@@ -31,8 +31,7 @@
             <li>Nel browser apri <b>chrome://extensions</b> (in Edge: edge://extensions) e attiva <b>Modalità sviluppatore</b>.</li>
             <li>Premi ${B("Carica estensione non pacchettizzata")} e scegli la cartella chainintegrate-account.</li>
             <li>Si apre la pagina dell'estensione. Per riaprirla in seguito, premi la sua icona nella barra del browser (se non la vedi, è nel menu a forma di puzzle: puoi fissarla).</li>
-          </ol>
-          <div class="tip">A ogni avvio il browser ricorda che l'estensione non viene dallo store: è normale.</div>` },
+          </ol>` },
         { id: "accesso", title: "3. Creare l'accesso e la copia di backup", html: `
           <ol>
             <li>Nella pagina dell'estensione premi ${B("Inizia: crea il tuo accesso")}.</li>
@@ -88,7 +87,7 @@
             <li>premi ${B("Autorizza questo computer")}, controlla il riepilogo e conferma.</li>
           </ol>
           <p>Sul computer nuovo l'account compare da solo entro pochi secondi (oppure premi ${B("Controlla adesso")}); l'estensione chiede poi la copia di backup che contiene l'account, come al passo 4.</p>
-          <div class="tip">Avere almeno <b>due computer amministratori</b> è la protezione migliore: se uno si rompe, dall'altro continui a usare l'account e revochi quello perso.</div>` },
+          <div class="tip">Se un computer si rompe o lo cambi, con la <b>copia di backup</b> ritrovi l'accesso su un altro computer, come il primo giorno. I computer che hai autorizzato restano autorizzati.</div>` },
         { id: "backup", title: "8. La copia di backup", html: `
           <ul>
             <li>È un file, protetto dalla password che hai scelto, che contiene l'accesso di quel computer. Chi ha <b>il file e la password</b> può usare il tuo account.</li>
@@ -151,8 +150,7 @@
             <li>In the browser open <b>chrome://extensions</b> (in Edge: edge://extensions) and turn on <b>Developer mode</b>.</li>
             <li>Press ${B("Load unpacked")} and choose the chainintegrate-account folder.</li>
             <li>The extension's page opens. To open it again later, press its icon in the browser's bar (if you do not see it, it is in the puzzle-shaped menu: you can pin it).</li>
-          </ol>
-          <div class="tip">At each start the browser reminds you the extension does not come from the store: that is normal.</div>` },
+          </ol>` },
         { id: "accesso", title: "3. Creating the access and the backup copy", html: `
           <ol>
             <li>On the extension's page press ${B("Start: create your access")}.</li>
@@ -208,7 +206,7 @@
             <li>press ${B("Authorize this computer")}, check the summary and confirm.</li>
           </ol>
           <p>On the new computer the account appears by itself within a few seconds (or press ${B("Check now")}); the extension then asks for the backup copy holding the account, as in step 4.</p>
-          <div class="tip">Having at least <b>two administrator computers</b> is the best protection: if one breaks, you keep using the account from the other and revoke the lost one.</div>` },
+          <div class="tip">If a computer breaks or you replace it, with the <b>backup copy</b> you get the access back on another computer, as on the first day. The computers you authorized stay authorized.</div>` },
         { id: "backup", title: "8. The backup copy", html: `
           <ul>
             <li>It is a file, protected by the password you chose, holding that computer's access. Whoever has <b>the file and the password</b> can use your account.</li>
