@@ -4,7 +4,7 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
-## In 0.4.2
+## In 0.4.2 (released 2026-11-13)
 
 Found in the live test on LUKSO (2026-11-13):
 - after a restore from the backup the extension knew only the key and the account: the edit form was empty and the
