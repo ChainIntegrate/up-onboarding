@@ -29,7 +29,7 @@ and conversations that cite them stay readable.
 
 ## Release history
 
-### 0.5.0
+### 0.5.0 (released 2026-11-13)
 
 - **Invitation links** (pages and service): `creator.js invite` also prints the link to send the client,
   `https://account.chainintegrate.it/#invito=<code>`; the client's page shows the code with "Copy". The code is
