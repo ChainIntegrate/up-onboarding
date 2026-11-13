@@ -104,6 +104,8 @@
   details { margin-top: 12px; font-size: 13.5px; line-height: 1.55; } details summary { cursor: pointer; font-weight: 600; }
   .done { border: 2px solid var(--ok); border-radius: 10px; padding: 16px; margin-top: 14px; }
   .done[hidden] { display: none; }
+  .invite-code { font-family: monospace; font-size: 24px; font-weight: 700; letter-spacing: 0.08em; text-align: center; background: var(--field, #fbfcfc); border: 1px solid var(--border, #dde3e6); border-radius: 8px; padding: 14px; margin: 6px 0 4px; }
+  #inviteCopy { display: block; width: 100%; background: var(--btn); color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin: 10px 0; }
 </style>
 </head>
 <body>
@@ -118,6 +120,13 @@
     <div class="subtitle" data-i18n="subtitle"></div>
   </div>
   <button id="langToggle" type="button">English</button>
+</div>
+
+<div class="panel" id="invitePanel" hidden style="border:2px solid var(--brand);">
+  <h2 data-i18n="inviteTitle">Il tuo codice di invito</h2>
+  <div class="invite-code" id="inviteCode"></div>
+  <button id="inviteCopy" type="button" data-i18n="inviteCopy">Copia il codice</button>
+  <div class="note" data-i18n-html="inviteNote"></div>
 </div>
 
 <div class="panel">

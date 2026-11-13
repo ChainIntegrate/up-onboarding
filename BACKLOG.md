@@ -27,10 +27,19 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
+19. **Invitations from the operator's page** (2026-11-13, maintainer: later, when clients are more than a few): a
+    section of `operator.html` to make an invitation (note, expiry) and get its link, list the codes (state,
+    account created) and revoke one, instead of `creator.js invite` over SSH. The service would accept it only
+    signed by a ChainIntegrate key listed in its configuration, with a daily limit and every action logged; part of
+    the security review (item 17).
+
 ## Release history
 
 ### 0.5.0
 
+- **Invitation links** (pages and service): `creator.js invite` also prints the link to send the client,
+  `https://account.chainintegrate.it/#invito=<code>`; the client's page shows the code with "Copy". The code is
+  after "#", which the browser never sends to the server, so it is in no server log.
 - **A computer per key** (items 8 and 10). On a new computer, "Add this computer to an existing account": its own
   key, protected and backed up as a new access, its code shown in groups of 4. On a computer that has the account
   (an administrator), "Your account's computers": the list (name, role, this computer), "Authorize another

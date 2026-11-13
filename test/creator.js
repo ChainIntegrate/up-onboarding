@@ -105,7 +105,9 @@ async function waitFor(url, body) {
       controllers: [{ address: admin.address, name: "PC ufficio", role: "admin" }, { address: device.address, name: "Telefono", role: "device" }] });
     const sign = (w, req) => w.signMessage(UPRequest.signingMessage(req));
 
-    const code = cli("invite", "--note", "Rossi Srl");
+    const inv = require("child_process").spawnSync(process.execPath, [CREATOR, "invite", "--note", "Rossi Srl"], { env, encoding: "utf8" });
+    const code = inv.stdout.trim();
+    check(inv.stderr.includes(`link: https://account.chainintegrate.it/#invito=${code}`), "invite: the invitation link to send the client, the code after # (not sent to the server)");
     check(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(code), "an invitation code is printed");
     const stored = fs.readFileSync(path.join(dir, "data", "invites.json"), "utf8");
     check(!stored.includes(code) && !stored.includes(code.replace(/-/g, "")), "the code store holds no code in clear");

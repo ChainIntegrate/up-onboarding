@@ -53,7 +53,8 @@ operation, transaction, outcome); a refusal is logged in the journal.
 ## Commands
 
 ```bash
-node creator.js invite --note "Rossi Srl"   # a new code, printed once: give it to the client
+node creator.js invite --note "Rossi Srl"   # a new code, printed once, and the link to send the client:
+                                            #   https://account.chainintegrate.it/#invito=<code> (siteUrl)
 node creator.js invite --days 7             # one that expires sooner (default: inviteDays, 30)
 node creator.js invites                     # id, state, dates, account, note
 node creator.js revoke <code or id>         # an open code that may no longer be used
@@ -100,6 +101,7 @@ their owner: `sudo -u up-onboarding CREATOR_CONFIG=/etc/up-onboarding/config.jso
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
 | `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
 | `confirmSeconds` | how long to wait for the transaction (180) |
+| `siteUrl` | the client's page, for the invitation links (`https://account.chainintegrate.it/`) |
 | `warmGateways` | public IPFS gateways asked for a new profile and picture before the value is written on the account, so LUKSO's indexer (Universal Everything) finds them at once (`["https://api.universalprofile.cloud/ipfs/"]`) |
 | `backupDir`, `backupKeep` | where `creator.js backup` keeps its dated copies of the data folder, and how many (`/var/backups/up-onboarding`, 30) |
 | `explorerApi` | LUKSO's explorer (Blockscout API v2), read only by `creator.js rebuild` (the mainnet or testnet explorer by `network`) |

@@ -134,7 +134,9 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
 
     // ---- the client's page: no crypto words, in either language
     const client = await newPage(browser, operator);
-    await client.goto(`http://127.0.0.1:${PORT}/index.html`);
+    // opened from an invitation link: the code after "#" (never sent to the server), shown with "Copy"
+    await client.goto(`http://127.0.0.1:${PORT}/index.html#invito=abcd-efgh-jk2n`);
+    check(await client.isVisible("#invitePanel") && (await client.textContent("#inviteCode")) === "ABCD-EFGH-JK2N", "an invitation link shows its code on the client's page");
     const BANNED = /\b(blockchain|block chain|cripto\w*|crypto\w*|wallet|token\w*|gas|lyx\w*|lukso|ethereum|ether|eth|bitcoin|btc|nft\w*|ipfs|universal profile|up|web3|smart contract|chiav[ei] privat[ae]|private key|seed|mining|minare|transazion[ei]|transactions?|on-?chain|dapp|ledger|metamask)\b/i;
     for (const lang of ["it", "en"]) {
       if ((await client.evaluate(() => document.documentElement.lang)) !== lang) await client.click("#langToggle");
@@ -144,6 +146,10 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
       const hit = words.match(BANNED);
       check(!hit, `the client's page in ${lang} has no crypto term${hit ? ` (found "${hit[0]}")` : ""}`);
       check(/backup/i.test(words) && /(ChainIntegrate)/.test(words), `the client's page in ${lang} explains the backup copy`);
+    }
+    for (const bad of ["#invito=<b>x</b>", "#invito=ABCD-EFGH", "#other=ABCD-EFGH-JKMN", ""]) {
+      await client.goto(`http://127.0.0.1:${PORT}/index.html?x=${Math.random()}${bad}`);
+      check(!(await client.isVisible("#invitePanel")), `no invitation panel without a valid code (${bad || "no link"})`);
     }
     await client.close();
 

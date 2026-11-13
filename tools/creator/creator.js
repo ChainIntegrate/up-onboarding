@@ -7,7 +7,8 @@
 // checks: README.md next to this file.
 //
 //   node creator.js serve                       the HTTP service (behind nginx, at /api/)
-//   node creator.js invite [--days 30] [--note "Rossi Srl"]   a new invitation code, printed once
+//   node creator.js invite [--days 30] [--note "Rossi Srl"]   a new invitation code, printed once, and the
+//                                               invitation link to send the client (…/#invito=<code>)
 //   node creator.js invites                     the codes: state, expiry, note, account created
 //   node creator.js revoke <code>               a code that may no longer be used
 //   node creator.js status                      the gas wallet's address and balance, today's count
@@ -75,6 +76,7 @@ function loadConfig() {
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
     rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    siteUrl: String(c.siteUrl || "https://account.chainintegrate.it/").replace(/\/*$/, "/"),
     warmGateways: Array.isArray(c.warmGateways) ? c.warmGateways.map(String) : ["https://api.universalprofile.cloud/ipfs/"],
     backupDir: abs(c.backupDir || "/var/backups/up-onboarding"), backupKeep: Number(c.backupKeep ?? 30),
     explorerApi: String(c.explorerApi || (c.network === "lukso" ? "https://explorer.execution.mainnet.lukso.network/api/v2" : "https://explorer.execution.testnet.lukso.network/api/v2")).replace(/\/+$/, ""),
@@ -605,6 +607,8 @@ async function main() {
     const expires = new Date(Date.now() + days * 86400000).toISOString();
     store.update(hashCode(code), { state: "open", created: new Date().toISOString(), expires, note: String(opt("note", "")).slice(0, 80), id: crypto.randomBytes(3).toString("hex") });
     console.log(code);
+    // The link to send the client: the client's page shows the code (after "#": never sent to the server).
+    console.error(`link: ${cfg.siteUrl}#invito=${code}`);
     console.error(`valid until ${expires.slice(0, 10)}`);
     return;
   }
