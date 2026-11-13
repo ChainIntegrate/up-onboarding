@@ -107,6 +107,15 @@ judging what Universal Everything shows (item 4).
     accepted). Next: the live test with the demo registry `0xEae1a8B84977694e5c9925028a23599bc345b801`, owned by
     Argonia's account.
 
+14. **The confirmation window's words** (2026-11-13, asked by the maintainer; not changed yet): the client knows
+    nothing of what is underneath, so the window must not talk about costs, payments or what is written: drop "non
+    costa nulla" / "non è un pagamento" / "non scrive nulla" (`shared/catalog.js`, the sign-in descriptions) and the
+    notes "non costa nulla e non cambia nulla nel tuo account" / "Il costo è a carico di ChainIntegrate"
+    (`extension/confirm.js`, `noteSign`, `noteCall`), in both languages; say only what the operation does. The
+    projects' own statements inside the messages (TraceabilityRegistry's "[IT] Firma di conferma…") are matched,
+    never shown. Also: the extension test's check for crypto terms covers the extension's page only; extend it to
+    the confirmation window and to every description of the catalog (both languages).
+
 ## Under investigation
 
 5. **The first test account: metadata error on Universal Everything** (2026-11-12, Testnet,
