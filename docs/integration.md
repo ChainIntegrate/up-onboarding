@@ -1,135 +1,128 @@
-# The extension as the access to ChainIntegrate's projects (design, 0.4.0 onwards)
+# The extension as the access to ChainIntegrate's projects
 
-**Status: 2026-11-12.** Decisions of the maintainer: one complete 0.4.0 (signatures and transactions together),
-the relay first; live tests on LUKSO mainnet with the maintainer's accounts (costs are negligible), no Testnet
-deployments of the projects; no budget per project or account (today only the maintainer's accounts exist, and
-Supplier Trust and TraceabilityRegistry require a membership token): only a simulation before each send and a
-daily cap for the whole service. The gas-cylinder-registry demo uses the owner script; the extension as its
-owner comes after the drivers' app is published.
+**State: extension 0.5.0, 2026-11-13.** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
+TraceabilityRegistry, Supplier Trust Registry. What is open: [../BACKLOG.md](../BACKLOG.md).
 
-Done (0.4.0, released 2026-11-12): the relay in the account service (section 6), for the account's own changes (profile, the signer's
-name) and for the calls of the projects' catalog, with the catalog's on-chain checks, tested on a local chain with
-LUKSO's Key Manager; the catalog (`shared/catalog.js`, section 5) of TraceabilityRegistry and Supplier Trust (sign-in
-messages and transactions) and of GasTrace, the gas cylinder registry (EIP-712, `gastrace.chainintegrate.it`, factory
-`0xA128e7162fa8Dc779bf31EF569F06B53a499A50e`; from 0.4.3);
-the page provider (EIP-6963, `extension/provider.js` and `bridge.js`), the confirmation window (`confirm.html`) and
-"Connected sites" in the extension's page; the network read through the account service (`/api/rpc`) from
-ChainIntegrate's node, whose access key stays on the server (the extension is public code), LUKSO's public node as
-the fallback. Next: the projects' pages offer the extension (in their repositories,
-BACKLOG item 12); the release; the live test on mainnet with the released 0.4.0 (no development builds handed out).
+Decisions of the maintainer: live tests on LUKSO mainnet with ChainIntegrate's own demo accounts (costs are
+negligible), no Testnet deployments of the projects; no budget per project or account (today only ChainIntegrate's
+accounts exist, and Supplier Trust and TraceabilityRegistry require a membership token): a simulation before each
+send and a daily cap for the whole service; the relay serves only the accounts the service created.
 
 ## 1. The goal
 
-The ChainIntegrate Account extension becomes the one access, for people who do not use crypto, to every
-ChainIntegrate project: the gas cylinder registry (`gas-cylinder-registry`), the Supplier Trust Registry and the
-TraceabilityRegistry, and the next ones. For these users it takes the place of LUKSO's Universal Profile extension and
-of Cross_Chain's UP Wallet. The client never sees LYX, gas, hex data or addresses they must check.
+The ChainIntegrate Account extension is the one access, for people who do not use crypto, to every ChainIntegrate
+project, and the next ones. For these users it takes the place of LUKSO's Universal Profile extension and of
+Cross_Chain's UP Wallet. The client never sees LYX, gas, hex data they must check, or costs.
 
 ## 2. Principles
 
-1. **A closed set of sites.** The extension talks only to pages served over HTTPS from `chainintegrate.it`
-   subdomains (every project lives on one). On any other site it does not exist: no script, no provider.
-2. **Declared operations only.** Each project declares in a catalog (section 5) the operations its pages may ask
-   for, and how to describe each one to the client. A request that matches no declared operation is refused,
-   whatever site asks. A compromised subdomain can therefore ask only for declared operations, each explained in
-   plain words and confirmed by the client.
-3. **Every request confirmed in the extension's own window**, never in the page: what it does, for which project,
-   on which account, in plain words, with "Confirm" and "Cancel" (focused). The window computes the description
-   from the request itself, not from the page's words (as UP Wallet's signing window does).
-4. **The gas is always ChainIntegrate's.** The client's key holds no LYX. A project's own relayer pays where it has
-   one (gas-cylinder-registry); otherwise the account service does (section 6).
+1. **A closed set of sites.** The extension serves only pages over HTTPS on the catalog's hosts (subdomains of
+   `chainintegrate.it`, one per project). On any other site it announces nothing and answers nothing.
+2. **Declared operations only.** Each project declares in the catalog (section 5) what its pages may ask for, and
+   how to describe each request. A request that matches nothing declared is refused, whatever site asks, without
+   opening a window. A compromised subdomain can therefore ask only for declared operations, each explained in plain
+   words and confirmed by the client.
+3. **Every request confirmed in the extension's own window**, never in the page: what it does, for which project and
+   site, on which account, in plain words, with "Confirm" and "Cancel" (focused). The window computes the description
+   from the request itself, not from the page's words, and checks it again against the catalog and on the network.
+4. **The gas is always ChainIntegrate's.** The client's keys hold no LYX. A project's own relayer pays where it has
+   one (GasTrace); otherwise the account service does (section 6).
 5. **One catalog in `shared/`**, read by the extension (to describe and allow) and by the account service (to
-   relay): the two can never disagree.
+   relay): the two can never disagree. A project's own tests can load it (GasTrace's `scripts/admin-demo.js`).
 
-## 3. What each project asks of the wallet today
+## 3. What each project asks of the account
 
-| Project | Who signs | Request | Today paid by |
-|---|---|---|---|
-| **gas-cylinder-registry** | the registry's owner (the supplier) | EIP-712 `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings; values encrypted), `TransferOwnership` / `AcceptOwnership` (migration) | the project's relayer |
-| | drivers | their own app and phone key: **not the extension** | the project's relayer |
-| **Supplier Trust Registry** | the client company's account | sign-in message (`personal_sign`) for the upload service | — |
-| | | transactions: `mintRegistry`, `defineSchema`, `addSupplier`, `addEvaluation`, `discloseEvaluation`, `setDataForTokenId`, `setRegistryImage`, `setData` | LUKSO's extension (its relayer) |
-| | ChainIntegrate's admin page | `setTierLimits`, `addMembershipContract`, `removeMembershipContract` | ChainIntegrate: **not in the client's catalog** |
-| **TraceabilityRegistry** | the client company's account | SIWE messages (sign-in, signed details for pinning metadata, library reads) | — |
-| | | transactions: factory `deployRegistry`; registry `mintRawMaterialLotBatch`, `mintProductionBatch`, `setDocumentHash(Batch)`, `setRegistryMetadata`, `addDelegate`, `removeDelegate` | LUKSO's extension |
-| | ChainIntegrate's admin page | factory `setSector`, `setMembershipCorporate`; registry `setRegistryAdmin` | ChainIntegrate: **not in the client's catalog** |
+| Project | Site | Who signs | Request | Paid by |
+|---|---|---|---|---|
+| **GasTrace** (gas-cylinder-registry) | `gastrace.chainintegrate.it` | the registry's owner (the supplier's account) | EIP-712 `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings; values encrypted), `TransferOwnership` / `AcceptOwnership`; domain `GasCylinderRegistry` `1`, registries made by the factory `0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` | the project's relayer (`/gcr/`) |
+| | | drivers | their own app and phone key: **not the extension** (`RecordDocument` is refused) | the project's relayer |
+| **TraceabilityRegistry** | `traceability.chainintegrate.it` | the client company's account | SIWE messages (sign-in, signed details for pinning metadata, library reads) | — |
+| | | | factory `deployRegistry` (`0x54C3A7C31C4eCA1f1997f5E6f19197f3A82b88a3`); on registries made by it: `mintRawMaterialLot(Batch)`, `mintProductionBatch`, `invalidateEntry`, `setDocumentHash(Batch)`, `correctDocumentHash`, `setRegistryMetadata`, `addDelegate`, `removeDelegate` | the account service |
+| **Supplier Trust Registry** | `supplier-trust-registry.chainintegrate.it` | the client company's account | sign-in message for the upload service | — |
+| | | | on the V3 registry `0xFa143308D85b81Ed57547049F4A7718c3117A064`: `mintRegistry`, `defineSchema`, `addSupplier`, `addEvaluation`, `discloseEvaluation`, `setRegistryImage` | the account service |
 
-Today the pages find the wallet in `window.lukso` (LUKSO's extension) or through WalletConnect (UP Wallet).
+ChainIntegrate's own administration (Supplier Trust `setTierLimits`, `addMembershipContract`,
+`removeMembershipContract`, `setData`, `setDataForTokenId`; TraceabilityRegistry `setSector`,
+`setMembershipCorporate`, `setRegistryAdmin`) is **never in a client's catalog**.
 
 ## 4. How a page finds the extension
 
-- A content script on `https://*.chainintegrate.it/*` injects a provider and announces it with **EIP-6963**
-  (`name: "ChainIntegrate Account"`, an `rdns`, the icon). Pages add it to the wallets they offer; nothing is
-  injected as `window.lukso` or `window.ethereum`, so LUKSO's extension keeps working next to it.
-- Methods: `eth_requestAccounts` / `eth_accounts` (the account's address, after the client allows the site once),
-  `eth_chainId` (LUKSO's), `personal_sign`, `eth_signTypedData_v4`, `eth_sendTransaction`. Anything else is refused.
-- The page, the extension's content script and its service worker exchange messages; the key is opened only in the
-  extension's own window, after the computer's lock or the password, as today.
+- Two content scripts on `https://*.chainintegrate.it/*`, top frame only: `provider.js` in the page (an EIP-1193
+  provider holding nothing) and `bridge.js` in the extension's isolated world. The provider is announced with
+  **EIP-6963** (`name: "ChainIntegrate Account"`, `rdns: "it.chainintegrate.account"`, the icon) only after the
+  extension's service worker has said, from the origin Chrome gives, that the page is a catalog's site. Nothing is
+  set as `window.lukso` or `window.ethereum`: LUKSO's extension keeps working next to it.
+- Methods: `eth_requestAccounts` / `eth_accounts` (the account's address, after the client connects the site once,
+  in the window; "Connected sites" in the extension's page disconnects it), `eth_chainId`, `net_version`,
+  `wallet_switchEthereumChain` (only to the account's network), `personal_sign`, `eth_signTypedData_v4`,
+  `eth_sendTransaction`, and the reading methods (`eth_call`, `eth_blockNumber`, `eth_getLogs`, ...), forwarded to
+  ChainIntegrate's node through the account service (`/api/rpc`, the node's key staying on the server) or to
+  LUKSO's public node when it does not answer. Anything else is refused.
+- A request that needs the client opens `confirm.html`; one request per site at a time; closing the window cancels.
+  The key is opened only in that window, after the computer's lock or the password, and used for that request only.
 
 ## 5. The catalog (`shared/catalog.js`)
 
-Per project: the sites (subdomains), the name shown to the client, and the operations.
+Per project: the sites, the name shown to the client, and what may be asked. Each answer is `{ ok, title, lines,
+needs, digest }`: `title` and `lines` in Italian and English, `needs` the on-chain checks to pass first,
+`digest` what the key signs.
 
-- **Messages** (`personal_sign`): SIWE messages only, parsed; the domain must be the page's own host, the URI its
-  origin, the chain LUKSO's, the address the account's; the statement shown. The project declares its statements
-  (e.g. TraceabilityRegistry's "[Operazione / Operation: …]") and how to describe each.
-- **Typed data** (`eth_signTypedData_v4`): domain name and version (e.g. `GasCylinderRegistry`, `1`), the primary
-  types allowed and, for each, the description built from its fields ("Authorize the phone 0x…ab12 (Mario's
-  phone)", "Revoke …"). The verifying contract must be a registry of that project (checked on-chain where the
-  project has a factory).
-- **Transactions** (`eth_sendTransaction`): the target (a fixed contract, e.g. a factory, or "a registry created by
-  the factory X", checked on-chain), the function selectors allowed, value always 0, and the description built from
-  the decoded arguments ("Record 3 raw material lots in the registry 'Malto 2026'"). Admin functions of
-  ChainIntegrate are never in a client's catalog.
+- **Sign-in messages** (`personal_sign`): EIP-4361 as the project writes it, parsed; the domain must be the page's own
+  host, URI and resources its origin, the chain the account's, the address the account's, not expired; the
+  statement one the project declares (TraceabilityRegistry's operations, Supplier Trust's upload), described in
+  plain words ("Confirm it is you, to upload a document").
+- **Typed data** (`eth_signTypedData_v4`): the domain's name and version, no other domain field, exactly one
+  declared primary type with exactly its fields, not expired; the description built from its fields ("Authorize the
+  phone 0x1234…abcd to record for you"); `needs`: the verifying contract is a registry made by the project's
+  factory (`isRegistry`).
+- **Transactions** (`eth_sendTransaction`): the target (a fixed contract, or "a registry made by the factory X",
+  checked on the network), the functions allowed, value always 0, the call exactly the encoding of its arguments;
+  the description built from the decoded arguments ("Record 2 raw material lots").
 
-## 6. Transactions with the gas paid by the account service (LSP25)
+The descriptions say what the operation does, never costs or payments, and no crypto term: a unit test checks every
+description in both languages.
 
-The client's key is a controller of the account (Key Manager, LSP6) without LYX. LUKSO's way to have someone else
-send and pay for a controller's call is **LSP25 `executeRelayCall`**: the key signs, for the account's Key Manager,
-the call, the Key Manager's nonce for that key and a validity window; anyone may submit it.
+## 6. Operations with the gas paid by the account service (LSP25)
+
+The client's key is a controller of the account (Key Manager, LSP6) without LYX. LUKSO's way to have someone else send
+and pay for a controller's call is **LSP25 `executeRelayCall`**: the key signs, for the account's Key Manager, the
+call, the Key Manager's nonce for that key and a validity window; anyone may submit it.
 
 1. The page asks `eth_sendTransaction` `{ from: account, to, data }`.
-2. The extension matches it to the catalog, shows the description, and on confirmation asks the service for the
-   nonce (`POST /api/relay/nonce`), signs the LSP25 message and sends it (`POST /api/relay`).
-3. The service checks again, independently: the catalog (same file), the account is one it created (or a known
-   client), the signer is a controller of it, the per-project and per-account daily limits; simulates; sends
-   `executeRelayCall` from its wallet, paying the gas; waits; answers the transaction hash.
-4. The extension answers the page with the hash, as a wallet would.
+2. The confirmation window matches it to the catalog, checks its `needs` on the network, shows the description, and on
+   confirmation asks the service for the nonce and the network's time (`/api/relay/nonce`), signs the LSP25 message
+   for `execute(CALL, to, 0, data)`, valid until ten minutes after the network's time, and sends it (`/api/relay`).
+3. The service checks again, independently (`shared/relay.js`, `shared/catalog.js`): the account is one it created,
+   the call is in the catalog, its `needs` hold, the daily cap; simulates (whatever the Key Manager or the target
+   refuses costs nothing, and the reason is answered by name); sends `executeRelayCall` from its wallet; waits;
+   answers the transaction hash.
+4. The window answers the page with the hash, as a wallet would.
 
-The same mechanism serves the extension's own changes to the account (backlog item 8): the profile, the computer's
-name, a second device.
+The same relay serves the extension's own changes to the account: the profile (stored on IPFS by the service first),
+the computer's name, the account's computers (section 7).
 
-## 6b. A computer per key (0.5.0)
+## 7. A computer per key
 
 Each computer has its own key on the account, revocable alone. A new computer creates its key ("Add this computer to
-an existing account") and shows its code; an administrator authorizes it from a computer that has the account, as
-"administrator" or "access" (`UPRelay.ACCESS_PERMS`: sign, operations through the relay, its own name; no profile,
-no keys, no transfer of value); the service sends the change (LSP25) after checking it against the account's list of
-keys on the network; the new computer finds the account by itself. The ready screen lists the account's computers,
-with "Revoke" for the others (administrators only).
+an existing account"), protected and backed up, and shows its code in groups of 4. An administrator authorizes it from
+a computer that has the account, as:
 
-## 7. Phases
+- **administrator**: the permissions LUKSO's extension gives its main key (`0x7f3f06`);
+- **access** (`UPRelay.ACCESS_PERMS` = `UPDeploy.DEVICE_PERMS`): SIGN, EXECUTE_RELAY_CALL, SUPER_CALL (the relay
+  allows only the catalog's calls) and SETDATA of its own name only; no transfer of value, no profile, no keys.
+  Enough for every project (GasTrace needs SIGN).
 
-Phases 1 to 3 were joined in 0.4.0 (maintainer's decision, 2026-11-12).
-
-1. **0.4.0: the access and signatures.** Content script and EIP-6963 provider on `*.chainintegrate.it`; site
-   permission once per site; the signing window; SIWE messages and EIP-712 typed data from the catalog. The
-   gas-cylinder-registry owner operations and the sign-in of Supplier Trust and TraceabilityRegistry work.
-2. **0.5.0: transactions.** The relay in the account service and the transactions of Supplier Trust and
-   TraceabilityRegistry from the catalog.
-3. **Account changes** (backlog item 8) on the same relay.
-4. In each project (in its own repository and conversation): offer "ChainIntegrate Account" next to LUKSO's
-   extension and UP Wallet; for gas-cylinder-registry, an owner page in place of the owner script, and the migration
-   of the registry from the demo key to the supplier's account.
+The change (`UPRelay.addDevice`, `removeDevice`: the list of keys, the permissions, the name; for access, its allowed
+data key) is signed by the administrator's key and sent over the relay; the service checks it against the account's
+current list of keys on the network and rebuilds it byte for byte. The new computer finds the account by itself
+(`/api/lookup` reads the keys on the network), then makes the backup copy naming it. The extension's page lists the
+account's computers, with "Revoke" for the others (administrators only; a key cannot revoke itself).
 
 ## 8. Open points
 
-- **gas-cylinder-registry `SetData`**: values are encrypted and signed as a hash; the extension can say which kind of
-  data changes (counterparties, settings), not its content. The owner page must also hold the data key (password):
-  that stays in the page, never in the extension.
-- **Which accounts the relay serves**: only those the service created, or also existing Universal Profiles that
-  authorize a ChainIntegrate Account key?
-- **Limits and costs per project** (operations per day per account, per project), and who pays: per project
-  budgets of ChainIntegrate.
-- **The phone**: the same catalog in the Android app; WalletConnect, or a direct link, for pages opened on a phone.
+- **GasTrace `SetData`**: values are encrypted and signed as a hash; the window can say how many items change
+  (counterparties and settings), not their content. The data key stays in the owner page, never in the extension.
+- **The phone**: the same catalog in the Android app; for pages opened on a phone, WalletConnect or a direct link.
+- **Accounts not created by the service** (existing Universal Profiles that authorize a ChainIntegrate key): not
+  served by the relay today.
 - **Review**: the security review is done when these changes are nearly complete (maintainer's decision, 2026-11-12).

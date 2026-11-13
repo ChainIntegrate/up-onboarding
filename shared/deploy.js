@@ -3,7 +3,7 @@
 // LSP1 delegate and the client's keys with their permissions, then hands the profile to its Key Manager. The same
 // mechanism as LUKSO's own tools.
 //
-// Used by the operator's page (web/operator.html) and by the creation service (tools/creator), so both build and
+// Used by the operator's page (web/operator.html) and by the account service (tools/creator), so both build and
 // check exactly the same thing:
 //   UPDeploy.profileValue(lsp3Bytes, url)       the LSP3Profile value (VerifiableURI) of a JSON stored at url
 //   UPDeploy.lsp3Json(profile, images)          the LSP3Profile JSON of a request's profile, images given as

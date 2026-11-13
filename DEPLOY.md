@@ -1,8 +1,9 @@
 # Publishing account.chainintegrate.it
 
-The client's page (`https://account.chainintegrate.it/`) and the operator's (`/operator.html`) are static
-files: the `web/` folder of this repository, served by nginx. The creation service (`/api/`, `tools/creator`)
-runs next to them, from the same clone.
+The client's page (`https://account.chainintegrate.it/`), the privacy notice and the operator's page
+(`/operator.html`) are static files: the `web/` folder of this repository, served by nginx, with the published
+SHA256SUMS of each extension version (`/extension/<version>/SHA256SUMS`). The account service (`/api/`,
+`tools/creator`: creation, relay, reading the network for the extension) runs next to them, from the same clone.
 
 ## Once
 
@@ -36,7 +37,7 @@ runs next to them, from the same clone.
    needs a reload: `sudo certbot renew --dry-run` checks it, and a deploy hook
    (`--deploy-hook "systemctl reload nginx"`) can be added to the renewal.
 
-## The creation service (once)
+## The account service (once)
 
 The service (`tools/creator`) runs from the same clone, as its own system user, on this machine only
 (127.0.0.1:8811; 8787 and 8788 are Cross_Chain's relayer and sponsor service on the same server); nginx passes `/api/` to it. It needs Node.js 20 or later (`node -v`).
@@ -93,7 +94,7 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    sudo journalctl -u up-onboarding-creator -n 5
    ```
 
-   The log names the gas wallet's address: send it a few LYX (LYXt on the testnet, from LUKSO's faucet).
+   The log names the gas wallet's address: send it a few LYX (a creation costs about 0.01 LYX, an operation less).
 
    **E-mail alerts** (the same mailbox as Cross_Chain's relayer monitor): an e-mail when systemd gives up
    restarting the service, and, every 10 minutes, when the service does not answer, the gas wallet is low or a

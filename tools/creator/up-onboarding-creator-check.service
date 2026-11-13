@@ -2,7 +2,7 @@
 # Run by up-onboarding-creator-check.timer: the service answers, the gas wallet is above its floor, no code is
 # left in "review"; an e-mail when that changes (alert.js check).
 [Unit]
-Description=Check of the up-onboarding creation service (e-mail on problems)
+Description=Check of the up-onboarding account service (e-mail on problems)
 After=network-online.target
 Wants=network-online.target
 

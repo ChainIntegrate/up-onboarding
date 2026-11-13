@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// E-mail alerts for the creation service, through the same mailbox as Cross_Chain's relayer monitor.
+// E-mail alerts for the account service, through the same mailbox as Cross_Chain's relayer monitor.
 //
 //   node alert.js failed <unit>   the service stopped and systemd gave up restarting it (OnFailure=)
 //   node alert.js check           every 10 minutes (up-onboarding-creator-check.timer): the service answers,
@@ -74,10 +74,10 @@ async function problems(cfg) {
 
 async function main() {
   const [cmd, unit] = process.argv.slice(2);
-  if (cmd === "test") return sendMail("test", `A test e-mail from the creation service on ${os.hostname()}.`);
+  if (cmd === "test") return sendMail("test", `A test e-mail from the account service on ${os.hostname()}.`);
   if (cmd === "failed") {
     return sendMail(`the service is down (${unit || "up-onboarding-creator"})`,
-      `The creation service stopped on ${os.hostname()} and systemd gave up restarting it: clients cannot create accounts.\n\n` +
+      `The account service stopped on ${os.hostname()} and systemd gave up restarting it: clients cannot create or change their accounts.\n\n` +
       `Look at the log:\n  sudo journalctl -u ${unit || "up-onboarding-creator"} -n 50 --no-pager\n\nStart it again once fixed:\n  sudo systemctl restart up-onboarding-creator`);
   }
   if (cmd === "check") {
@@ -89,10 +89,10 @@ async function main() {
     const key = now.join("\n");
     const due = key && (key !== state.key || Date.now() - (state.sentAt || 0) > REMIND_HOURS * 3600000);
     if (due) {
-      await sendMail(key === state.key ? "still a problem" : "a problem", `On ${os.hostname()}, creation service (${cfg.network}):\n\n- ${now.join("\n- ")}\n`);
+      await sendMail(key === state.key ? "still a problem" : "a problem", `On ${os.hostname()}, account service (${cfg.network}):\n\n- ${now.join("\n- ")}\n`);
       state = { key, sentAt: Date.now() };
     } else if (!key && state.key) {
-      await sendMail("solved", `On ${os.hostname()}, the creation service (${cfg.network}) is fine again. It was:\n\n- ${state.key.split("\n").join("\n- ")}\n`);
+      await sendMail("solved", `On ${os.hostname()}, the account service (${cfg.network}) is fine again. It was:\n\n- ${state.key.split("\n").join("\n- ")}\n`);
       state = {};
     } else {
       console.log(key ? "problem already reported" : "all good");

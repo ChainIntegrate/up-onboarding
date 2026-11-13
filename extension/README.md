@@ -1,58 +1,69 @@
 # ChainIntegrate Account (browser extension)
 
-The client's access to their ChainIntegrate account from a computer. Chrome, Edge and Brave (Chromium 121 or
-later), Manifest V3. Separate from UP Wallet for the browser: no dApps, no networks to choose, no technical
-words. **Status: 0.5.0: a computer added to an existing account with its own key, the account's computers listed, authorized and revoked; the access, the backup copy (required again after the creation, naming the account), the
-restore, the creation of the account with an invitation code, changes to the profile and to this computer's name,
-and the access to ChainIntegrate's projects: their pages find the extension, each request is confirmed in its own
-window (sign-in messages, typed data, operations sent by ChainIntegrate's service, which pays their cost).**
+The client's access to their ChainIntegrate account from a computer, and to ChainIntegrate's projects. Chrome, Edge
+and Brave (Chromium 121 or later), Manifest V3. Separate from UP Wallet for the browser: no networks to choose, no
+technical words, only ChainIntegrate's sites. **Status: 0.5.0** (what changed in each version: [../BACKLOG.md](../BACKLOG.md)).
 
 ## What the client sees
 
-1. **Welcome**: "Start: create your access" or "I already have an access: restore from the backup copy".
-2. **Protect the access on this computer**: with the computer's lock (fingerprint, face or PIN through a
-   passkey: Windows Hello, Touch ID, a phone) or with a password of at least 12 characters.
-3. **Create the backup copy**: a file protected by a password chosen now, downloaded; the page says where to
-   keep it (outside the computer, the password apart, never sent to anyone, ChainIntegrate included).
-4. **Check the backup copy**: the client loads the file back and types its password. A wrong password or the
-   backup of another access is refused. Only now is the access saved on the computer: a setup cannot end with
-   a backup that does not open.
-5. **Create your account**: the invitation code, the name, a description and a picture (optional), with the
-   reminder that the profile is public. The extension unlocks the key, signs the request
-   (`UPRequest.signingMessage`) and sends it to the creation service (`config.js`, `service`), on the network the
-   service announces (`/api/health`); the service's refusals are told in plain words. About a minute later:
-   "Your account is ready", with the name, the picture and a link to the public profile.
-6. **Ready**: the account; this computer's code and name; "Check the backup copy", "Create a new backup copy"
-   (unlocked with the computer's lock or password); "Remove the access from this computer", only after
-   confirming the backup is at hand.
+1. **Welcome**: "Start: create your access", "I already have an access: restore from the backup copy", or "Add
+   this computer to an existing account".
+2. **Protect the access on this computer**: with the computer's lock (fingerprint, face or PIN through a passkey:
+   Windows Hello, Touch ID, a phone) or with a password of at least 12 characters.
+3. **Create the backup copy**, then **check it**: a file protected by a password chosen now, downloaded and loaded
+   back with its password. A wrong password or another access's copy is refused, and nothing is saved on the
+   computer before the check passes.
+4. **Create your account**: the invitation code, the profile's name (lowercase letters, digits and hyphens), this
+   computer's name, a description and a picture (optional), with the reminder that the profile is public. The
+   extension signs the request with the computer's key and sends it to the account service; about a minute later
+   the account is ready. A **new backup copy naming the account** is then required, made and checked as before.
+   *Or*, for a computer added to an existing account: its code, in groups of 4, to type on a computer that has the
+   account; as soon as it is authorized the account appears by itself, then the backup copy naming it is required.
+5. **Ready**:
+   - the account: its address (copy), its name and picture, the link to the public profile;
+   - "Change the profile or this computer's name" (the profile: administrators only);
+   - "Your account's computers": their names and roles; for administrators, "Authorize another computer" (its
+     code, a name, administrator or access) and "Revoke" for the others, each confirmed;
+   - "Connected sites": the projects' sites that see the account's address, each can be disconnected;
+   - this computer's code and name; "Check the backup copy", "Create a new backup copy"; "Remove the access from
+     this computer", after a confirmation that names the account.
+6. **On a project's site** (`*.chainintegrate.it`, only the sites of the catalog): the site finds "ChainIntegrate
+   Account" among the wallets it offers. Connecting, a sign-in, a signature or an operation opens the extension's
+   **confirmation window**: what it does for which project and site, in plain words computed from the request
+   itself; "Cancel" has the focus; "Confirm" unlocks the key for that one request. A request outside the catalog
+   is refused without a window.
 
-**Restore**: on a new computer, or after reinstalling, the backup file and its password give back the same
-access with the same code; then the client protects it on that computer (step 2), and the extension asks the
-service which account has this key (`/api/lookup`), so the account comes back too.
+**Restore**: on a new computer, or after reinstalling, the backup file and its password give back the same access
+with the same code; the account comes from the file (confirmed by the service), and the profile and this
+computer's name are read back from the account.
 
 ## How it works
 
-- `app.html`, `app.js`: the page, opened in a tab by the toolbar button (`background.js`), not in a popup,
-  which would close on the file chooser and on the passkey dialog.
-- The key and its encryption are `shared/keystore.js` (a copy of `../shared/`, kept identical by
-  `npm run sync`): a secp256k1 key created on the computer, stored in `chrome.storage.local` only encrypted
-  (AES-256-GCM; from the passkey's PRF value through HKDF-SHA256, or from the password through PBKDF2-SHA256
-  with 600,000 rounds). The backup file is the same key encrypted with the backup password.
-- The projects' pages (`../docs/integration.md`): `provider.js` (in the page, EIP-6963, holds nothing),
-  `bridge.js` (isolated world, forwards), `background.js` (serves only the sites of the catalog,
-  `shared/catalog.js`, by the origin Chrome gives; reads go to ChainIntegrate's node through the account service, `/api/rpc`, the node's key staying on the server, and to LUKSO's public node when it does not answer; anything else opens
-  `confirm.html`), `confirm.js` (checks the request against the catalog again, describes it, unlocks the key, signs
-  or sends through the service's relay, answers the page's tab; closing the window cancels).
-- `lib/integrity.js`: the extension's files against the SHA-256 published for its version; the key is not
-  unlocked when one differs (in the page and in the confirmation window).
-- `passkey.js`: the passkey through WebAuthn's PRF extension; the passkey belongs to the extension's id. Where
-  the authenticator gives no PRF value, the page asks for a password instead.
-- The private key is in memory only while it is needed (creating the backup, sealing it on the computer) and
-  wiped right after; until the backup is checked nothing is stored.
-- ethers 6.13.4 is included (`vendor/`, MIT; an extension cannot load code from a server); a unit test checks
-  it is byte for byte the file the web pages load from cdnjs.
-- Permissions: `storage`, and `account.chainintegrate.it` (the creation service) as its only host. No content
-  scripts: the extension reads nothing on the web and sends only the account request and the lookup.
+- `app.html`, `app.js`: the extension's page, opened in a tab by the toolbar button (`background.js`), not in a
+  popup, which would close on the file chooser and on the passkey dialog.
+- The key: `shared/keystore.js` (a copy of `../shared/`, kept identical by `npm run sync`): a secp256k1 key created
+  on the computer, stored in `chrome.storage.local` only encrypted (AES-256-GCM; from the passkey's PRF value
+  through HKDF-SHA256, or from the password through PBKDF2-SHA256 with 600,000 rounds). The backup file is the
+  same key encrypted with the backup password, with the account's address in clear once it exists.
+- `passkey.js`: the passkey through WebAuthn's PRF extension, belonging to the extension's ID; where the
+  authenticator gives no PRF value the page asks for a password instead.
+- The private key is in memory only while it is needed (one signature, one backup) and wiped right after.
+- Changes to the account (profile, names, computers): signed by the computer's key for the account's Key Manager
+  (LSP25) and sent by the account service, which pays (`shared/relay.js`; [../docs/integration.md](../docs/integration.md)).
+- The projects' pages: `provider.js` (in the page, EIP-6963, holds nothing; nothing is set as `window.ethereum` or
+  `window.lukso`), `bridge.js` (isolated world, forwards), `background.js` (serves only the sites of the catalog,
+  `shared/catalog.js`, by the origin Chrome gives; reading the network goes to ChainIntegrate's node through the
+  account service, `/api/rpc`, the node's key staying on the server, and to LUKSO's public node when it does not
+  answer), `confirm.html` and `confirm.js` (the request checked again against the catalog, its on-chain checks,
+  the description, the key unlocked, the signature or the operation through the relay, the answer to the page's
+  tab; closing the window cancels).
+- `lib/integrity.js`: the extension's files against the SHA-256 published for its version; the key is not unlocked
+  when one differs (in the page and in the confirmation window).
+- ethers 6.13.4 is included (`vendor/`, MIT; an extension cannot load code from a server); a unit test checks it is
+  byte for byte the file the web pages load from cdnjs.
+- Permissions: `storage`; hosts `account.chainintegrate.it` (the account service) and LUKSO's public nodes (the
+  fallback for reading the network); content scripts on `https://*.chainintegrate.it/*`, which announce the
+  extension only on the catalog's sites.
 
 ## Distribution and updates
 
@@ -60,12 +71,14 @@ service which account has this key (`/api/lookup`), so the account comes back to
   extension is loaded from, and on the Chrome Web Store later (its first upload carries the matching private key,
   kept by ChainIntegrate, never in this repository). Everything the extension keeps (the encrypted access, the
   passkey, which belongs to the ID) survives updates. The release workflow refuses a manifest without `key`.
-- **Releases on GitHub**: a tag `extension-v<version>` runs `.github/workflows/extension-release.yml` (tests,
-  pack, release). `releases/latest/download/chainintegrate-account.zip` always names the latest; the client's
+- **Releases on GitHub**: `.github/workflows/extension-release.yml`, run by hand on `main` (it creates the tag
+  `extension-v<version>`) or by a pushed tag: tests, pack, release. `releases/latest/download/chainintegrate-account.zip` always names the latest; the client's
   page links it, with the install steps.
-- **Update notice**: the creation service announces the latest *released* version, `web/extension/latest.txt`
-  (updated right after each release, so a version in development on main is never offered) (`/api/health`); a newer one shows "A new version is available" with the download link and the steps (unzip over
-  the same folder, "Reload" in chrome://extensions).
+- **Update notice**: the account service announces the latest *released* version (`/api/health`, from
+  `web/extension/latest.txt`, updated right after each release, so a version in development on main is never
+  offered); a newer one shows "A new version is available" with the direct download of the zip and the steps:
+  unzip over the same folder, then "Reload" in chrome://extensions (Chrome remembers the folder: "Load unpacked"
+  is needed only the first time).
 - **Stored data** keeps its format across versions (`account` in `chrome.storage.local`: the key record of
   `shared/keystore.js`, version 1, and the account fields); a version that changes it must read the old one.
 
@@ -102,7 +115,7 @@ program on the computer, or a sync client, could change its files; and a release
 
 ```bash
 npm run pack:extension     # dist/chainintegrate-account-<version>.zip
-npm run test:extension     # the flows above in Chromium, the passkey with a virtual authenticator
+npm run test:extension     # the flows above in Chromium, the passkey with a virtual authenticator, the projects' pages routed locally
 ```
 
 To try it by hand: `chrome://extensions`, developer mode, "Load unpacked", the `extension/` folder.

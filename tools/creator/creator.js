@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// The creation service: creates a client's account (a LUKSO Universal Profile) as soon as their extension asks,
-// paying the gas with the service's own wallet, as LUKSO's relayer does for Universal Everything. Only with an
-// invitation code from ChainIntegrate, and within the limits of the configuration.
+// The account service: creates a client's account (a LUKSO Universal Profile) as soon as their extension asks, and
+// sends the operations one of the account's keys signs (LSP25 relay: the profile, the computers' names, the
+// account's computers, the projects' catalog), paying the gas with the service's own wallet, as LUKSO's relayer does
+// for Universal Everything; reads the network for the extension from ChainIntegrate's node. Accounts only with an
+// invitation code from ChainIntegrate, everything within the limits of the configuration. The endpoints and their
+// checks: README.md next to this file.
 //
 //   node creator.js serve                       the HTTP service (behind nginx, at /api/)
 //   node creator.js invite [--days 30] [--note "Rossi Srl"]   a new invitation code, printed once
@@ -28,9 +31,10 @@
 // back (UPDeploy.verify); marks the code used. Answers { up, km, tx } or { error } with an HTTP status:
 //   400 bad_request (with `problems`) or bad_signature, 403 invite_invalid, 409 invite_used, 410 invite_expired,
 //   429 rate_limited or daily_limit, 503 unavailable (wallet too low, network unreachable), 502 failed.
-// POST /api/lookup  { address }  ->  { up, network } of the account this service created with that key among
-//   its keys, or 404 not_found. Used by the extension after restoring a backup on a new computer. The keys of a
-//   profile are public on the network anyway; this only saves the extension from searching it.
+// POST /api/lookup  { address }  ->  { up, network } of the account this service created where that key has
+//   permissions today (read on the network), or 404 not_found. Used by the extension after a restore and by a
+//   computer added to an account. The keys of a profile are public on the network anyway.
+// POST /api/relay/nonce, /api/relay, /api/profile, /api/profile/read, /api/rpc: see README.md.
 // Codes are stored only as SHA-256 hashes; nothing about the client is logged but the account's address.
 "use strict";
 const fs = require("fs");

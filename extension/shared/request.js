@@ -113,7 +113,7 @@
   // Warnings that do not stop a request: one administrator only (no way back if its key is lost).
   const warnings = (req) => (req && req.controllers.filter((c) => c.role === "admin").length === 1 ? ["controllers.oneAdmin"] : []);
 
-  // The message an administrator key signs (personal_sign) to send a request to the creation service: it binds
+  // The message an administrator key signs (personal_sign) to send a request to the account service: it binds
   // the exact, cleaned request (JSON.stringify of create's or parse's result, images included) to the key, so the
   // service creates an account only for keys their owner holds. The salt is the service's, not signed.
   function signingMessage(request) {

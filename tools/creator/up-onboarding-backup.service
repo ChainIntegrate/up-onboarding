@@ -2,7 +2,7 @@
 # Run by up-onboarding-backup.timer: a dated copy of the service's data (codes, created accounts, relay log) in
 # /var/backups/up-onboarding, the latest 30 kept (creator.js backup). alert.js check e-mails when it is missing.
 [Unit]
-Description=Backup of the up-onboarding creation service's data
+Description=Backup of the up-onboarding account service's data
 
 [Service]
 Type=oneshot

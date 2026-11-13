@@ -1,6 +1,6 @@
 # /etc/systemd/system/up-onboarding-creator-check.timer
 [Unit]
-Description=Every 10 minutes: check of the up-onboarding creation service
+Description=Every 10 minutes: check of the up-onboarding account service
 
 [Timer]
 OnBootSec=5min

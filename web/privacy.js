@@ -10,7 +10,7 @@
     it: {
       pageTitle: "Informativa sulla privacy — ChainIntegrate Account",
       h1: "Informativa sulla privacy",
-      subtitle: "Ultimo aggiornamento: 12 novembre 2026 (estensione 0.5.0). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
+      subtitle: "Ultimo aggiornamento: 13 novembre 2026 (estensione 0.5.0). Riguarda l'estensione ChainIntegrate Account e il servizio di creazione degli account su account.chainintegrate.it.",
       langToggleBtn: "English",
       s1t: "1 · In breve",
       s1: `<ul>
@@ -64,7 +64,7 @@
     en: {
       pageTitle: "Privacy policy — ChainIntegrate Account",
       h1: "Privacy policy",
-      subtitle: "Last updated: 12 November 2026 (extension 0.5.0). Covers the ChainIntegrate Account extension and the account creation service at account.chainintegrate.it.",
+      subtitle: "Last updated: 13 November 2026 (extension 0.5.0). Covers the ChainIntegrate Account extension and the account service at account.chainintegrate.it.",
       langToggleBtn: "Italiano",
       s1t: "1 · In short",
       s1: `<ul>
@@ -74,7 +74,7 @@
         <li>No ads, no tracking, no usage statistics.</li>
       </ul>`,
       s2t: "2 · Who is responsible",
-      s2: `ChainIntegrate, which develops the extension and runs the site account.chainintegrate.it and the account creation service. Contact: e-mail info@chainintegrate.it, ${TG} or an issue on GitHub.`,
+      s2: `ChainIntegrate, which develops the extension and runs the site account.chainintegrate.it and the account service. Contact: e-mail info@chainintegrate.it, ${TG} or an issue on GitHub.`,
       s3t: "3 · What stays on your computer",
       s3: `In the extension's storage, on the computer:<ul>
         <li>the key of your access, only encrypted (with the computer's lock or the password you chose), and its public address (the "device code");</li>

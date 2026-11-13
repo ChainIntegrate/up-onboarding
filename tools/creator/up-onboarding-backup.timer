@@ -1,6 +1,6 @@
 # /etc/systemd/system/up-onboarding-backup.timer
 [Unit]
-Description=Every night: backup of the up-onboarding creation service's data
+Description=Every night: backup of the up-onboarding account service's data
 
 [Timer]
 OnCalendar=*-*-* 03:17:00

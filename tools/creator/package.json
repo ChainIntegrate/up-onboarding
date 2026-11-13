@@ -2,7 +2,7 @@
   "name": "up-onboarding-creator",
   "version": "0.1.0",
   "private": true,
-  "description": "ChainIntegrate's account creation service",
+  "description": "ChainIntegrate's account service",
   "license": "MIT",
   "main": "creator.js",
   "engines": {

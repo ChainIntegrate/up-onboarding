@@ -1,4 +1,4 @@
-// End-to-end test of the creation service (tools/creator) on a local chain.
+// End-to-end test of the account service (tools/creator) on a local chain.
 //
 // A Hardhat node with LUKSO's chainId (42) and LUKSO's contracts (as test/e2e.js), the IPFS node's API answered locally,
 // the service started as on the server. Checked: an unknown code, a request signed by a key that is not one of

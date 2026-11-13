@@ -1,5 +1,5 @@
 # /etc/systemd/system/up-onboarding-alert@.service
-# Started by systemd when the creation service fails for good (OnFailure= in up-onboarding-creator.service):
+# Started by systemd when the account service fails for good (OnFailure= in up-onboarding-creator.service):
 # one e-mail saying so.
 [Unit]
 Description=E-mail: %i failed (up-onboarding)
