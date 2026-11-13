@@ -92,15 +92,22 @@
               </ul></li>
             <li>premi ${B("Autorizza questo computer")}, controlla il riepilogo e conferma.</li>
           </ol>
-          <p>Sul computer nuovo l'account compare da solo entro pochi secondi (oppure premi ${B("Controlla adesso")}); l'estensione chiede poi la copia di backup che contiene l'account, come al passo 4.</p>
+          <p>Sul computer nuovo l'account compare da solo entro pochi secondi (oppure premi ${B("Controlla adesso")}); l'estensione chiede poi la copia di backup che contiene l'account, come al passo 4. È la copia <b>di questo computer</b>: conservala insieme a quella del primo, sono due copie diverse (sezione 8).</p>
+          <p>Non serve fare tutto subito: puoi creare l'accesso sul computer nuovo, copiare il codice e autorizzarlo anche giorni dopo dall'altro computer. Riaprendo l'estensione sul computer nuovo, l'account compare da solo.</p>
           <div class="tip">Se un computer si rompe o lo cambi, con la <b>copia di backup</b> ritrovi l'accesso su un altro computer, come il primo giorno. I computer che hai autorizzato restano autorizzati.</div>` },
         { id: "backup", title: "8. La copia di backup", html: `
           <ul>
             <li>È un file, protetto dalla password che hai scelto, che contiene l'accesso di quel computer. Chi ha <b>il file e la password</b> può usare il tuo account.</li>
             <li>Serve a <b>riportare l'accesso</b> se quel computer non c'è più o è stato reinstallato (sezione 9). Non serve ad aggiungere un secondo computer: per quello c'è la sezione 7.</li>
-            <li>Ogni computer ha la <b>sua</b> copia: se hai aggiunto un secondo computer, conserva anche la copia che hai fatto su quel computer.</li>
             <li>Conservalo fuori dal computer; tieni la password in un posto separato. <b>Non mandarli mai a nessuno</b>, nemmeno a ChainIntegrate: non te li chiederemo mai.</li>
             <li>In <b>Copia di backup</b>: ${B("Controlla la copia di backup")} verifica che il file si apra ancora (fallo ogni tanto); ${B("Crea una nuova copia di backup")} ne fa una nuova, per esempio se hai perso la vecchia o vuoi cambiarne la password.</li>
+          </ul>
+          <p><b>Se usi più computer, ognuno ha la sua copia</b>, e non sono uguali:</p>
+          <ul>
+            <li>la copia di un computer riporta <b>l'accesso di quel computer</b>: il suo codice, il suo nome e il suo tipo (amministratore o accesso). Ripristinata su un computer nuovo, è come avere di nuovo quel computer;</li>
+            <li>non c'è una copia «principale»: <b>ognuna basta da sola</b> per rientrare nell'account con i permessi di quel computer. Se due computer sono entrambi amministratori, le loro copie valgono uguale; la copia di un computer di tipo accesso riporta un accesso, non un amministratore;</li>
+            <li>la copia di un computer che hai <b>revocato</b> non serve più: quell'accesso non è più nell'account;</li>
+            <li>sullo stesso computer conta l'<b>ultima</b> copia che hai fatto (quella che contiene anche l'account): le copie precedenti di quel computer aprono lo stesso accesso, ma tieni l'ultima.</li>
           </ul>` },
         { id: "ripristino", title: "9. Computer perso, rotto o reinstallato: ripristinare dalla copia di backup", html: `
           <p>Quando il computer di prima <b>non c'è più</b> (perso, rotto, formattato) o hai reinstallato il sistema o il browser, ritrovi l'accesso così, sul computer che lo sostituisce:</p>
@@ -219,15 +226,22 @@
               </ul></li>
             <li>press ${B("Authorize this computer")}, check the summary and confirm.</li>
           </ol>
-          <p>On the new computer the account appears by itself within a few seconds (or press ${B("Check now")}); the extension then asks for the backup copy holding the account, as in step 4.</p>
+          <p>On the new computer the account appears by itself within a few seconds (or press ${B("Check now")}); the extension then asks for the backup copy holding the account, as in step 4. It is <b>this computer's</b> copy: keep it along with the first computer's, they are two different copies (section 8).</p>
+          <p>No need to do everything at once: you can create the access on the new computer, copy the code and authorize it even days later from the other computer. Opening the extension on the new computer again, the account appears by itself.</p>
           <div class="tip">If a computer breaks or you replace it, with the <b>backup copy</b> you get the access back on another computer, as on the first day. The computers you authorized stay authorized.</div>` },
         { id: "backup", title: "8. The backup copy", html: `
           <ul>
             <li>It is a file, protected by the password you chose, holding that computer's access. Whoever has <b>the file and the password</b> can use your account.</li>
             <li>It <b>brings the access back</b> if that computer is gone or was reinstalled (section 9). It is not the way to add a second computer: that is section 7.</li>
-            <li>Each computer has <b>its own</b> copy: if you added a second computer, keep the copy you made on that computer too.</li>
             <li>Keep it outside the computer; keep the password somewhere else. <b>Never send them to anyone</b>, not even to ChainIntegrate: we will never ask for them.</li>
             <li>In <b>Backup copy</b>: ${B("Check the backup copy")} checks the file still opens (do it now and then); ${B("Create a new backup copy")} makes a new one, for example if you lost the old one or want to change its password.</li>
+          </ul>
+          <p><b>If you use more computers, each one has its own copy</b>, and they are not the same:</p>
+          <ul>
+            <li>a computer's copy brings back <b>that computer's access</b>: its code, its name and its kind (administrator or access). Restored on a new computer, it is like having that computer again;</li>
+            <li>there is no “main” copy: <b>each one is enough on its own</b> to get back into the account with that computer's permissions. If two computers are both administrators, their copies are worth the same; the copy of an access computer brings back an access, not an administrator;</li>
+            <li>the copy of a computer you <b>revoked</b> is no longer of any use: that access is no longer in the account;</li>
+            <li>on the same computer, the <b>latest</b> copy counts (the one that also holds the account): earlier copies of that computer open the same access, but keep the latest.</li>
           </ul>` },
         { id: "ripristino", title: "9. A computer lost, broken or reinstalled: restoring from the backup copy", html: `
           <p>When the previous computer <b>is gone</b> (lost, broken, wiped) or you reinstalled the system or the browser, you get the access back this way, on the computer that replaces it:</p>
