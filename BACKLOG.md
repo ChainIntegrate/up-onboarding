@@ -4,7 +4,7 @@ Changes to the extension are collected here and made together, then one release 
 version never changes, its SHA256SUMS are published). Changes to the pages and the service that come with them go
 in the same batch. Remove an item when its release is done.
 
-## In 0.4.3
+## In 0.4.3 (released 2026-11-13)
 
 GasTrace (gas-cylinder-registry) is served (item 13): its site `gastrace.chainintegrate.it` and its factory
 `0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` on LUKSO are in the catalog; the owner's four EIP-712 requests
