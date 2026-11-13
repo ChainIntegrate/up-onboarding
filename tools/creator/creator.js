@@ -639,11 +639,16 @@ async function main() {
     if ((await provider.getCode(to)) !== "0x" && !rest.includes("--contract")) { console.error("the address is a contract (a profile?): add --contract if that is what you want"); process.exit(1); }
     const balance = await provider.getBalance(w.address);
     const fee = await provider.getFeeData();
-    const price = fee.maxFeePerGas || fee.gasPrice;
+    const all = !(rest[1] && rest[1] !== "--contract");
+    // Everything: a fixed gas price (a legacy transaction), so the fee is exactly gasLimit × price and nothing is left
+    // (with EIP-1559 the network charges less than the maximum and the difference would stay in the wallet).
+    const price = all ? fee.gasPrice : (fee.maxFeePerGas || fee.gasPrice);
     const gasLimit = (await provider.getCode(to)) === "0x" ? 21000n : 100000n;
-    const amount = rest[1] && rest[1] !== "--contract" ? ethers.parseEther(rest[1]) : balance - gasLimit * price;
+    const amount = all ? balance - gasLimit * price : ethers.parseEther(rest[1]);
     if (amount <= 0n || amount + gasLimit * price > balance) { console.error(`not enough: balance ${ethers.formatEther(balance)}`); process.exit(1); }
-    const tx = await w.sendTransaction({ to: ethers.getAddress(to), value: amount, gasLimit, maxFeePerGas: fee.maxFeePerGas || undefined, maxPriorityFeePerGas: fee.maxPriorityFeePerGas || undefined, gasPrice: fee.maxFeePerGas ? undefined : fee.gasPrice });
+    const tx = await w.sendTransaction(all
+      ? { to: ethers.getAddress(to), value: amount, gasLimit, gasPrice: price, type: 0 }
+      : { to: ethers.getAddress(to), value: amount, gasLimit, maxFeePerGas: fee.maxFeePerGas || undefined, maxPriorityFeePerGas: fee.maxPriorityFeePerGas || undefined, gasPrice: fee.maxFeePerGas ? undefined : fee.gasPrice });
     console.log(`sent ${ethers.formatEther(amount)} to ${ethers.getAddress(to)}: ${tx.hash}`);
     if (!(await waitReceipt(provider, tx.hash, cfg.confirmSeconds * 1000))) { console.error("not confirmed yet: check it later"); process.exit(1); }
     console.log(`confirmed; balance now ${ethers.formatEther(await provider.getBalance(w.address))}`);

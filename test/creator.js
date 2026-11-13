@@ -321,7 +321,7 @@ async function waitFor(url, body) {
     check((await prov.getBalance(mine)) === ethers.parseEther("1.5"), "withdraw sends an amount to the operator's address");
     cli("withdraw", mine);
     const left = await prov.getBalance(gas.address);
-    check(left < ethers.parseEther("0.001") && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee");
+    check(left === 0n && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee (nothing left)" + ` [left ${left}]`);
   } finally {
     if (svc) svc.kill();
     try { process.kill(-node.pid); } catch (e) { node.kill(); } ipfs.close(); explorer.close(); // npx and the node it starts
