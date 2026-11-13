@@ -23,7 +23,12 @@
             <li>il <b>codice di invito</b> che ti ha mandato ChainIntegrate (di solito con un link: aprendolo, il codice compare in cima alla pagina);</li>
             <li>un posto sicuro <b>fuori dal computer</b> per la copia di backup: una chiavetta USB, l'archivio documenti dell'azienda.</li>
           </ul>
-          <p>L'account è tuo: nessuno, nemmeno ChainIntegrate, può usarlo o recuperarlo al posto tuo. Per questo la copia di backup è obbligatoria.</p>` },
+          <p>L'account è tuo: nessuno, nemmeno ChainIntegrate, può usarlo o recuperarlo al posto tuo. Per questo la copia di backup è obbligatoria.</p>
+          <div class="tip"><b>Copia di backup o secondo computer?</b> Sono due cose diverse:
+            <ul>
+              <li>la <b>copia di backup</b> serve a riportare il tuo accesso su un computer che <b>sostituisce</b> quello di prima: perso, rotto, formattato o reinstallato (sezione 9);</li>
+              <li>per usare l'account da <b>due postazioni insieme</b> (per esempio ufficio e casa) <b>aggiungi un secondo computer</b>: ognuno ha il suo accesso, il suo nome e la sua copia di backup (sezione 7).</li>
+            </ul></div>` },
         { id: "installa", title: "2. Installare l'estensione", html: `
           <ol>
             <li>Dalla pagina <a href="./">Crea il tuo account ChainIntegrate</a> premi ${B("Installa l'estensione")}: si scarica un file .zip.</li>
@@ -68,8 +73,9 @@
           <div class="warn">La conferma avviene <b>sempre nella finestra dell'estensione</b>, mai dentro la pagina del sito. Se un sito ti chiede la password del computer o della copia di backup in una sua pagina, non scriverla.</div>
           <p>In <b>Siti collegati</b> vedi i siti a cui hai collegato l'account; ${B("Scollega")} toglie il collegamento (il sito non vede più il tuo account finché non lo ricolleghi).</p>
           <p>L'estensione funziona solo sui siti di ChainIntegrate previsti: altrove non fa nulla.</p>` },
-        { id: "computer", title: "7. Usare l'account su un altro computer", html: `
-          <p>Ogni computer ha il <b>suo accesso</b>, che puoi revocare da solo se lo perdi.</p>
+        { id: "computer", title: "7. Usare l'account da più computer", html: `
+          <p>Per usare l'account da <b>più postazioni</b> (per esempio l'ufficio e casa, o due colleghi) aggiungi ogni computer così. Ognuno ha il <b>suo accesso</b>, il <b>suo nome</b> e la <b>sua copia di backup</b>, e puoi revocarlo da solo senza toccare gli altri.</p>
+          <div class="warn"><b>Non usare la copia di backup per questo.</b> Ripristinata su un secondo computer, la copia ci porta <b>lo stesso accesso</b> del primo: i due computer risultano un computer solo, con un solo nome, e non puoi revocarne uno senza bloccare anche l'altro.</div>
           <p><b>Sul computer nuovo</b>:</p>
           <ol>
             <li>installa l'estensione (passo 2) e premi ${B("Aggiungi questo computer a un account esistente")};</li>
@@ -91,17 +97,19 @@
         { id: "backup", title: "8. La copia di backup", html: `
           <ul>
             <li>È un file, protetto dalla password che hai scelto, che contiene l'accesso di quel computer. Chi ha <b>il file e la password</b> può usare il tuo account.</li>
+            <li>Serve a <b>riportare l'accesso</b> se quel computer non c'è più o è stato reinstallato (sezione 9). Non serve ad aggiungere un secondo computer: per quello c'è la sezione 7.</li>
+            <li>Ogni computer ha la <b>sua</b> copia: se hai aggiunto un secondo computer, conserva anche la copia che hai fatto su quel computer.</li>
             <li>Conservalo fuori dal computer; tieni la password in un posto separato. <b>Non mandarli mai a nessuno</b>, nemmeno a ChainIntegrate: non te li chiederemo mai.</li>
             <li>In <b>Copia di backup</b>: ${B("Controlla la copia di backup")} verifica che il file si apra ancora (fallo ogni tanto); ${B("Crea una nuova copia di backup")} ne fa una nuova, per esempio se hai perso la vecchia o vuoi cambiarne la password.</li>
           </ul>` },
-        { id: "ripristino", title: "9. Ripristinare l'accesso dalla copia di backup", html: `
-          <p>Se hai reinstallato il computer o il browser, o se ne usi uno nuovo e non hai un altro computer già autorizzato:</p>
+        { id: "ripristino", title: "9. Computer perso, rotto o reinstallato: ripristinare dalla copia di backup", html: `
+          <p>Quando il computer di prima <b>non c'è più</b> (perso, rotto, formattato) o hai reinstallato il sistema o il browser, ritrovi l'accesso così, sul computer che lo sostituisce:</p>
           <ol>
             <li>installa l'estensione (passo 2) e premi ${B("Ho già un accesso: ripristina dalla copia di backup")};</li>
             <li>scegli il file della copia, scrivi la sua password e premi ${B("Ripristina")};</li>
             <li>proteggi l'accesso su questo computer: l'account, il profilo e il nome del computer tornano da soli.</li>
           </ol>
-          <div class="tip">Il ripristino porta sul nuovo computer <b>lo stesso accesso</b> di quello vecchio. Se il vecchio computer funziona ancora e vuoi usarli entrambi, è meglio aggiungere il nuovo come computer separato (sezione 7).</div>` },
+          <div class="warn">Il ripristino porta sul nuovo computer <b>lo stesso accesso</b> di quello di prima. Se il computer di prima <b>funziona ancora</b> e vuoi usarli entrambi, non ripristinare: aggiungi il nuovo come secondo computer (sezione 7).</div>` },
         { id: "perso", title: "10. Se perdi un computer", html: `
           <ul>
             <li><b>Hai un altro computer autorizzato come amministratore</b>: da lì, in <b>I computer del tuo account</b>, premi ${B("Revoca")} accanto a quello perso. Da quel momento non può più usare l'account.</li>
@@ -142,7 +150,12 @@
             <li>the <b>invitation code</b> ChainIntegrate sent you (usually with a link: opening it, the code appears at the top of the page);</li>
             <li>a safe place <b>outside the computer</b> for the backup copy: a USB stick, the company's document archive.</li>
           </ul>
-          <p>The account is yours: no one, not even ChainIntegrate, can use it or recover it in your place. This is why the backup copy is required.</p>` },
+          <p>The account is yours: no one, not even ChainIntegrate, can use it or recover it in your place. This is why the backup copy is required.</p>
+          <div class="tip"><b>Backup copy or second computer?</b> They are two different things:
+            <ul>
+              <li>the <b>backup copy</b> brings your access back on a computer that <b>replaces</b> the previous one: lost, broken, wiped or reinstalled (section 9);</li>
+              <li>to use the account from <b>two places at the same time</b> (for example the office and home) <b>add a second computer</b>: each one has its own access, its own name and its own backup copy (section 7).</li>
+            </ul></div>` },
         { id: "installa", title: "2. Installing the extension", html: `
           <ol>
             <li>On the page <a href="./">Create your ChainIntegrate account</a> press ${B("Install the extension")}: a .zip file is downloaded.</li>
@@ -187,8 +200,9 @@
           <div class="warn">You confirm <b>always in the extension's window</b>, never inside the site's page. If a site asks for the computer's or the backup copy's password in one of its pages, do not type it.</div>
           <p>In <b>Connected sites</b> you see the sites your account is connected to; ${B("Disconnect")} removes the connection (the site no longer sees your account until you connect it again).</p>
           <p>The extension works only on ChainIntegrate's own sites: anywhere else it does nothing.</p>` },
-        { id: "computer", title: "7. Using the account on another computer", html: `
-          <p>Each computer has <b>its own access</b>, which you can revoke alone if you lose it.</p>
+        { id: "computer", title: "7. Using the account from more computers", html: `
+          <p>To use the account from <b>more than one place</b> (for example the office and home, or two colleagues) add each computer this way. Each one has <b>its own access</b>, <b>its own name</b> and <b>its own backup copy</b>, and you can revoke it alone without touching the others.</p>
+          <div class="warn"><b>Do not use the backup copy for this.</b> Restored on a second computer, the copy brings it <b>the same access</b> as the first: the two computers count as one, with one name, and you cannot revoke one without blocking the other too.</div>
           <p><b>On the new computer</b>:</p>
           <ol>
             <li>install the extension (step 2) and press ${B("Add this computer to an existing account")};</li>
@@ -210,17 +224,19 @@
         { id: "backup", title: "8. The backup copy", html: `
           <ul>
             <li>It is a file, protected by the password you chose, holding that computer's access. Whoever has <b>the file and the password</b> can use your account.</li>
+            <li>It <b>brings the access back</b> if that computer is gone or was reinstalled (section 9). It is not the way to add a second computer: that is section 7.</li>
+            <li>Each computer has <b>its own</b> copy: if you added a second computer, keep the copy you made on that computer too.</li>
             <li>Keep it outside the computer; keep the password somewhere else. <b>Never send them to anyone</b>, not even to ChainIntegrate: we will never ask for them.</li>
             <li>In <b>Backup copy</b>: ${B("Check the backup copy")} checks the file still opens (do it now and then); ${B("Create a new backup copy")} makes a new one, for example if you lost the old one or want to change its password.</li>
           </ul>` },
-        { id: "ripristino", title: "9. Restoring the access from the backup copy", html: `
-          <p>If you reinstalled the computer or the browser, or use a new one and have no other authorized computer:</p>
+        { id: "ripristino", title: "9. A computer lost, broken or reinstalled: restoring from the backup copy", html: `
+          <p>When the previous computer <b>is gone</b> (lost, broken, wiped) or you reinstalled the system or the browser, you get the access back this way, on the computer that replaces it:</p>
           <ol>
             <li>install the extension (step 2) and press ${B("I already have an access: restore from the backup copy")};</li>
             <li>choose the copy's file, type its password and press ${B("Restore")};</li>
             <li>protect the access on this computer: the account, the profile and the computer's name come back by themselves.</li>
           </ol>
-          <div class="tip">Restoring brings to the new computer <b>the same access</b> as the old one. If the old computer still works and you want to use both, it is better to add the new one as a separate computer (section 7).</div>` },
+          <div class="warn">Restoring brings to the new computer <b>the same access</b> as the previous one. If the previous computer <b>still works</b> and you want to use both, do not restore: add the new one as a second computer (section 7).</div>` },
         { id: "perso", title: "10. If you lose a computer", html: `
           <ul>
             <li><b>You have another computer authorized as administrator</b>: from it, in <b>Your account's computers</b>, press ${B("Revoke")} next to the lost one. From then on it can no longer use the account.</li>

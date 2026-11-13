@@ -27,6 +27,19 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
+## Next extension version
+
+- **This computer's name**: the "This computer" panel shows the name the extension saved itself, while the list of
+  computers shows the one written in the account: two computers restored from the same backup copy (one key) showed
+  "Laptop" and "PC-Ufficio" for the same key (found 2026-11-13). Read it from the account at each opening.
+- **Restoring vs adding a computer**: on the restore screen, say that restoring brings the same access as the
+  previous computer, for one that replaces it; for a second place "Add this computer to an existing account".
+- **The computers' section**: the password field inside the authorize/revoke confirmation, not below it.
+- **The welcome text**: its step 3 still says "send ChainIntegrate this computer's code" (the flow before the
+  invitation codes); now: "type the invitation code and create your account".
+- **The guide in the footer** of the extension's page.
+- The security review's findings (item 17), after discussing them.
+
 ## Pages, after 0.5.0 (no new extension version)
 
 - **The guide** (`web/guida.html`, asked by the maintainer 2026-11-13): every step for the client in Italian and
