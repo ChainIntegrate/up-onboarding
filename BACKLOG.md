@@ -27,7 +27,7 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
-## 0.5.1
+## 0.5.1 (released 2026-11-14)
 
 GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation, 2026-11-14):
 - `SetData`: each data key classified (the data password's and the recovery code's wraps, the company's settings,
