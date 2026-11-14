@@ -202,6 +202,8 @@
     }
     $("pwBox").hidden = said.kind === "connect" || account.record.method !== "password";
     render();
+    // "Confirm" only once the request is described (a SetData waits for the registry's values).
+    $("ok").hidden = false;
     $("cancel").focus();
   })();
 })();
