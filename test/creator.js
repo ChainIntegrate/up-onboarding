@@ -398,8 +398,8 @@ async function waitFor(url, body) {
     cli("withdraw", mine, "1.5");
     check((await prov.getBalance(mine)) === ethers.parseEther("1.5"), "withdraw sends an amount to the operator's address");
     cli("withdraw", mine);
-    const left = await prov.getBalance(gas.address);
-    check(left === 0n && (await prov.getBalance(mine)) > ethers.parseEther("9"), "withdraw sends everything but the fee (nothing left)" + ` [left ${left}]`);
+    const left = BigInt(await prov.send("eth_getBalance", [gas.address, "latest"])); // not ethers' 250 ms cache
+    check(left === 0n && BigInt(await prov.send("eth_getBalance", [mine, "latest"])) > ethers.parseEther("9"), "withdraw sends everything but the fee (nothing left)" + ` [left ${left}]`);
     // ---- an account (Universal Profile) as the operator: its signature checked with ERC-1271 through its Key Manager
     if (created) {
       fs.writeFileSync(path.join(dir, "config-op.json"), JSON.stringify({ ...config, port: PORT + 5, operators: [created] }));
