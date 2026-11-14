@@ -118,7 +118,7 @@ test("GasTrace: its site, and the four owner requests described, with the regist
   const cases = [
     ["SetOperator", { operator: phone, enabled: true, nonce: 0, deadline: deadline() }, /Authorize the phone/],
     ["SetOperator", { operator: phone, enabled: false, nonce: 1, deadline: deadline() }, /Revoke the phone/],
-    ["SetData", { dataKeys: [ethers.id("a"), ethers.id("b")], dataValuesHash: ethers.id("v"), nonce: 2, deadline: deadline() }, /2 items/],
+    ["SetData", { dataKeys: [C.GCR.COUNTERPARTY + "11".repeat(20), C.GCR.COUNTERPARTY + "22".repeat(20)], dataValuesHash: ethers.id("v"), nonce: 2, deadline: deadline() }, /Add or change 2 customers or refill centres/],
     ["TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }, /Hand the registry over/],
     ["AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }, /Accept the ownership/],
   ];
@@ -178,10 +178,15 @@ test("no crypto term, cost or payment in any description of the catalog, in both
       texts.push(describe(args));
       if (sig.startsWith("addEvaluation")) texts.push(describe([ethers.ZeroHash, 1n, 1n, ethers.ZeroHash, "x", true, 0n]));
     }
-    if (p.typed) for (const [type, k] of Object.entries(p.typed.types)) {
-      const msg = { operator: account, enabled: true, newOwner: account, dataKeys: [ethers.ZeroHash], dataValuesHash: ethers.ZeroHash, nonce: 0n, deadline: 1n };
-      texts.push(k.describe(msg));
-      if (type === "SetOperator") texts.push(k.describe({ ...msg, enabled: false }));
+    if (p.typed) {
+      for (const [type, k] of Object.entries(p.typed.types)) {
+        if (k.setData) continue;
+        const msg = { operator: account, enabled: true, newOwner: account, nonce: 0n, deadline: 1n };
+        texts.push(k.describe(msg));
+        if (type === "SetOperator") texts.push(k.describe({ ...msg, enabled: false }));
+      }
+      texts.push(p.typed.note);
+      for (const c of SETDATA_CASES()) { const r = C.typedData(p, c.typed, { account, chainId: 42, current: c.current }); if (r.ok) texts.push(r.title, ...r.lines); }
     }
   }
   const p = C.projectForOrigin(TRACE);
@@ -196,4 +201,95 @@ test("no crypto term, cost or payment in any description of the catalog, in both
     const hit = String(t[lang]).match(BANNED);
     assert.strictEqual(hit, null, `${lang}: "${t[lang]}"`);
   }
+});
+
+// ---- GasTrace's SetData: each data key classified, the values checked, the registry's current values used
+const G = C.GCR;
+const cpKey = (n) => G.COUNTERPARTY + n.toString(16).padStart(40, "0");
+function setDataTyped(entries, { values = true, hash = null } = {}) {
+  const keys = entries.map((e) => e[0]), vals = entries.map((e) => e[1]);
+  const h = hash || ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [vals]));
+  const t = typedOf("SetData", { dataKeys: keys, dataValuesHash: h, nonce: 5, deadline: deadline() });
+  if (values) t.dataValues = vals;
+  return t;
+}
+const enc = "0x" + "ab".repeat(48);
+function SETDATA_CASES() {
+  return [
+    { name: "new customer", typed: setDataTyped([[cpKey(1), enc]]), current: { [cpKey(1)]: "0x" }, re: /^Add 1 customer or refill centre$/ },
+    { name: "changed customer", typed: setDataTyped([[cpKey(1), enc]]), current: { [cpKey(1)]: enc }, re: /^Change 1 customer or refill centre$/ },
+    { name: "removed customer", typed: setDataTyped([[cpKey(1), "0x"]]), current: { [cpKey(1)]: enc }, re: /^Remove 1 customer or refill centre$/ },
+    { name: "settings", typed: setDataTyped([[G.SETTINGS, enc]]), current: {}, re: /^The company's settings \(name and e-mail\)$/ },
+    { name: "public description", typed: setDataTyped([[G.LSP4_METADATA, "0x1234"]]), current: {}, re: /public description \(visible to everyone\)/ },
+    { name: "first setup", typed: setDataTyped([[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc], [G.SETTINGS, enc]]), current: { [G.WRAP_PASSWORD]: "0x", [G.WRAP_RECOVERY]: "0x" }, re: /^Prepare the encryption of the registry's data: password and recovery code \(first time\)$/, sensitive: true },
+    { name: "password change", typed: setDataTyped([[G.WRAP_PASSWORD, enc]]), current: { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc }, re: /^Change the data password$/, sensitive: true },
+    { name: "recovery change", typed: setDataTyped([[G.WRAP_RECOVERY, enc]]), current: { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc }, re: /^Change the recovery code$/, sensitive: true },
+  ];
+}
+
+test("GasTrace SetData: what changes, from the request's values and the registry's current ones (IT/EN)", () => {
+  const p = C.projectById("gas-cylinders");
+  for (const c of SETDATA_CASES()) {
+    const r = C.typedData(p, c.typed, { account, chainId: 42, current: c.current });
+    assert.strictEqual(r.ok, true, c.name);
+    assert.match(r.lines[0].en, c.re, c.name);
+    assert.ok(r.lines[0].it.length > 5, c.name);
+    assert.strictEqual(!!r.lines[0].sensitive, !!c.sensitive, c.name + ": highlighted");
+    assert.ok(r.lines.some((l) => /The values are encrypted: this shows the kind of change, not its content\./.test(l.en)), c.name + ": the fixed line");
+    assert.ok(!r.lines.some((l) => /not verifiable/.test(l.en)), c.name + ": no warning with the values");
+    assert.match(r.note.it, /^Con questa conferma autorizzi questa modifica del registro; la registra il servizio GasTrace\.$/);
+    assert.match(r.note.en, /authorize this change of the registry/);
+    assert.deepStrictEqual(r.reads, [], c.name + ": nothing more to read");
+    assert.ok(r.lines.some((l) => /^Valid until /.test(l.en)), c.name + ": the validity shown");
+  }
+});
+
+test("GasTrace SetData: refused", () => {
+  const p = C.projectById("gas-cylinders"), ctx = (current) => ({ account, chainId: 42, current });
+  const full = { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc };
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc]]), ctx(full)).error, "wraps_both", "password and recovery code together when already there");
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.WRAP_PASSWORD, "0x"]]), ctx(full)).error, "wrap_deleted", "a wrap deleted");
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.WRAP_RECOVERY, "0x"]]), ctx(full)).error, "wrap_deleted");
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, "0x"]]), ctx({})).error, "wrap_deleted");
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.WRAP_PASSWORD, enc]]), ctx({ [G.WRAP_PASSWORD]: "0x", [G.WRAP_RECOVERY]: "0x" })).error, "wrap_setup_incomplete", "one wrap alone before the first setup");
+  assert.strictEqual(C.typedData(p, setDataTyped([[ethers.id("SomethingElse"), enc]]), ctx({})).error, "unknown_data_key", "an unknown key");
+  assert.strictEqual(C.typedData(p, setDataTyped([[G.COUNTERPARTY + "11".repeat(19), enc]]), ctx({})).error, "typed_data", "a key that is not 32 bytes");
+  assert.strictEqual(C.typedData(p, setDataTyped([[cpKey(1), enc]], { hash: ethers.id("other") }), ctx({})).error, "data_values_mismatch", "values that do not match the signed hash");
+  const t = setDataTyped([[cpKey(1), enc], [cpKey(2), enc]]); t.dataValues = [enc];
+  assert.strictEqual(C.typedData(p, t, ctx({})).error, "data_values", "values of another length");
+  const far = typedOf("SetOperator", { operator: phone, enabled: true, nonce: 0, deadline: Math.floor(Date.now() / 1000) + 8 * 86400 });
+  assert.strictEqual(C.typedData(p, far, ctx({})).error, "deadline_too_far", "valid for more than 7 days");
+});
+
+test("GasTrace SetData: without the values (pages not updated yet), accepted with a warning; the window reads the registry", () => {
+  const p = C.projectById("gas-cylinders");
+  const t = setDataTyped([[cpKey(1), enc], [G.SETTINGS, enc]], { values: false });
+  const r = C.typedData(p, t, { account, chainId: 42 });
+  assert.strictEqual(r.ok, true);
+  const warn = r.lines.find((l) => /not verifiable/.test(l.en));
+  assert.ok(warn && warn.sensitive && /non verificabile/.test(warn.it), "the warning, highlighted");
+  assert.deepStrictEqual(r.reads, [{ address: GT_REG, keys: [cpKey(1)] }], "what the window reads before describing it");
+  // the GasTrace admin page's own test calls typedData without `current`: still accepted, with what can be said
+  const wr = C.typedData(p, setDataTyped([[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc]]), { account, chainId: 42 });
+  assert.strictEqual(wr.ok, true);
+  assert.deepStrictEqual(wr.reads[0].keys.sort(), [G.WRAP_PASSWORD, G.WRAP_RECOVERY].sort());
+});
+
+test("GasTrace: handing the registry over is highlighted; accepting it is not", () => {
+  const p = C.projectById("gas-cylinders");
+  const r = C.typedData(p, typedOf("TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }), { account, chainId: 42 });
+  assert.ok(r.lines[0].sensitive && /You will no longer control it/.test(r.lines[0].en) && /Non lo controllerai più/.test(r.lines[0].it));
+  const a = C.typedData(p, typedOf("AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }), { account, chainId: 42 });
+  assert.ok(!a.lines[0].sensitive);
+});
+
+test("readCurrent: the registry's values, lowercase, from getDataBatch", async () => {
+  const k1 = cpKey(1), k2 = G.WRAP_PASSWORD;
+  const provider = { call: async (tx) => {
+    const iface = new ethers.Interface(["function getDataBatch(bytes32[]) view returns (bytes[])"]);
+    const [keys] = iface.decodeFunctionData("getDataBatch", tx.data);
+    return iface.encodeFunctionResult("getDataBatch", [keys.map((k) => (k === k1 ? "0xABCD" : "0x"))]);
+  } };
+  const out = await C.readCurrent(provider, [{ address: GT_REG, keys: [k1, k2] }]);
+  assert.deepStrictEqual(out, { [k1]: "0xabcd", [k2]: "0x" });
 });

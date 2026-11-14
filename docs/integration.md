@@ -75,6 +75,11 @@ needs, digest }`: `title` and `lines` in Italian and English, `needs` the on-cha
   declared primary type with exactly its fields, not expired; the description built from its fields ("Authorize the
   phone 0x1234…abcd to record for you"); `needs`: the verifying contract is a registry made by the project's
   factory (`isRegistry`).
+- **GasTrace's `SetData`**: only the registry's known data keys (the data key's two wraps, the settings, customers
+  and refill centres, the public description); the request's `dataValues` checked against the signed hash; the
+  registry's current values read (`readCurrent`, then `typedData` with `ctx.current`) to describe a first setup, a
+  change of password or recovery code (highlighted), customers added, changed or removed; deleting a wrap, or both
+  wraps once set, refused. GasTrace's note says the signature authorizes the change; validity at most 7 days.
 - **Transactions** (`eth_sendTransaction`): the target (a fixed contract, or "a registry made by the factory X",
   checked on the network), the functions allowed, value always 0, the call exactly the encoding of its arguments;
   the description built from the decoded arguments ("Record 2 raw material lots").

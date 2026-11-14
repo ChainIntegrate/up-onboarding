@@ -14,6 +14,7 @@ const { ethers } = require("ethers");
 const K = require("../shared/keystore.js");
 const UPRequest = require("../shared/request.js");
 const UPRelay = require("../shared/relay.js");
+const UPCatalog = require("../shared/catalog.js");
 
 const EXT = path.join(__dirname, "..", "extension");
 const OUT = path.join(__dirname, "out");
@@ -270,12 +271,18 @@ async function verify(page, file, pw) {
   // The network: ChainIntegrate's node through the service (/api/rpc), LUKSO's public node as the fallback.
   const rpcSeen = { service: 0, lukso: 0 };
   let serviceDown = false;
+  // The GasTrace registry's current data, as getDataBatch answers it (the confirmation window reads it for SetData).
+  const GET_BATCH = new ethers.Interface(["function getDataBatch(bytes32[]) view returns (bytes[])"]);
+  const regData = {};
   const answerRpc = (who) => (r) => {
     rpcSeen[who]++;
     if (who === "service" && serviceDown) return r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"upstream"}' });
     const q = JSON.parse(r.request().postData());
     let result = who === "service" ? "0x10" : "0x11";
-    if (q.method === "eth_call") { const a = IS_REG.decodeFunctionData("isRegistry", q.params[0].data)[0]; result = ethers.zeroPadValue(a === REG ? "0x01" : "0x00", 32); }
+    if (q.method === "eth_call" && q.params[0].data.startsWith(GET_BATCH.getFunction("getDataBatch").selector)) {
+      const [keys] = GET_BATCH.decodeFunctionData("getDataBatch", q.params[0].data);
+      result = GET_BATCH.encodeFunctionResult("getDataBatch", [keys.map((k) => regData[k.toLowerCase()] || "0x")]);
+    } else if (q.method === "eth_call") { const a = IS_REG.decodeFunctionData("isRegistry", q.params[0].data)[0]; result = ethers.zeroPadValue(a === REG ? "0x01" : "0x00", 32); }
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: q.id, result }) });
   };
   await ctx.route("https://account.chainintegrate.it/api/rpc", answerRpc("service"));
@@ -372,14 +379,75 @@ async function verify(page, file, pw) {
     types: { EIP712Domain: [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }], ...OP_TYPES },
     primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", deadline: String(Math.floor(Date.now() / 1000) + 600) } });
   pop = ctx.waitForEvent("page");
-  pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(REG))]);
+  const t0 = opTyped(REG); // the object signed, kept: rebuilding it later would give another deadline (audit Q-01)
+  pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(t0)]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
   check(/Autorizzare il telefono/.test(await w.textContent("#what")) && /GasTrace/.test(await w.textContent("#title")), "GasTrace: authorizing a phone is shown in plain words");
   await plainWords(w, "GasTrace");
   await w.fill("#pw", PW); await w.click("#ok");
-  const t0 = opTyped(REG);
   const opSig = (await pending).r;
   check(!!opSig && ethers.recoverAddress(ethers.TypedDataEncoder.hash(t0.domain, OP_TYPES, t0.message), opSig) === code, "GasTrace: the request is signed with this computer's key (EIP-712, as the registry checks it through the account)");
+  // GasTrace's SetData, TransferOwnership: what the window says, from the request's values and the registry's data
+  {
+    const G = UPCatalog.GCR;
+    const SD = { SetData: [{ name: "dataKeys", type: "bytes32[]" }, { name: "dataValuesHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+    const enc = "0x" + "cd".repeat(40);
+    const cp1 = G.COUNTERPARTY + "11".repeat(20);
+    const sdTyped = (entries, { values = true, hash = null } = {}) => {
+      const keys = entries.map((e) => e[0]), vals = entries.map((e) => e[1]);
+      const t = { domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: REG }, types: SD, primaryType: "SetData",
+        message: { dataKeys: keys, dataValuesHash: hash || ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [vals])), nonce: "1", deadline: String(Math.floor(Date.now() / 1000) + 3600) } };
+      if (values) t.dataValues = vals;
+      return t;
+    };
+    const showWindow = async (typed) => {
+      const pop = ctx.waitForEvent("page");
+      const pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(typed)]);
+      const w = await pop; await w.waitForSelector("#ok:not([hidden]), #box.warn", { timeout: 15000 });
+      return { w, pending };
+    };
+    const noWindow = async (typed) => { const before = ctx.pages().length; const r = await askGt("eth_signTypedData_v4", [UP, JSON.stringify(typed)]); return r.e && r.e.code === 4100 && ctx.pages().length === before ? r.e.message : null; };
+    const sensitive = (w) => w.evaluate(() => [...document.querySelectorAll("#what li.sensitive")].map((l) => l.textContent));
+    const cases = [
+      ["a new customer", [[cp1, enc]], {}, /Aggiungere 1 cliente o centro di ricarica/, false],
+      ["a changed customer", [[cp1, enc]], { [cp1]: enc }, /Modificare 1 cliente o centro di ricarica/, false],
+      ["a removed customer", [[cp1, "0x"]], { [cp1]: enc }, /Togliere 1 cliente o centro di ricarica/, false],
+      ["the settings", [[G.SETTINGS, enc]], {}, /Impostazioni dell'azienda \(nome e mail\)/, false],
+      ["the first setup", [[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc]], {}, /Preparare la cifratura dei dati del registro: password e codice di recupero \(prima volta\)/, true],
+      ["a password change", [[G.WRAP_PASSWORD, enc]], { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc }, /Cambiare la password dei dati/, true],
+    ];
+    for (const [name, entries, data, re, red] of cases) {
+      for (const k of Object.keys(regData)) delete regData[k];
+      Object.assign(regData, data);
+      const { w, pending } = await showWindow(sdTyped(entries));
+      const what = await w.textContent("#what"), note = await w.textContent("#note"), red2 = await sensitive(w);
+      check(re.test(what) && /I valori sono cifrati: qui si vede il tipo di modifica, non il contenuto\./.test(what) && /Valida fino al/.test(what) &&
+        /^Con questa conferma autorizzi questa modifica del registro; la registra il servizio GasTrace\.$/.test(note) && !/non cambia/.test(note) &&
+        (red ? red2.length === 1 && re.test(red2[0]) : red2.length === 0), `GasTrace SetData, ${name}: described from the values and the registry's data` + ` [${what.slice(0, 90)} | ${note}]`);
+      if (name === "a new customer") await plainWords(w, "GasTrace SetData");
+      await w.close(); await pending;
+    }
+    // both wraps when already there: refused in the window, after reading the registry
+    for (const k of Object.keys(regData)) delete regData[k];
+    Object.assign(regData, { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc });
+    let sw = await showWindow(sdTyped([[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc]]));
+    check(/wraps_both/.test(await sw.w.textContent("#title")) && (await sw.pending).e.code === 4100 && !(await sw.w.isVisible("#ok")), "GasTrace SetData: password and recovery code together, when already there, are refused");
+    await sw.w.close();
+    check(/wrap_deleted/.test(await noWindow(sdTyped([[G.WRAP_PASSWORD, "0x"]])) || ""), "GasTrace SetData: deleting the password's wrap is refused, without a window");
+    check(/unknown_data_key/.test(await noWindow(sdTyped([[ethers.id("SomethingElse"), enc]])) || ""), "GasTrace SetData: an unknown data key is refused, without a window");
+    check(/data_values_mismatch/.test(await noWindow(sdTyped([[cp1, enc]], { hash: ethers.id("x") })) || ""), "GasTrace SetData: values that do not match the signed hash are refused, without a window");
+    for (const k of Object.keys(regData)) delete regData[k];
+    sw = await showWindow(sdTyped([[cp1, enc]], { values: false }));
+    const sv = await sensitive(sw.w);
+    check(sv.some((x) => /Contenuto non verificabile/.test(x)) && await sw.w.isVisible("#ok"), "GasTrace SetData without the values (pages not updated yet): accepted with a highlighted warning");
+    await sw.w.close(); await sw.pending;
+    const TO = { TransferOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+    sw = await showWindow({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: REG }, types: TO, primaryType: "TransferOwnership",
+      message: { newOwner: PHONE, nonce: "2", deadline: String(Math.floor(Date.now() / 1000) + 3600) } });
+    const tv = await sensitive(sw.w);
+    check(tv.length === 1 && /Cedere il registro all'account .* Non lo controllerai più\./.test(tv[0]), "GasTrace: handing the registry over is shown in red");
+    await sw.w.close(); await sw.pending;
+  }
   pop = ctx.waitForEvent("page");
   pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(NOTREG))]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");

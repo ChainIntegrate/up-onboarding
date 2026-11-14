@@ -63,7 +63,7 @@
   const cancel = async () => { if (req) await answer({ error: { code: 4001, message: "The request was cancelled." } }); window.close(); };
 
   // What the request is, from the catalog: { title, lines, kind, digest, needs, call }.
-  function describe() {
+  function describe(current) {
     const project = UPCatalog.projectForOrigin(req.origin);
     if (!project || project.id !== req.project) return { error: "site" };
     const ctx = { origin: req.origin, account: req.account, chainId: req.chainId };
@@ -78,7 +78,7 @@
     }
     if (req.method === "eth_signTypedData_v4") {
       if (!same(p[0])) return { error: "other_account" };
-      return { ...UPCatalog.typedData(project, p[1], ctx), projectName: project.name };
+      return { ...UPCatalog.typedData(project, p[1], { ...ctx, current }), projectName: project.name };
     }
     if (req.method === "eth_sendTransaction") {
       const tx = p[0] || {};
@@ -104,12 +104,20 @@
     $("title").textContent = said.kind === "connect" ? t("connectTitle") : said.title[LANG];
     const ul = $("what"); ul.innerHTML = "";
     const lines = said.kind === "connect" ? [{ it: t("connectWhat"), en: t("connectWhat") }] : said.lines;
-    for (const l of lines) ul.appendChild(Object.assign(document.createElement("li"), { textContent: l[LANG] }));
-    $("note").textContent = said.kind === "call" ? t("noteCall") : said.kind === "connect" ? "" : t("noteSign");
+    for (const l of lines) ul.appendChild(Object.assign(document.createElement("li"), { textContent: l[LANG], className: l.sensitive ? "sensitive" : "" }));
+    // The project's own note when it has one (what its signature authorizes), else the kind's.
+    $("note").textContent = said.note ? said.note[LANG] : said.kind === "call" ? t("noteCall") : said.kind === "connect" ? "" : t("noteSign");
     $("ok").textContent = said.kind === "connect" ? t("okConnect") : t("ok");
     $("pwLabel").textContent = t("pwLabel");
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); render(); });
+
+  // A reading of the network: ChainIntegrate's node through the service, LUKSO's public node when it does not answer.
+  async function onNetwork(fn) {
+    const net = CONFIG.networks[req.network];
+    const at = (url) => fn(new ethers.JsonRpcProvider(url, req.chainId, { staticNetwork: true, batchMaxCount: 1 }));
+    try { return await at(net.rpc); } catch (e) { if (!net.fallback) throw e; return at(net.fallback); }
+  }
 
   const postJson = async (url, body) => {
     let res, b;
@@ -146,10 +154,7 @@
       }
       if ((await Integrity.check()).state === "bad") { say(t("integrity"), "line-err"); return; }
       if (said.needs && said.needs.length) {
-        const net = CONFIG.networks[req.network];
-        const at = (url) => UPCatalog.verifyNeeds(new ethers.JsonRpcProvider(url, req.chainId, { staticNetwork: true, batchMaxCount: 1 }), said.needs);
-        let isProject;
-        try { isProject = await at(net.rpc); } catch (e) { if (!net.fallback) throw e; isProject = await at(net.fallback); }
+        const isProject = await onNetwork((pr) => UPCatalog.verifyNeeds(pr, said.needs));
         if (!isProject) { say(t("notProject"), "line-err"); await answer({ error: { code: 4100, message: "Not allowed by ChainIntegrate Account (not_a_project_contract)." } }); return; }
       }
       say(t("unlocking"), "line-dim");
@@ -184,6 +189,12 @@
       said = null; render(); $("title").textContent = t("wrongAccount"); $("ok").hidden = true; await answer({ error: { code: 4100, message: "Not allowed by ChainIntegrate Account (other_account)." } }); return;
     }
     said = describe();
+    // A request whose description depends on the registry's current values (GasTrace's SetData): read them, then
+    // describe it again with them (a first setup, a change, a refusal).
+    if (said.ok && said.reads && said.reads.length) {
+      try { said = describe(await onNetwork((pr) => UPCatalog.readCurrent(pr, said.reads))); }
+      catch (e) { said = { ok: false, error: "network_unreadable" }; }
+    }
     if (!said.ok) {
       render(); $("box").classList.add("warn"); $("title").textContent = t("notAllowed", { r: said.error }); $("ok").hidden = true;
       await answer({ error: { code: 4100, message: `Not allowed by ChainIntegrate Account (${said.error}).` } });

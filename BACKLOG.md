@@ -27,6 +27,20 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
+## 0.5.1
+
+GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation, 2026-11-14):
+- `SetData`: each data key classified (the data password's and the recovery code's wraps, the company's settings,
+  a customer or refill centre, the collection's public description); any other key refused. The request's values
+  (top-level `dataValues`, sent by GasTrace's page) are checked against the signed `dataValuesHash`; without them
+  the request is accepted with a highlighted "content not verifiable" warning (transition, to be made required).
+  The window reads the registry's current values (`UPCatalog.readCurrent`, then `typedData` with `ctx.current`) to
+  tell a first setup from a change: both wraps only the first time, never deleted; customers added, changed or
+  removed. Fixed line: the values are encrypted, the window shows the kind of change.
+- Handing the registry over in red; GasTrace's own note under its requests ("With this confirmation you authorize
+  this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
+  validity shown; requests valid for more than 7 days refused (G-07 / U-06).
+
 ## Next extension version
 
 - **This computer's name**: the "This computer" panel shows the name the extension saved itself, while the list of

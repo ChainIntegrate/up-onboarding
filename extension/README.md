@@ -2,7 +2,7 @@
 
 The client's access to their ChainIntegrate account from a computer, and to ChainIntegrate's projects. Chrome, Edge
 and Brave (Chromium 121 or later), Manifest V3. Separate from UP Wallet for the browser: no networks to choose, no
-technical words, only ChainIntegrate's sites. **Status: 0.5.0** (what changed in each version: [../BACKLOG.md](../BACKLOG.md)).
+technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in each version: [../BACKLOG.md](../BACKLOG.md)).
 
 ## What the client sees
 

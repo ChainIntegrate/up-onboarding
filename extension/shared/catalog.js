@@ -7,7 +7,9 @@
 //   UPCatalog.projectForOrigin(origin)                       the project serving that page, or null
 //   UPCatalog.message(project, text, { origin, account, chainId })
 //                                                            a sign-in message (personal_sign)
-//   UPCatalog.typedData(project, typed, { account, chainId }) EIP-712 data (eth_signTypedData_v4)
+//   UPCatalog.typedData(project, typed, { account, chainId, current }) EIP-712 data (eth_signTypedData_v4); its
+//                                                            `reads` name registry values for a precise description:
+//   UPCatalog.readCurrent(provider, reads)                   read them, then typedData again with ctx.current
 //   UPCatalog.call({ chainId, to, data, value }, project?)   a transaction from the account (eth_sendTransaction)
 //   UPCatalog.verifyNeeds(provider, needs)                   the on-chain checks the three above ask for
 // Each returns { ok: true, project, title, lines, needs, digest } (digest: what the key signs, for the first two) or { ok: false, error }: `title` and `lines` are
@@ -65,6 +67,74 @@
   // project's factory; as its owner the client signs EIP-712 requests that the project's own relayer sends.
   const CYLINDER_FACTORY = "0xA128e7162fa8Dc779bf31EF569F06B53a499A50e"; // GasCylinderRegistryFactory, LUKSO
 
+  // GasTrace's registry data (ERC725Y keys written by SetData): the only keys an owner's SetData may write.
+  const GCR = {
+    WRAP_PASSWORD: "0xa75f4246186888da9c1e7e7e4264ec0efee6ca0ac1d7d25e7747653fc89884a1", // id("GCRKeyWrap:0"): the data password
+    WRAP_RECOVERY: "0x70ad5f9434f4b7959e8544a0a3c1f02c8d6cc3cf9bf7d50f991b39849ef1d9e9", // id("GCRKeyWrap:1"): the recovery code
+    SETTINGS: "0x7360ff3fd3307b001f63e23a6ceb3a235f0fc21dfbe6c1051df93ee2e08a16f2",      // id("GCRSettings")
+    COUNTERPARTY: "0xb94f78e3e7196a6c35f70000",                                            // LSP2 Mapping "GCRCounterparty" + bytes20
+    LSP4_METADATA: "0x9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e",   // the collection's public description
+  };
+  const empty = (v) => v === undefined || v === null || v === "0x" || v === "";
+  // SetData: each key classified, the values checked against the signed hash (when the page sends them, as the
+  // top-level "dataValues" of the request), the current values read from the registry (ctx.current, when given)
+  // to tell a first setup from a change. { lines } or { error }.
+  function describeSetData(m, typed, current) {
+    const keys = m.dataKeys.map((k) => String(k).toLowerCase());
+    if (!keys.length || new Set(keys).size !== keys.length) return { error: "typed_data" };
+    let values = null;
+    if (typed.dataValues !== undefined) {
+      const v = typed.dataValues;
+      if (!Array.isArray(v) || v.length !== keys.length || !v.every((x) => typeof x === "string" && ethers.isHexString(x))) return { error: "data_values" };
+      let h;
+      try { h = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [v])); } catch (e) { return { error: "data_values" }; }
+      if (h.toLowerCase() !== String(m.dataValuesHash).toLowerCase()) return { error: "data_values_mismatch" };
+      values = v.map((x) => x.toLowerCase());
+    }
+    const cur = (k) => (current ? current[k] : undefined);
+    const known = current !== undefined && current !== null;
+    const lines = [];
+    let pw = null, rc = null, settings = null, meta = null;
+    const cp = { added: 0, changed: 0, removed: 0, some: 0 };
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i], val = values ? values[i] : undefined;
+      if (k === GCR.WRAP_PASSWORD) pw = { val };
+      else if (k === GCR.WRAP_RECOVERY) rc = { val };
+      else if (k === GCR.SETTINGS) settings = { val };
+      else if (k === GCR.LSP4_METADATA) meta = { val };
+      else if (k.startsWith(GCR.COUNTERPARTY) && k.length === 66) {
+        if (!values) cp.some++;
+        else if (empty(val)) cp.removed++;
+        else if (known && !empty(cur(k))) cp.changed++;
+        else if (known) cp.added++;
+        else cp.some++;
+      } else return { error: "unknown_data_key" };
+    }
+    // The data key's wraps: never deleted; both at once only the first time.
+    if ((pw && values && empty(pw.val)) || (rc && values && empty(rc.val))) return { error: "wrap_deleted" };
+    if (pw && rc) {
+      if (known && (!empty(cur(GCR.WRAP_PASSWORD)) || !empty(cur(GCR.WRAP_RECOVERY)))) return { error: "wraps_both" };
+      lines.push(Object.assign(T("Preparare la cifratura dei dati del registro: password e codice di recupero (prima volta)", "Prepare the encryption of the registry's data: password and recovery code (first time)"), { sensitive: true }));
+    } else if (pw || rc) {
+      const which = pw ? GCR.WRAP_PASSWORD : GCR.WRAP_RECOVERY;
+      if (known && empty(cur(which))) return { error: "wrap_setup_incomplete" };
+      lines.push(Object.assign(pw ? T("Cambiare la password dei dati", "Change the data password") : T("Cambiare il codice di recupero", "Change the recovery code"), { sensitive: true }));
+    }
+    if (settings) lines.push(values && empty(settings.val) ? T("Cancellare le impostazioni dell'azienda (nome e mail)", "Delete the company's settings (name and e-mail)") : T("Impostazioni dell'azienda (nome e mail)", "The company's settings (name and e-mail)"));
+    const n = (x, one, many) => count(x, one, many);
+    if (cp.added) lines.push(T(`Aggiungere ${n(cp.added, "cliente o centro di ricarica", "clienti o centri di ricarica")}`, `Add ${n(cp.added, "customer or refill centre", "customers or refill centres")}`));
+    if (cp.changed) lines.push(T(`Modificare ${n(cp.changed, "cliente o centro di ricarica", "clienti o centri di ricarica")}`, `Change ${n(cp.changed, "customer or refill centre", "customers or refill centres")}`));
+    if (cp.removed) lines.push(T(`Togliere ${n(cp.removed, "cliente o centro di ricarica", "clienti o centri di ricarica")}`, `Remove ${n(cp.removed, "customer or refill centre", "customers or refill centres")}`));
+    if (cp.some) lines.push(T(`Aggiungere o modificare ${n(cp.some, "cliente o centro di ricarica", "clienti o centri di ricarica")}`, `Add or change ${n(cp.some, "customer or refill centre", "customers or refill centres")}`));
+    if (meta) lines.push(values && empty(meta.val) ? T("Cancellare la descrizione pubblica della collezione", "Delete the collection's public description") : T("Descrizione pubblica della collezione (visibile a tutti)", "The collection's public description (visible to everyone)"));
+    lines.push(T("I valori sono cifrati: qui si vede il tipo di modifica, non il contenuto.", "The values are encrypted: this shows the kind of change, not its content."));
+    if (!values) lines.push(Object.assign(T("Contenuto non verificabile: la pagina non ha mandato i valori della modifica.", "Content not verifiable: the page did not send the change's values."), { sensitive: true }));
+    // What to read from the registry for a precise description (a caller with a provider passes it back as ctx.current).
+    const reads = keys.filter((k) => k === GCR.WRAP_PASSWORD || k === GCR.WRAP_RECOVERY || k.startsWith(GCR.COUNTERPARTY));
+    if (pw || rc) for (const w of [GCR.WRAP_PASSWORD, GCR.WRAP_RECOVERY]) if (!reads.includes(w)) reads.push(w);
+    return { lines, reads };
+  }
+
   const PROJECTS = [
     {
       id: "traceability",
@@ -119,16 +189,18 @@
       sites: ["gastrace.chainintegrate.it"],
       typed: {
         domain: { name: "GasCylinderRegistry", version: "1" },
+        // What the signature does, under the request (the window's note), and the longest validity accepted.
+        note: T("Con questa conferma autorizzi questa modifica del registro; la registra il servizio GasTrace.", "With this confirmation you authorize this change of the registry; GasTrace's service records it."),
+        maxValidity: 7 * 24 * 3600,
         madeBy: CYLINDER_FACTORY ? { factory: CYLINDER_FACTORY, check: "isRegistry(address)" } : null,
         chainIds: [MAINNET],
         types: {
           SetOperator: { fields: "address operator,bool enabled,uint256 nonce,uint256 deadline",
             describe: (m) => m.enabled ? T(`Autorizzare il telefono ${short(m.operator)} a registrare per te`, `Authorize the phone ${short(m.operator)} to record for you`)
               : T(`Togliere l'autorizzazione al telefono ${short(m.operator)}`, `Revoke the phone ${short(m.operator)}`) },
-          SetData: { fields: "bytes32[] dataKeys,bytes32 dataValuesHash,uint256 nonce,uint256 deadline",
-            describe: (m) => T(`Cambiare i dati del registro (${count(m.dataKeys.length, "voce", "voci")}: controparti e impostazioni, cifrate)`, `Change the registry's data (${count(m.dataKeys.length, "item", "items")}: counterparties and settings, encrypted)`) },
+          SetData: { fields: "bytes32[] dataKeys,bytes32 dataValuesHash,uint256 nonce,uint256 deadline", setData: true },
           TransferOwnership: { fields: "address newOwner,uint256 nonce,uint256 deadline",
-            describe: (m) => T(`Cedere il registro all'account ${short(m.newOwner)}. Non lo controllerai più.`, `Hand the registry over to the account ${short(m.newOwner)}. You will no longer control it.`) },
+            describe: (m) => Object.assign(T(`Cedere il registro all'account ${short(m.newOwner)}. Non lo controllerai più.`, `Hand the registry over to the account ${short(m.newOwner)}. You will no longer control it.`), { sensitive: true }) },
           AcceptOwnership: { fields: "address newOwner,uint256 nonce,uint256 deadline",
             describe: () => T("Accettare la proprietà del registro", "Accept the ownership of the registry") },
         },
@@ -222,7 +294,7 @@
   const DOMAIN_FIELDS = "string name,string version,uint256 chainId,address verifyingContract";
   const fieldsOf = (list) => (Array.isArray(list) ? list.map((f) => `${f.type} ${f.name}`).join(",") : null);
 
-  function typedData(project, typed, { account, chainId }) {
+  function typedData(project, typed, { account, chainId, current } = {}) {
     const spec = project && project.typed;
     if (!spec) return fail("not_in_catalog");
     let t = typed;
@@ -245,14 +317,32 @@
       digest = ethers.TypedDataEncoder.hash({ name: d.name, version: d.version, chainId: d.chainId, verifyingContract: d.verifyingContract }, types, t.message);
       msg = ethers.TypedDataEncoder.from(types).visit(t.message, (type, v) => (/^(u?int)/.test(type) ? BigInt(v) : v));
     } catch (e) { return fail("typed_data"); }
-    if (msg.deadline !== undefined && Number(msg.deadline) < Date.now() / 1000) return fail("expired");
+    const now = Date.now() / 1000;
+    if (msg.deadline !== undefined && Number(msg.deadline) < now) return fail("expired");
+    if (msg.deadline !== undefined && spec.maxValidity && Number(msg.deadline) > now + spec.maxValidity) return fail("deadline_too_far");
     if (!spec.madeBy) return fail("not_configured");
     void account; // the registry checks (ERC-1271) that the account is its owner
+    const registry = ethers.getAddress(d.verifyingContract);
+    let what, reads = [];
+    if (kind.setData) {
+      const r = describeSetData(msg, t, current);
+      if (r.error) return fail(r.error);
+      what = r.lines; reads = r.reads;
+    } else what = [kind.describe(msg)];
+    const lines = [...what, T(`Registro ${short(registry)}.`, `Registry ${short(registry)}.`)];
+    if (msg.deadline !== undefined) {
+      const at = new Date(Number(msg.deadline) * 1000);
+      const f = (loc) => at.toLocaleString(loc, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      lines.push(T(`Valida fino al ${f("it-IT")}.`, `Valid until ${f("en-GB")}.`));
+    }
     return {
       ok: true, project: project.id, kind: "typedData", digest,
       title: T(`${project.name}: richiesta da firmare`, `${project.name}: a request to sign`),
-      lines: [kind.describe(msg), T(`Registro ${short(d.verifyingContract)}.`, `Registry ${short(d.verifyingContract)}.`)],
-      needs: [{ factory: spec.madeBy.factory, check: spec.madeBy.check, address: ethers.getAddress(d.verifyingContract) }],
+      lines, note: spec.note || null,
+      needs: [{ factory: spec.madeBy.factory, check: spec.madeBy.check, address: registry }],
+      // Values to read from the registry for the precise description, when the caller has not given them yet
+      // (UPCatalog.readCurrent, then typedData again with ctx.current).
+      reads: current === undefined || current === null ? (reads.length ? [{ address: registry, keys: reads }] : []) : [],
     };
   }
 
@@ -286,6 +376,18 @@
     return fail("not_in_catalog");
   }
 
+  // The current values a description needs (typedData's `reads`), from the registry: { key: value } (lowercase), to
+  // pass back as ctx.current. Throws when the network cannot be read.
+  async function readCurrent(provider, reads) {
+    const out = {};
+    for (const r of reads || []) {
+      const c = new ethers.Contract(r.address, ["function getDataBatch(bytes32[]) view returns (bytes[])"], provider);
+      const vals = await c.getDataBatch(r.keys);
+      r.keys.forEach((k, i) => { out[String(k).toLowerCase()] = String(vals[i] || "0x").toLowerCase(); });
+    }
+    return out;
+  }
+
   // The on-chain checks: each { factory, check: "isRegistry(address)", address } must answer true. false when one
   // answers no (or the contract refuses the question); throws when the network cannot be read, so the caller can
   // try another node or say so.
@@ -300,5 +402,5 @@
     return true;
   }
 
-  return { MAINNET, PROJECTS, projectForOrigin, projectById, parseSignIn, message, typedData, call, verifyNeeds };
+  return { MAINNET, PROJECTS, GCR, projectForOrigin, projectById, parseSignIn, message, typedData, call, verifyNeeds, readCurrent };
 });
