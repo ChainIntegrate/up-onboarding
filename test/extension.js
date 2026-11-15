@@ -304,7 +304,7 @@ async function verify(page, file, pw) {
   const IS_REG = new ethers.Interface(["function isRegistry(address) view returns (bool)"]);
   // The network: ChainIntegrate's node through the service (/api/rpc), LUKSO's public node as the fallback.
   const rpcSeen = { service: 0, lukso: 0 };
-  let serviceDown = false;
+  let serviceDown = false, serviceOtherChain = false;
   // The GasTrace registry's current data, as getDataBatch answers it (the confirmation window reads it for SetData).
   const GET_BATCH = new ethers.Interface(["function getDataBatch(bytes32[]) view returns (bytes[])"]);
   const regData = {};
@@ -316,6 +316,7 @@ async function verify(page, file, pw) {
     if (who === "service" && serviceDown) return r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"upstream"}' });
     const q = JSON.parse(r.request().postData());
     let result = who === "service" ? "0x10" : "0x11";
+    if (q.method === "eth_chainId") result = who === "service" && serviceOtherChain ? "0x1069" : "0x2a";
     if (q.method === "eth_call" && q.params[0].data.startsWith(GET_BATCH.getFunction("getDataBatch").selector)) {
       const [keys] = GET_BATCH.decodeFunctionData("getDataBatch", q.params[0].data);
       result = GET_BATCH.encodeFunctionResult("getDataBatch", [keys.map((k) => regData[k.toLowerCase()] || "0x")]);
@@ -334,10 +335,15 @@ async function verify(page, file, pw) {
   check(await site.evaluate(() => window.got[0].info.name === "ChainIntegrate Account" && window.got[0].info.rdns === "it.chainintegrate.account" && /^data:image\/png;base64,/.test(window.got[0].info.icon) && !window.ethereum && !window.lukso),
     "a project's page finds the extension with EIP-6963 (and nothing is set as window.ethereum or window.lukso)");
   const ask = (method, params) => site.evaluate(([m, p]) => window.got[0].provider.request({ method: m, params: p }).then((r) => ({ r }), (e) => ({ e: { code: e.code, message: e.message } })), [method, params]);
-  check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10" && rpcSeen.lukso === 0, "the page reads the network through the extension, from ChainIntegrate's node");
+  serviceOtherChain = true;
+  check((await ask("eth_blockNumber", [])).r === "0x11", "a node that says it is on another network is not used: LUKSO's public node answers (audit A15)");
+  serviceOtherChain = false;
+  const lukso0 = rpcSeen.lukso;
+  check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10" && rpcSeen.lukso === lukso0, "the page reads the network through the extension, from ChainIntegrate's node");
   serviceDown = true;
   check((await ask("eth_blockNumber", [])).r === "0x11", "when ChainIntegrate's node does not answer, LUKSO's public node does");
   serviceDown = false;
+  const lukso1 = rpcSeen.lukso;
   check((await ask("eth_accounts", [])).r.length === 0 && (await ask("personal_sign", ["0x01", UP])).e.code === 4100, "before connecting, no address and no signature");
   // connect: the confirmation window, Cancel focused
   let pop = ctx.waitForEvent("page");
@@ -381,7 +387,7 @@ async function verify(page, file, pw) {
   pending = ask("eth_sendTransaction", [{ from: UP, to: NOTREG, data: lots }]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");
   await w.fill("#pw", PW); await w.click("#ok");
-  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")) && rpcSeen.lukso === 1, "a registry not created by the project's factory is refused (checked on ChainIntegrate's node)");
+  check((await pending).e.code === 4100 && /non risulta/.test(await w.textContent("#msg")) && rpcSeen.lukso === lukso1, "a registry not created by the project's factory is refused (checked on ChainIntegrate's node)");
   await w.close();
   // cancel
   pop = ctx.waitForEvent("page");

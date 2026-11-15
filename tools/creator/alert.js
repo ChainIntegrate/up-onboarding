@@ -48,6 +48,8 @@ async function problems(cfg) {
   try {
     const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
     const w = new ethers.Wallet(fs.readFileSync(cfg.gasKeyFile, "utf8").trim());
+    const id = Number(await provider.send("eth_chainId", []));
+    if (id !== cfg.chainId) out.push(`The node ${cfg.rpcHost} answers chain id ${id}, the configuration says ${cfg.chainId}: wrong node or network.`);
     const balance = await provider.getBalance(w.address);
     // The floor plus about ten creations: time to top it up before the service starts refusing.
     if (balance < ethers.parseEther(cfg.minBalance) + ethers.parseEther("0.1")) out.push(`The gas wallet ${w.address} has ${ethers.formatEther(balance)} (${cfg.network}): top it up, the service refuses creations under ${cfg.minBalance}.`);

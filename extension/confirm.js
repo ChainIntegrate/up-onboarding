@@ -117,7 +117,12 @@
   // A reading of the network: ChainIntegrate's node through the service, LUKSO's public node when it does not answer.
   async function onNetwork(fn) {
     const net = CONFIG.networks[req.network];
-    const at = (url) => fn(new ethers.JsonRpcProvider(url, req.chainId, { staticNetwork: true, batchMaxCount: 1 }));
+    // The node says itself which network it is on (the provider's is only declared, audit A15).
+    const at = async (url) => {
+      const pr = new ethers.JsonRpcProvider(url, req.chainId, { staticNetwork: true, batchMaxCount: 1 });
+      if (Number(await pr.send("eth_chainId", [])) !== Number(req.chainId)) throw new Error("other network");
+      return fn(pr);
+    };
     try { return await at(net.rpc); } catch (e) { if (!net.fallback) throw e; return at(net.fallback); }
   }
 

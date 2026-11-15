@@ -751,8 +751,18 @@ function makeService(cfg) {
     } finally { release(); }
   }
 
-  // Once at the start, in the queue (the gas wallet's nonces).
-  queue = queue.then(reconcile).catch((e) => console.error("reconcile:", e.message));
+  // The node's network, asked to the node itself (the provider's network is only declared: staticNetwork, audit
+  // A15): at the start and every 10 minutes; another network stops the service (systemd and alert.js report it).
+  async function checkNetwork() {
+    const id = Number(await provider.send("eth_chainId", []));
+    if (id !== cfg.chainId) { console.error(`WRONG NETWORK: the node ${cfg.rpcHost} answers chain id ${id}, the configuration says ${cfg.chainId}: stopping`); process.exit(1); }
+  }
+  let reconciled = false;
+  const startChecks = () => { queue = queue.then(checkNetwork).then(() => { if (!reconciled) { reconciled = true; return reconcile(); } }).catch((e) => console.error("start checks:", e.shortMessage || e.message)); };
+  // Once at the start, in the queue (the gas wallet's nonces); again every 10 minutes (and the reconciliation, if the
+  // node could not be read at the start).
+  startChecks();
+  setInterval(startChecks, 10 * 60000).unref();
   return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, handleAdminChallenge, handleAdminSession, handleAdminInvites, wallet, provider, store };
 }
 

@@ -441,6 +441,14 @@ async function waitFor(url, body) {
     check(/created today 2 of 2/.test(cli("status")), "status counts today's accounts");
     check(cli("invites").split("\n").length === 6, "the codes are listed (4 from the command line, 2 from the page)");
 
+    // ---- a node on another network than the configuration's: the service stops (audit A15)
+    {
+      fs.writeFileSync(path.join(dir, "config-chain.json"), JSON.stringify({ ...config, port: PORT + 7, chainId: 4201 }));
+      const wrong = spawn(process.execPath, [CREATOR, "serve"], { env: { ...env, CREATOR_CONFIG: path.join(dir, "config-chain.json") }, stdio: ["ignore", "ignore", "pipe"] });
+      let err = ""; wrong.stderr.on("data", (d) => { err += d; });
+      const code = await new Promise((res) => { const t = setTimeout(() => { wrong.kill(); res("running"); }, 20000); wrong.on("exit", (c) => { clearTimeout(t); res(c); }); });
+      check(code === 1 && /WRONG NETWORK/.test(err), "a service whose node answers another chain id stops at once (audit A15)" + ` [${code}]`);
+    }
     // ---- alerts (alert.js check), e-mails to a file
     const outbox = path.join(dir, "outbox.jsonl");
     const ALERT = path.join(__dirname, "..", "tools", "creator", "alert.js");

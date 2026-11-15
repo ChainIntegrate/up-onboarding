@@ -64,12 +64,23 @@ async function rpcAt(url, method, params) {
   if (!("result" in b)) throw new Error("no result");
   return { result: b.result };
 }
+// Each node is used only after it said, itself, that it is on the account's network (eth_chainId, asked again every
+// 10 minutes, audit A15): a node on another network counts as one that does not answer.
+const nodeChecked = new Map(); // url -> time of the last good answer
+async function onChain(url, chainId) {
+  const at = nodeChecked.get(url);
+  if (at && Date.now() - at < 600000) return;
+  const r = await rpcAt(url, "eth_chainId", []);
+  if (!r.result || Number(r.result) !== chainId) { nodeChecked.delete(url); throw new Error("other network"); }
+  nodeChecked.set(url, Date.now());
+}
 async function rpc(network, method, params) {
   const n = CONFIG.networks[network];
-  try { return await rpcAt(n.rpc, method, params); }
+  const at = async (url) => { await onChain(url, n.chainId); return rpcAt(url, method, params); };
+  try { return await at(n.rpc); }
   catch (e) {
     if (!n.fallback) return { error: { code: -32603, message: "The network cannot be read now." } };
-    try { return await rpcAt(n.fallback, method, params); } catch (e2) { return { error: { code: -32603, message: "The network cannot be read now." } }; }
+    try { return await at(n.fallback); } catch (e2) { return { error: { code: -32603, message: "The network cannot be read now." } }; }
   }
 }
 
