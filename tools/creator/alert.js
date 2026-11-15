@@ -5,6 +5,7 @@
 //   node alert.js check           every 10 minutes (up-onboarding-creator-check.timer): the service answers,
 //                                 the gas wallet is above its floor, no code is left in "review" or "creating",
 //                                 the nightly backup is there;
+//                                 an e-mail for each sign-in to the invitations page (admin.jsonl, audit U-02);
 //                                 an e-mail when a problem appears, when it lasts (every 6 hours), and when
 //                                 it is solved
 //   node alert.js test            a test e-mail
@@ -85,6 +86,17 @@ async function main() {
     const stateFile = path.join(cfg.dataDir, "alert-state.json");
     let state = {};
     try { state = JSON.parse(fs.readFileSync(stateFile, "utf8")); } catch (e) { /* first run */ }
+    // Sign-ins to the invitations page since the last check: one e-mail listing them.
+    const seen = Number(state.adminSeen || 0);
+    let admin = [];
+    try { admin = fs.readFileSync(path.join(cfg.dataDir, "admin.jsonl"), "utf8").split("\n").filter(Boolean); } catch (e) { if (e.code !== "ENOENT") console.error(e.message); }
+    const fresh = admin.slice(Math.min(seen, admin.length)).map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter((x) => x && x.event === "signin");
+    if (fresh.length) {
+      await sendMail("sign-in to the invitations page", `On ${os.hostname()} (${cfg.network}), the invitations page was opened:\n\n` +
+        fresh.map((x) => `- ${x.at}: ${x.operator}${x.key && x.key !== x.operator ? ` (key ${x.key})` : ""}`).join("\n") +
+        `\n\nIf it was not you or a colleague, remove the address from "operators" in the configuration and restart the service.\n`);
+    }
+    const adminSeen = admin.length;
     const now = await problems(cfg);
     const key = now.join("\n");
     const due = key && (key !== state.key || Date.now() - (state.sentAt || 0) > REMIND_HOURS * 3600000);
@@ -97,6 +109,7 @@ async function main() {
     } else {
       console.log(key ? "problem already reported" : "all good");
     }
+    state.adminSeen = adminSeen;
     const tmp = stateFile + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(state), { mode: 0o600 }); fs.renameSync(tmp, stateFile);
     return;
   }

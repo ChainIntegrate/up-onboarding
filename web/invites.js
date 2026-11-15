@@ -2,7 +2,7 @@
 // client, lists the codes and revokes an open one. The account service (tools/creator, /api/admin/*) accepts it only
 // from a key in its configuration (`operators`): the page connects a wallet (EIP-6963), asks a sign-in message for
 // its address, has it signed (personal_sign; an account's signature is checked with ERC-1271) and keeps the session
-// token in this tab only (sessionStorage), for 8 hours. The code is answered once and stored nowhere but as a hash:
+// token in this tab only (sessionStorage), for 2 hours. The code is answered once and stored nowhere but as a hash:
 // copy the message before leaving the page. No private key here, no other site contacted.
 (function () {
   "use strict";
@@ -16,7 +16,7 @@
       h1: "Inviti",
       subtitle: "Riservata a ChainIntegrate: crea i codici di invito e il messaggio da mandare ai clienti.",
       signInTitle: "Accedi",
-      signInNote: "Collega il wallet con un account di ChainIntegrate abilitato (<b>operators</b> nella configurazione del servizio) e firma il messaggio di accesso: non è una transazione. L'accesso dura 8 ore, in questa scheda.",
+      signInNote: "Collega il wallet con un account di ChainIntegrate abilitato (<b>operators</b> nella configurazione del servizio) e firma il messaggio di accesso: non è una transazione. Serve una chiave amministratore dell'account. L'accesso dura 2 ore, in questa scheda e solo da questo browser; ogni accesso arriva per e-mail.",
       signInBtn: "Collega il wallet e accedi",
       pickWallet: "Scegli il wallet:",
       noWallet: "❌ Nessun wallet trovato nel browser (estensione LUKSO, UP Wallet o un altro EIP-6963).",
@@ -60,7 +60,7 @@
       h1: "Invitations",
       subtitle: "ChainIntegrate only: makes invitation codes and the message to send clients.",
       signInTitle: "Sign in",
-      signInNote: "Connect the wallet with a ChainIntegrate account allowed by the service (<b>operators</b> in its configuration) and sign the sign-in message: it is not a transaction. The session lasts 8 hours, in this tab.",
+      signInNote: "Connect the wallet with a ChainIntegrate account allowed by the service (<b>operators</b> in its configuration) and sign the sign-in message: it is not a transaction. An administrator key of the account is needed. The session lasts 2 hours, in this tab and from this browser only; each sign-in is e-mailed.",
       signInBtn: "Connect the wallet and sign in",
       pickWallet: "Choose the wallet:",
       noWallet: "❌ No wallet found in the browser (LUKSO's extension, UP Wallet or another EIP-6963 one).",

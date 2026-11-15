@@ -158,7 +158,9 @@ async function waitFor(url, body) {
     let ad = await adm("challenge", { address: stranger.address });
     check(ad.status === 403 && ad.body.error === "not_an_operator", "invitations: a key not in the configuration cannot sign in");
     ad = await adm("challenge", { address: opw.address });
-    check(ad.status === 200 && /ChainIntegrate invitations: sign in/.test(ad.body.message) && ad.body.message.includes(opw.address), "invitations: a sign-in message for an operator's key");
+    check(ad.status === 200 && new RegExp(`^account\\.chainintegrate\\.it wants you to sign in with your Ethereum account:\n${opw.address}\n\n`).test(ad.body.message) &&
+      /\nURI: https:\/\/account\.chainintegrate\.it\/invites\.html\nVersion: 1\nChain ID: 42\nNonce: [0-9a-f]{32}\nIssued At: .+\nExpiration Time: .+$/.test(ad.body.message),
+      "invitations: a sign-in message (EIP-4361, SIWE) for an operator's key, bound to the site" + ` [${ad.body.message.slice(0, 60)}]`);
     let se = await adm("session", { nonce: ad.body.nonce, signature: await stranger.signMessage(ad.body.message) });
     check(se.status === 401 && se.body.error === "bad_signature", "invitations: a signature by another key is refused");
     se = await adm("session", { nonce: ad.body.nonce, signature: await opw.signMessage(ad.body.message) });
@@ -168,6 +170,9 @@ async function waitFor(url, body) {
     check(se.status === 200 && /^[0-9a-f]{64}$/.test(se.body.token) && se.body.operator === opw.address, "invitations: the operator signs in once (a session)");
     const tok = se.body.token;
     check((await adm("invites", { token: "0".repeat(64), action: "list" })).status === 401, "invitations: no action without a session");
+    check(/"event":"signin".*"operator":"0x/.test(fs.readFileSync(path.join(dir, "data", "admin.jsonl"), "utf8")), "invitations: each sign-in is recorded (admin.jsonl)");
+    const otherBrowser = await fetch(`http://127.0.0.1:${PORT}/api/admin/invites`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.3.3.4" }, body: JSON.stringify({ token: tok, action: "list" }) });
+    check(otherBrowser.status === 401, "invitations: a session works only from the browser that signed in");
     let iv = await adm("invites", { token: tok, action: "create", note: "Bianchi Spa\u0007", days: 14 });
     const pageCode = iv.body.code;
     check(iv.status === 200 && /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(pageCode) && iv.body.link === `https://account.chainintegrate.it/#invito=${pageCode}` &&
@@ -442,10 +447,12 @@ async function waitFor(url, body) {
     const alert = (...a) => execFileSync(process.execPath, [ALERT, ...a], { env: { ...env, ALERT_OUTBOX: outbox }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
     const mails = () => (fs.existsSync(outbox) ? fs.readFileSync(outbox, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
     alert("check");
-    check(mails().length === 1 && /daily cap/.test(mails()[0].text), "alerts: the relay's daily cap sends an e-mail");
+    const signins = mails().filter((m) => /sign-in to the invitations page/.test(m.subject));
+    check(signins.length === 1 && signins[0].text.includes(opw.address), "alerts: a sign-in to the invitations page sends an e-mail (audit U-02)");
+    check(mails().length === 2 && /daily cap/.test(mails()[1].text), "alerts: the relay's daily cap sends an e-mail");
     fs.unlinkSync(path.join(dir, "data", "relay.jsonl"));
     alert("check");
-    check(mails().length === 2 && /solved/.test(mails()[1].subject), "alerts: and a second when it is over");
+    check(mails().length === 3 && /solved/.test(mails()[2].subject), "alerts: and a second when it is over");
     fs.unlinkSync(outbox);
     check(alert("check") === "all good" && mails().length === 0, "alerts: all good, no e-mail");
     svc.kill(); await sleep(500);
@@ -481,6 +488,12 @@ async function waitFor(url, body) {
         const ch2 = await adm("challenge", { address: created }, PORT + 5);
         const no = await adm("session", { nonce: ch2.body.nonce, signature: stranger.signingKey.sign(ethers.hashMessage(ch2.body.message)).serialized }, PORT + 5);
         check(no.status === 401, "invitations: a key that is not the account's cannot sign in for it");
+        // an access key of the operator's account: its signature is the account's (SIGN), but it does not open the page
+        const acc = ethers.Wallet.createRandom();
+        check(await direct(admin, UPRelay.addDevice({ length: (await readP(admin.address)).keys.length, address: acc.address, role: "access", name: "Accesso operatore", chainId: 42 })), "invitations: (an access key on the operator's account)");
+        const ch3 = await adm("challenge", { address: created }, PORT + 5);
+        const acs = await adm("session", { nonce: ch3.body.nonce, signature: acc.signingKey.sign(ethers.hashMessage(ch3.body.message)).serialized }, PORT + 5);
+        check(acs.status === 401 && acs.body.reason === "not_admin", "invitations: an access key of the operator's account cannot sign in (an administrator's key is needed)");
       } finally { svc2.kill(); }
     }
   } finally {

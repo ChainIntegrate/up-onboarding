@@ -196,7 +196,7 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
         const route = r.request().url().split("/api/admin/")[1], body = JSON.parse(r.request().postData());
         calls.push([route, body]);
         const ok = (b) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
-        if (route === "challenge") { challenge = { nonce: "n1", message: `ChainIntegrate invitations: sign in\n\nAccount: ${body.address}\nSite: account.chainintegrate.it\nNonce: n1\nIssued At: ${new Date().toISOString()}` }; return ok(challenge); }
+        if (route === "challenge") { challenge = { nonce: "n1", message: `account.chainintegrate.it wants you to sign in with your Ethereum account:\n${body.address}\n\nSign in to ChainIntegrate's invitations page.\n\nURI: https://account.chainintegrate.it/invites.html\nVersion: 1\nChain ID: 42\nNonce: n1aaaaaa\nIssued At: ${new Date().toISOString()}` }; return ok(challenge); }
         if (route === "session") {
           if (ethers.verifyMessage(challenge.message, body.signature) !== opw.address) return r.fulfill({ status: 401, contentType: "application/json", body: '{"error":"bad_signature"}' });
           return ok({ token: "t".repeat(64), operator: opw.address, until: new Date(Date.now() + 8 * 3600000).toISOString() });

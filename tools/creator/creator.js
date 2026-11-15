@@ -511,10 +511,14 @@ function makeService(cfg) {
   }
 
   // ---- invitations from ChainIntegrate's page (web/invites.html), for the keys in `operators` only.
-  // One signature opens a session of 8 hours: the page asks a challenge for its address, the operator signs it
-  // (personal_sign, a key, or an account checked with ERC-1271), the service answers a session token kept in memory
-  // only. Each action names its operator in the journal; a daily limit on the codes made this way.
-  const SESSION_MS = 8 * 3600000;
+  // One signature opens a session of 2 hours, for that browser only (its address and user agent): the page asks a
+  // challenge for its address, a sign-in message in the EIP-4361 (SIWE) format, so wallets check it comes from this
+  // site; the operator signs it (personal_sign, a key, or an account checked with ERC-1271 whose signing key must be
+  // one of its administrators, not an access); the service answers a session token kept in memory only. Each
+  // sign-in is written to admin.jsonl, and alert.js e-mails it; each action names its operator in the journal; a
+  // daily limit on the codes made this way (audit U-02).
+  const SESSION_MS = 2 * 3600000;
+  const browserOf = (ip, ua) => crypto.createHash("sha256").update(`${ip}\n${String(ua || "")}`).digest("hex");
   const challenges = new Map(); // nonce -> { address, message, at }
   const sessions = new Map();   // token -> { operator, until }
   const recentAdmin = new Map();
@@ -532,34 +536,45 @@ function makeService(cfg) {
     const operator = operatorOf(body && body.address);
     if (!operator) throw new HttpError(403, "not_an_operator");
     const nonce = crypto.randomBytes(16).toString("hex");
-    const message = `ChainIntegrate invitations: sign in\n\nAccount: ${operator}\nSite: ${new URL(cfg.siteUrl).host}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
+    const site = new URL(cfg.siteUrl), now = new Date();
+    const message = `${site.host} wants you to sign in with your Ethereum account:\n${operator}\n\n` +
+      `Sign in to ChainIntegrate's invitations page.\n\nURI: ${site.origin}/invites.html\nVersion: 1\nChain ID: ${cfg.chainId}\n` +
+      `Nonce: ${nonce}\nIssued At: ${now.toISOString()}\nExpiration Time: ${new Date(now.getTime() + 5 * 60000).toISOString()}`;
     challenges.set(nonce, { operator, message, at: Date.now() });
     return { nonce, message };
   }
-  async function handleAdminSession(body, ip) {
+  async function handleAdminSession(body, ip, ua) {
     rateLimitAdmin(ip); adminOn();
     const ch = body && challenges.get(String(body.nonce || ""));
     if (ch) challenges.delete(String(body.nonce));
     if (!ch || Date.now() - ch.at > 5 * 60000) throw new HttpError(401, "challenge_expired");
-    let ok = false;
+    let ok = false, notAdmin = false, signedBy = null;
     try {
       const sig = ethers.Signature.from(body.signature).serialized;
-      if (ethers.verifyMessage(ch.message, sig) === ch.operator) ok = true;
+      const key = ethers.verifyMessage(ch.message, sig);
+      if (key === ch.operator) { ok = true; signedBy = key; }
       else if ((await provider.getCode(ch.operator)) !== "0x") {
         const r = ERC1271.decodeFunctionResult("isValidSignature", await provider.call({ to: ch.operator, data: ERC1271.encodeFunctionData("isValidSignature", [ethers.hashMessage(ch.message), sig]) }))[0];
-        ok = r === "0x1626ba7e";
+        // The account accepts any of its keys with SIGN: only an administrator's key opens the page.
+        const pv = UP_DATA.decodeFunctionResult("getData", await provider.call({ to: ch.operator, data: UP_DATA.encodeFunctionData("getData", [UPRelay.permKey(key)]) }))[0];
+        const admin = pv && pv !== "0x" && (BigInt(pv) & 0x4n) !== 0n;
+        if (r === "0x1626ba7e" && !admin) notAdmin = true;
+        ok = r === "0x1626ba7e" && admin; signedBy = key;
       }
     } catch (e) { ok = false; }
-    if (!ok) { console.error(`invitations: a failed sign-in for ${ch.operator}`); throw new HttpError(401, "bad_signature"); }
+    if (!ok) { console.error(`invitations: a failed sign-in for ${ch.operator}${notAdmin ? " (a key that is not an administrator)" : ""}`); throw new HttpError(401, "bad_signature", notAdmin ? { reason: "not_admin" } : {}); }
     const token = crypto.randomBytes(32).toString("hex");
-    sessions.set(token, { operator: ch.operator, until: Date.now() + SESSION_MS });
-    console.log(`invitations: ${ch.operator} signed in`);
+    sessions.set(token, { operator: ch.operator, until: Date.now() + SESSION_MS, browser: browserOf(ip, ua) });
+    adminLog({ event: "signin", operator: ch.operator, key: signedBy });
+    console.log(`invitations: ${ch.operator} signed in (key ${signedBy})`);
     return { token, operator: ch.operator, until: new Date(Date.now() + SESSION_MS).toISOString() };
   }
-  async function handleAdminInvites(body, ip) {
+  const adminLog = (entry) => fs.appendFileSync(path.join(cfg.dataDir, "admin.jsonl"), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n", { mode: 0o600 });
+  async function handleAdminInvites(body, ip, ua) {
     rateLimitAdmin(ip); adminOn();
     const s = body && typeof body.token === "string" ? sessions.get(body.token) : null;
     if (!s || s.until < Date.now() || !cfg.operators.includes(s.operator)) { if (s) sessions.delete(body.token); throw new HttpError(401, "signed_out"); }
+    if (s.browser !== browserOf(ip, ua)) { console.error(`invitations: ${s.operator}'s session used from another browser`); throw new HttpError(401, "signed_out"); }
     const list = () => store.invites().reverse().slice(0, 200).map((i) => ({ id: i.id, state: i.state, created: i.created, expires: i.expires, note: i.note || "", up: i.up || null, by: i.by || null }));
     if (body.action === "list") return { invites: list() };
     if (body.action === "create") {
@@ -741,7 +756,7 @@ function serve(cfg) {
       try {
         const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/profile/read": svc.handleProfileRead, "/api/rpc": svc.handleRpc,
           "/api/admin/challenge": svc.handleAdminChallenge, "/api/admin/session": svc.handleAdminSession, "/api/admin/invites": svc.handleAdminInvites }[url.pathname];
-        send(200, await handler(body, ip));
+        send(200, await handler(body, ip, req.headers["user-agent"]));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }
     });
