@@ -51,8 +51,14 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
+      # The account service's own dependencies, as on the server; every suite, the catalog being shared with the
+      # service (audit Q-03 / D-04).
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: tools/creator
       - run: npx playwright install --with-deps chromium
       - run: npm run test:unit
+      - run: npm run test:e2e
+      - run: npm run test:creator
       - run: npm run test:extension
   release:
     needs: [build, test]

@@ -1,4 +1,4 @@
-// Create a LUKSO Universal Profile for someone else (up-create.html).
+// Create a LUKSO Universal Profile for someone else (operator.html).
 //
 // The page does what LUKSO's own profile creation does, with ChainIntegrate as the operator in the middle:
 // - the profile (name, description, tags, links, images) becomes an LSP3Profile JSON, stored on IPFS

@@ -1,5 +1,5 @@
-// Shared bits of the pages: the language (Italian or English, the toggle's choice kept in this browser,
-// else ?lang=, else the browser's own) and long notes folded to three lines with "Read more".
+// Shared bits of the pages: the language (Italian or English: ?lang= in a link, else the toggle's choice kept in
+// this browser, else the browser's own; the toggle drops ?lang= from the address, so a reload keeps the choice) and long notes folded to three lines with "Read more".
 (function () {
   "use strict";
   const LANG_KEY = "uponboarding.lang";
@@ -9,13 +9,16 @@
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* not kept */ } };
 
   function initialLang() {
-    const v = get(LANG_KEY);
-    if (v === "it" || v === "en") return v;
     const q = new URLSearchParams(location.search).get("lang");
     if (q === "it" || q === "en") return q;
+    const v = get(LANG_KEY);
+    if (v === "it" || v === "en") return v;
     return /^it\b/i.test(navigator.language || "") ? "it" : "en";
   }
-  const saveLang = (l) => set(LANG_KEY, l);
+  const saveLang = (l) => {
+    set(LANG_KEY, l);
+    try { const u = new URL(location.href); if (u.searchParams.has("lang")) { u.searchParams.delete("lang"); history.replaceState(history.state, "", u.pathname + u.search + u.hash); } } catch (e) { /* the address stays */ }
+  };
 
   function clampNotes({ root = document, min = 280 } = {}) {
     const s = document.createElement("style");

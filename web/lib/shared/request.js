@@ -1,6 +1,6 @@
 // The request file: everything needed to create a client's Universal Profile, public data only.
 //
-// Written by the client's extension or app (or by the web page itself), read by web/up-create.html, which turns
+// Written by the client's extension or app (or by the web page itself), read by web/operator.html, which turns
 // it into one LSP23 deployment. The same file is used everywhere, so its checks live here, once:
 //   UPRequest.create(fields)  -> { request, errors }   a clean request from the given fields
 //   UPRequest.parse(object)   -> { request, errors }   a request read from a file, checked and cleaned

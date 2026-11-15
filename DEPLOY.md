@@ -197,9 +197,10 @@ First deploy, 2026-11-12: every check as expected.
   (`nosniff`), no referrer, HSTS for one year (without `includeSubDomains`: the other subdomains are not
   affected), no camera, microphone, location or payment.
 - Content-Security-Policy: scripts only from the site and ethers 6.13.4 from cdnjs (the pages load it with its
-  integrity hash). The client's page connects to nothing (`connect-src 'none'`): what the client types stays in
-  the browser until they download the request. The operator's page may connect only to LUKSO's two RPCs and to
-  ChainIntegrate's IPFS node, and is not indexed (`X-Robots-Tag: noindex`, and `robots.txt`).
+  integrity hash). The client's pages connect to nothing (`connect-src 'none'`): they only explain the steps and
+  link the extension, which creates the account; the invitation code from a link stays in the page. The operator's
+  page may connect only to LUKSO's two RPCs and to ChainIntegrate's IPFS node, the invitations page only to this
+  site; neither is indexed (`X-Robots-Tag: noindex`, and `robots.txt`).
 - The web root is `web/`: the rest of the repository (tests, tools, the extension, `.git`) is never served.
 
 Written for the server's nginx 1.18 (no directive newer than it) and tested on nginx 1.24 with a local

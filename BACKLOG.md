@@ -81,6 +81,21 @@ The audit's Medium findings (maintainer's consent 2026-11-15, all together):
 - **U-13**: the terms of service (`web/termini.html`, a draft for the maintainer's review before the release),
   accepted in the extension before the creation (`UPRequest.TERMS` sent and kept with the account); the extension
   says when they change.
+
+The audit's Low findings (maintainer's consent 2026-11-15):
+- **U-14, A19**: the integrity check is "ok" only with every code file listed once; else "unknown".
+- **U-07**: a request left behind (no window, or older than 15 minutes) no longer blocks its site; two at once are
+  taken in turn.
+- **U-06**: sign-in messages issued within 15 minutes, no later start, an expiry at most 7 days away (the projects'
+  messages do not all carry one).
+- **U-03**: `/api/rpc` only for the extension's origin, 60 a minute per address.
+- **U-04**: the operator page never stores the IPFS authorization.
+- **U-08**: an invitation named by its id in the journal; today's relay count in memory; a key's likely account
+  read first. Backups stay on the server, unencrypted, by the maintainer's decision (2026-11-12).
+- **U-11**: after the check, move the backup copy off the computer; a reminder after six months.
+- **Q-03, D-04**: a release runs every suite. **D-01, D-02, D-03, D-05**: the documents fixed; `?lang=` in a link
+  wins, the toggle's choice then kept. **A22**: where the tests run, written in the README.
+- **I-02**: nothing set on the pages' window. **I-03**: the guide says the offline check is skipped.
 - Not changed, by the maintainer's decision: **X-04** (side-loaded extension, until clients are many: item 18) and
   **X-05** (one server, while the volume is small).
 

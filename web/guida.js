@@ -133,6 +133,7 @@
         { id: "sicurezza", title: "12. Sicurezza", html: `
           <ul>
             <li>Ogni volta che si apre, l'estensione controlla che i suoi file siano quelli pubblicati da ChainIntegrate. Se compare <b>«Questa estensione è stata modificata»</b>, non scrivere nessuna password: togli l'estensione, scaricala di nuovo dalla pagina di ChainIntegrate e, se serve, ripristina dalla copia di backup. Avvisa ChainIntegrate.</li>
+            <li>Se il computer non è collegato a internet, l'estensione non può fare il controllo e funziona lo stesso. Per essere sicuri, usala con il computer collegato.</li>
             <li>ChainIntegrate non ti chiederà mai le tue password, il file della copia di backup, di installare altro o di <b>autorizzare un computer</b>. Autorizza solo computer che hai davanti, tuoi o della tua azienda.</li>
             <li>Se nella pagina dell'estensione compare <b>«Dall'ultima volta, nel tuo account»</b> con un computer che non conosci, revocalo subito (sezione 10) e avvisa ChainIntegrate.</li>
             <li>Conferma nella finestra dell'estensione solo ciò che hai chiesto tu, su un sito <b>…chainintegrate.it</b> che conosci.</li>
@@ -268,6 +269,7 @@
         { id: "sicurezza", title: "12. Safety", html: `
           <ul>
             <li>Each time it opens, the extension checks that its files are the ones ChainIntegrate published. If <b>“This extension has been modified”</b> appears, do not type any password: remove the extension, download it again from ChainIntegrate's page and, if needed, restore from the backup copy. Tell ChainIntegrate.</li>
+            <li>When the computer is offline, the extension cannot make that check and works all the same. To be sure, use it with the computer online.</li>
             <li>ChainIntegrate will never ask for your passwords, the backup copy's file, to install anything else or to <b>authorize a computer</b>. Authorize only computers you have in front of you, yours or your company's.</li>
             <li>If the extension's page shows <b>“Since last time, on your account”</b> with a computer you do not know, revoke it at once (section 10) and tell ChainIntegrate.</li>
             <li>Confirm in the extension's window only what you asked for, on a <b>…chainintegrate.it</b> site you know.</li>

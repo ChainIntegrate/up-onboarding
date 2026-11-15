@@ -6,8 +6,7 @@
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  // The extension's page on the Chrome Web Store, once published; until then the page says ChainIntegrate sends
-  // the link.
+  // The latest release's zip on GitHub; the extension's page on the Chrome Web Store once it is published there.
   const INSTALL_URL = "https://github.com/ChainIntegrate/up-onboarding/releases/latest/download/chainintegrate-account.zip";
 
   let LANG = SiteUI.initialLang();

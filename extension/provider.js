@@ -1,10 +1,10 @@
 // The provider a ChainIntegrate project's page sees (EIP-1193), announced with EIP-6963 as "ChainIntegrate Account".
 // It runs in the page (world MAIN) and holds nothing: every request goes through bridge.js to the extension, which
 // decides. It is announced only once the extension has said that this page belongs to a project of its catalog
-// (shared/catalog.js); nothing is set as window.ethereum or window.lukso, so other wallets keep working.
+// (shared/catalog.js); nothing is set as window.ethereum or window.lukso, so other wallets keep working. Nothing else
+// is set on window either (audit I-02): Chrome injects this script once per page.
 (function () {
   "use strict";
-  if (window.__chainIntegrateAccount) return;
   const TAG = "chainintegrate-account";
   const listeners = {};
   const waiting = new Map();
@@ -53,6 +53,5 @@
     }
   });
   window.addEventListener("eip6963:requestProvider", announce);
-  Object.defineProperty(window, "__chainIntegrateAccount", { value: true });
   window.postMessage({ [TAG]: "hello" }, location.origin);
 })();

@@ -135,6 +135,11 @@ pages and the extension load ethers 6.13.4 (its integrity hash pinned; the root 
 to check it). The advisories left are all in the test tooling (Hardhat 2 and what it brings: a local chain for the
 tests, never deployed nor packaged), and go away only with Hardhat 3, a rewrite of the test setup: not urgent.
 
+**Where the tests run** (audit A22): Linux (Ubuntu, as on GitHub Actions) with Node 22, `zip` (for the package)
+and Chromium from Playwright; `test:creator` starts a Hardhat node through `npx` and uses the fixed local ports
+8545 and 8788–8795 (`test:e2e`: 8766, and its own Hardhat node on 8545), so two runs cannot share a machine at once. Windows is not supported for the tests: use WSL or a
+Linux container. The account service's own dependencies (`tools/creator`) are installed as on the server.
+
 All run on GitHub Actions at every push (`.github/workflows/test.yml`); a release runs them again
 (`.github/workflows/extension-release.yml`).
 

@@ -9,7 +9,7 @@ ethers 6) and in Node (`require`). The web pages load copies in `web/lib/shared/
 
 Everything needed to create a client's Universal Profile, public data only: network, optional LSP23 salt,
 profile (name, description, tags, links), images (as data URLs), the keys' addresses with a name and a role
-(`admin` or `device`). The extension or the app writes it, `web/up-create.html` reads it.
+(`admin` or `device`). The extension or the app writes it, `web/operator.html` reads it.
 
 - `UPRequest.create(fields)` and `UPRequest.parse(object)` return `{ request, errors }`: the request with only
   the known fields, cleaned (addresses checksummed, names on one line without control or bidi characters,
