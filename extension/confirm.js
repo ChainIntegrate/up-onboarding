@@ -26,6 +26,7 @@
       wrongAccount: "❌ Il sito chiede un account diverso da quello di questo computer.",
       notAllowed: "❌ Questa richiesta non è tra le operazioni previste per questo sito: non la confermare. ({r})",
       notProject: "❌ Il registro indicato non risulta creato da questo progetto: richiesta rifiutata.",
+      adminOnly: "❌ Le richieste di {p} si confermano solo da un computer amministratore del tuo account. Questo computer ha un accesso.",
       integrity: "❌ L'estensione su questo computer è stata modificata: per sicurezza non sblocca l'accesso. Apri la pagina dell'estensione per le istruzioni.",
       WRONG_SECRET: "❌ Password sbagliata.", CANCELLED: "Sblocco annullato.", failed: "❌ Non è andata a buon fine: {e}",
       err_network: "ChainIntegrate non è raggiungibile.", err_refused: "l'operazione è stata rifiutata", err_daily_limit: "troppe operazioni oggi, riprova domani",
@@ -44,6 +45,7 @@
       wrongAccount: "❌ The site asks for an account other than this computer's.",
       notAllowed: "❌ This request is not among the operations foreseen for this site: do not confirm it. ({r})",
       notProject: "❌ The registry given was not created by this project: request refused.",
+      adminOnly: "❌ {p}'s requests are confirmed only from an administrator computer of your account. This computer has an access.",
       integrity: "❌ The extension on this computer has been modified: for safety it does not unlock the access. Open the extension's page for instructions.",
       WRONG_SECRET: "❌ Wrong password.", CANCELLED: "Unlock cancelled.", failed: "❌ It did not work: {e}",
       err_network: "ChainIntegrate cannot be reached.", err_refused: "the operation was refused", err_daily_limit: "too many operations today, try again tomorrow",
@@ -194,6 +196,20 @@
     if (said.ok && said.reads && said.reads.length) {
       try { said = describe(await onNetwork((pr) => UPCatalog.readCurrent(pr, said.reads))); }
       catch (e) { said = { ok: false, error: "network_unreadable" }; }
+    }
+    // A project whose requests only an administrator's computer may sign (GasTrace: its registry accepts any key of the
+    // account with SIGN, audit A01 / X-01): this computer's permissions read from the account.
+    if (said.ok && said.signer === "admin") {
+      try {
+        const perms = await onNetwork((pr) => new ethers.Contract(req.account, ["function getData(bytes32) view returns (bytes)"], pr).getData(UPRelay.permKey(ethers.getAddress(account.record.address))));
+        // An administrator can change the keys' permissions (EDITPERMISSIONS); an access cannot.
+        if (!perms || perms === "0x" || (BigInt(perms) & 0x4n) === 0n) said = { ok: false, error: "admin_only", projectName: said.projectName };
+      } catch (e) { said = { ok: false, error: "network_unreadable" }; }
+    }
+    if (said.error === "admin_only") {
+      render(); $("box").classList.add("warn"); $("title").textContent = t("adminOnly", { p: said.projectName }); $("ok").hidden = true;
+      await answer({ error: { code: 4100, message: "Not allowed by ChainIntegrate Account (admin_only)." } });
+      return;
     }
     if (!said.ok) {
       render(); $("box").classList.add("warn"); $("title").textContent = t("notAllowed", { r: said.error }); $("ok").hidden = true;

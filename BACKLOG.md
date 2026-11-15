@@ -41,6 +41,25 @@ GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation
   this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
   validity shown; requests valid for more than 7 days refused (G-07 / U-06).
 
+## 0.6.0 (in preparation: released only once every change that closes the audit is in, maintainer's decision 2026-11-15)
+
+The access role (audit A01 / X-01, D-07; maintainer's decisions 2026-11-15):
+- **CALL with AllowedCalls instead of SUPER_CALL** (`UPRelay.ACCESS_PERMS` = `UPDeploy.DEVICE_PERMS` = `0x640800`):
+  an access key may call only the catalog's functions (`UPCatalog.allowedCalls`), enforced by the account itself,
+  also without the service; no transfer of value or tokens, no ownership handed over. `test/creator.js` checks on
+  LUKSO's own contracts what an access key cannot do when it sends the call itself.
+- **"Update"** in "Your account's computers": an access whose allowed calls are not the catalog's of today (a project's
+  new operation) or an access of 0.5.x is listed as such, and an administrator brings it up to date
+  (`UPRelay.updateDevice`, the service checking it). Revocations clear the allowed calls; 0.5.x's are still accepted.
+- **GasTrace from an administrator's computer only**: SIGN cannot be limited, and GasTrace accepts any signature its
+  owner account accepts; the confirmation window reads this computer's permissions and refuses GasTrace's requests
+  from an access. GasTrace stays as it is for the demo (its demo account has administrator keys only); if adopted,
+  its next factory checks the signer's role on its side (decision in GasTrace's conversation, 2026-11-15).
+- The role described as it is (extension, guide, README, docs/integration.md, the operator's page); the operator's
+  page no longer sends LYX to the client's keys.
+- With the release: run `node tools/guide-screenshots.js` again (the computers' screens changed) and say in the guide
+  that "Update" exists.
+
 ## Next extension version
 
 - **This computer's name**: the "This computer" panel shows the name the extension saved itself, while the list of

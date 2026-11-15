@@ -18,6 +18,7 @@
 <script src="lib/backup-check.js"></script>
 <script src="lib/deploy-check.js"></script>
 <script src="lib/shared/request.js"></script>
+<script src="lib/shared/catalog.js"></script>
 <script src="lib/shared/deploy.js"></script>
 <script src="lib/shared/ipfs.js"></script>
 <style>
@@ -178,13 +179,6 @@
   <label class="check-row"><input type="checkbox" id="ackCreate"> <span data-i18n="ackCreate"></span></label>
   <button id="createBtn" type="button" disabled data-i18n="createBtn">Crea la Universal Profile</button>
   <div class="status-box result" id="resultBox" hidden></div>
-  <div id="fundBox" hidden>
-    <div class="divider" data-i18n="fundDivider">— poi, qualche LYX alle chiavi del cliente —</div>
-    <div class="note" data-i18n-html="fundNote"></div>
-    <label for="fundAmount" data-i18n="fundLabel">LYX per ogni chiave</label>
-    <input type="text" id="fundAmount" value="0.5" inputmode="decimal">
-    <button id="fundBtn" class="secondary" type="button" data-i18n="fundBtn">Manda i LYX alle chiavi</button>
-  </div>
   <div id="log"></div>
   <button id="copyLog" class="secondary" type="button" data-i18n="copyLogBtn">Copia il log</button>
 </div>

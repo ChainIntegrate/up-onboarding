@@ -293,3 +293,25 @@ test("readCurrent: the registry's values, lowercase, from getDataBatch", async (
   const out = await C.readCurrent(provider, [{ address: GT_REG, keys: [k1, k2] }]);
   assert.deepStrictEqual(out, { [k1]: "0xabcd", [k2]: "0x" });
 });
+
+test("an access key's allowed calls: every function of the catalog, CALL only, value 0, nothing else", () => {
+  const v = C.allowedCalls(42);
+  const b = ethers.getBytes(v), entries = [];
+  for (let i = 0; i < b.length;) { assert.strictEqual((b[i] << 8) | b[i + 1], 32); entries.push(ethers.hexlify(b.slice(i + 2, i + 34))); i += 34; }
+  const fns = C.PROJECTS.flatMap((p) => p.contracts.flatMap((c) => Object.keys(c.functions).map((f) => ({ c, sel: ethers.id(f).slice(0, 10) }))));
+  assert.strictEqual(entries.length, fns.length);
+  for (const { c, sel } of fns) {
+    const want = ("0x00000002" + (c.address || "0xffffffffffffffffffffffffffffffffffffffff").slice(2) + "ffffffff" + sel.slice(2)).toLowerCase();
+    assert.ok(entries.includes(want), `${sel} on ${c.address || "the registries made by " + c.madeBy.factory}`);
+  }
+  // CALL only (0x02): no value (0x01), no static or delegate call; never a call to any function of any contract.
+  for (const e of entries) { assert.strictEqual(e.slice(0, 10), "0x00000002"); assert.notStrictEqual(e.slice(-8), "ffffffff"); }
+  assert.strictEqual(C.allowedCalls(4201), "0x", "no project on another network");
+});
+
+test("GasTrace: its requests are signed from an administrator's computer only (audit A01 / X-01)", () => {
+  const p = C.projectById("gas-cylinders");
+  const account = ethers.Wallet.createRandom().address;
+  const r = C.typedData(p, typedOf("AcceptOwnership", { newOwner: account, nonce: 0, deadline: Math.floor(Date.now() / 1000) + 3600 }), { account, chainId: 42 });
+  assert.strictEqual(r.ok, true); assert.strictEqual(r.signer, "admin");
+});

@@ -48,7 +48,10 @@
       devAddNote: "Sul computer nuovo installa l'estensione e scegli <b>«Aggiungi questo computer a un account esistente»</b>: ti mostra il suo codice. Scrivilo qui.",
       devCodeLabel: "Codice del computer da autorizzare",
       devNameLabel: "Nome del computer (es. «Computer ufficio»)",
-      devRoleAccess: "<b>Accesso</b>: usa il tuo account nei servizi di ChainIntegrate e conferma le operazioni. Non può cambiare il profilo né autorizzare o revocare altri computer.",
+      devRoleAccess: "<b>Accesso</b>: usa il tuo account nei servizi di ChainIntegrate e conferma per conto tuo, anche l'accesso ai siti. Non può cambiare il profilo, autorizzare o revocare altri computer, né fare operazioni fuori dai servizi di ChainIntegrate. Le richieste di GasTrace si confermano solo da un computer amministratore. Autorizza solo computer della tua azienda.",
+      devToUpdate: "da aggiornare per i nuovi servizi",
+      devUpdate: "Aggiorna",
+      devUpdated: (v) => `✅ Il computer ${v.name} è aggiornato: può usare tutti i servizi.`,
       devRoleAdmin: "<b>Amministratore</b>: può fare tutto, come questo computer, anche autorizzare e revocare altri computer.",
       devAddBtn: "Autorizza questo computer",
       devAddYes: "Sì, autorizza",
@@ -210,7 +213,10 @@
       devAddNote: "On the new computer install the extension and choose <b>“Add this computer to an existing account”</b>: it shows its code. Type it here.",
       devCodeLabel: "Code of the computer to authorize",
       devNameLabel: "Name of the computer (e.g. “Office computer”)",
-      devRoleAccess: "<b>Access</b>: uses your account in ChainIntegrate's services and confirms operations. It cannot change the profile nor authorize or revoke other computers.",
+      devRoleAccess: "<b>Access</b>: uses your account in ChainIntegrate's services and confirms on your behalf, signing in to the sites too. It cannot change the profile, authorize or revoke other computers, nor do anything outside ChainIntegrate's services. GasTrace's requests are confirmed only from an administrator computer. Authorize only your company's computers.",
+      devToUpdate: "to update for the new services",
+      devUpdate: "Update",
+      devUpdated: (v) => `✅ The computer ${v.name} is up to date: it can use every service.`,
       devRoleAdmin: "<b>Administrator</b>: can do everything, like this computer, including authorizing and revoking other computers.",
       devAddBtn: "Authorize this computer",
       devAddYes: "Yes, authorize",
@@ -568,8 +574,14 @@
       const text = document.createElement("div"); text.style.flex = "1"; text.className = "lead";
       const b = document.createElement("b"); b.textContent = d.name || t("devNoName");
       const small = document.createElement("div"); small.className = "note"; small.style.margin = "0";
-      small.textContent = `${t("devRole_" + d.role)} · ${grouped(d.address).slice(0, 14)}…${d.address === me ? " · " + t("devThis") : ""}`;
+      small.textContent = `${t("devRole_" + d.role)} · ${grouped(d.address).slice(0, 14)}…${d.address === me ? " · " + t("devThis") : ""}${d.update ? " · " + t("devToUpdate") : ""}`;
       text.append(b, small); row.appendChild(text);
+      // An access whose allowed operations are not the services' of today (a new operation, or an access of 0.5.x).
+      if (admin && d.update) {
+        const u = Object.assign(document.createElement("button"), { type: "button", textContent: t("devUpdate") }); u.style.width = "auto";
+        u.addEventListener("click", () => updateDevice(d));
+        row.appendChild(u);
+      }
       if (admin && d.address !== me) {
         const r = Object.assign(document.createElement("button"), { type: "button", className: "secondary", textContent: t("devRevoke") }); r.style.width = "auto";
         r.addEventListener("click", () => askRevoke(d));
@@ -612,6 +624,11 @@
     });
     if (ok) { await refreshDevices(); say("devMsg", t("devRevoked", { name: d.name || t("devNoName") }), "line-ok"); }
   });
+  async function updateDevice(d) {
+    revoking = null; adding = null; $("devRevokeConfirm").hidden = true; $("devAddConfirm").hidden = true;
+    const ok = await withDeviceKey(async (sk) => { await relaySend(sk, (chainId) => UPRelay.updateDevice({ address: d.address, chainId })); });
+    if (ok) { await refreshDevices(); say("devMsg", t("devUpdated", { name: d.name || t("devNoName") }), "line-ok"); }
+  }
   $("devAddBtn").addEventListener("click", () => {
     const address = parseCode($("devCode").value), name = oneLine($("devName").value);
     const role = document.querySelector("input[name=devRole]:checked").value;
@@ -629,7 +646,7 @@
     const ok = await withDeviceKey(async (sk) => {
       const now = await readDevices();
       if (now.keys.includes(a.address)) throw Object.assign(new Error(t("devCodeKnown")), { shown: true });
-      await relaySend(sk, UPRelay.addDevice({ length: now.keys.length, address: a.address, role: a.role, name: a.name }));
+      await relaySend(sk, (chainId) => UPRelay.addDevice({ length: now.keys.length, address: a.address, role: a.role, name: a.name, chainId }));
     });
     if (ok) { $("devCode").value = ""; $("devName").value = ""; await refreshDevices(); say("devMsg", t("devAdded", { name: a.name }), "line-ok"); }
   });
@@ -970,9 +987,11 @@
     return b;
   };
   // One operation on the account: the nonce from the service, the LSP25 hash signed by this computer's key, sent.
-  async function relaySend(sk, payload) {
+  // `payload`: the call, or a function of the network's chain id that builds it (an access's allowed operations).
+  async function relaySend(sk, call) {
     const signer = account.record.address;
     const n = await postJson(CONFIG.relayNonce, { account: account.up, signer });
+    const payload = typeof call === "function" ? call(Number(n.chainId)) : call;
     // Valid from the start (0) until ten minutes after the network's time as the service reads it: the computer's
     // clock does not count (the Key Manager compares with the block's time).
     const base = Number.isInteger(n.time) && n.time > 0 ? n.time : Math.floor(Date.now() / 1000);

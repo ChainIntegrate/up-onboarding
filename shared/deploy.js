@@ -8,7 +8,7 @@
 //   UPDeploy.profileValue(lsp3Bytes, url)       the LSP3Profile value (VerifiableURI) of a JSON stored at url
 //   UPDeploy.lsp3Json(profile, images)          the LSP3Profile JSON of a request's profile, images given as
 //                                               [{ url, width, height, bytes }]
-//   UPDeploy.plan({ profileValue, controllers, salt })
+//   UPDeploy.plan({ profileValue, controllers, salt, chainId })
 //                                               { keys, values, all, args, data }: what is written and the call
 //   UPDeploy.addresses(provider, plan)          { up, km } the call will create
 //   UPDeploy.verify(provider, plan, up, km, at) [] when the created profile is what the plan says, else problems
@@ -35,15 +35,24 @@
   const indexKey = (i) => ARRAY_KEY.slice(0, 34) + BigInt(i).toString(16).padStart(32, "0");
   const permKey = (a) => "0x4b80742de2bf82acb3630000" + a.slice(2).toLowerCase();
   const dataKeysKey = (a) => "0x4b80742de2bf866c29110000" + a.slice(2).toLowerCase();
+  const allowedCallsKey = (a) => "0x4b80742de2bf393a64c70000" + a.slice(2).toLowerCase();
   // A name for each key, as Cross_Chain's UP Wallet keeps it: bytes10(keccak256("UPWalletControllerName")) + 0000 + address.
   const nameKey = (a) => "0x344e172b69e28979f8df0000" + a.slice(2).toLowerCase();
 
   // Permissions. Administrator: what LUKSO's extension gives its main controller. Device: the extension's "access"
-  // (shared/relay.js ACCESS_PERMS, maintainer's decision 2026-11-13): SUPER_CALL, SIGN, EXECUTE_RELAY_CALL and SETDATA
-  // limited to its own name on the account; no transfer of value, no profile, no keys.
+  // (shared/relay.js ACCESS_PERMS, maintainer's decisions 2026-11-13 and 2026-11-15): CALL limited to the catalog's
+  // calls (AllowedCalls, UPCatalog.allowedCalls on the network), SIGN, EXECUTE_RELAY_CALL and SETDATA limited to its
+  // own name on the account; no transfer of value or tokens, no other contract, no profile, no keys.
   // LSP1 delegate: REENTRANCY + SUPER_SETDATA + SETDATA, as LUKSO sets it.
   const ADMIN_PERMS = 0x7f3f06n;
-  const DEVICE_PERMS = 0x400n | 0x40000n | 0x200000n | 0x400000n;
+  const DEVICE_PERMS = 0x800n | 0x40000n | 0x200000n | 0x400000n;
+  function deviceCalls(chainId) {
+    const g = typeof self !== "undefined" ? self : globalThis;
+    let cat = g.UPCatalog;
+    if (!cat) { try { cat = typeof require === "function" ? require("./catalog.js") : null; } catch (e) { cat = null; } }
+    if (!cat || chainId === undefined || chainId === null) throw new Error("chainId");
+    return cat.allowedCalls(chainId);
+  }
   const deviceDataKeys = (a) => ethers.concat(["0x0020", nameKey(a)]);
   const URD_PERMS = 0x60080n;
 
@@ -75,7 +84,7 @@
   }
 
   // What the post-deployment module writes, and the factory call. controllers: [{ address, name, role }].
-  function plan({ profileValue: value, controllers, salt }) {
+  function plan({ profileValue: value, controllers, salt, chainId }) {
     if (!ethers.isHexString(salt, 32)) throw new Error("salt");
     const keys = [LSP3_KEY, URD_KEY], values = [value, URD];
     const all = [{ address: ethers.getAddress(URD), perms: URD_PERMS }].concat(controllers.map((c) => ({
@@ -85,7 +94,10 @@
     all.forEach((c, i) => {
       keys.push(indexKey(i)); values.push(c.address);
       keys.push(permKey(c.address)); values.push(ethers.zeroPadValue(ethers.toBeHex(c.perms), 32));
-      if (c.role === "device") { keys.push(dataKeysKey(c.address)); values.push(deviceDataKeys(c.address)); }
+      if (c.role === "device") {
+        keys.push(dataKeysKey(c.address)); values.push(deviceDataKeys(c.address));
+        keys.push(allowedCallsKey(c.address)); values.push(deviceCalls(chainId));
+      }
       if (c.name) { keys.push(nameKey(c.address)); values.push(nameValue(c.name)); }
     });
     const postCalldata = ethers.AbiCoder.defaultAbiCoder().encode(["bytes32[]", "bytes[]"], [keys, values]);

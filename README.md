@@ -62,9 +62,12 @@ delegate, the client's keys with their permissions and names, then hands the acc
 account is read back and checked afterwards.
 
 **Keys and roles.** Each key is an **administrator** (the permissions LUKSO's own extension gives its main key,
-`0x7f3f06`: everything, including the keys) or **access** (signs, uses the projects' operations through the relay
-and changes its own name; no transfer of value, no profile, no keys: SUPER_CALL, SIGN, EXECUTE_RELAY_CALL and
-SETDATA limited to its own name). The creation's "device" role (operator's page, Android) is the same as access.
+`0x7f3f06`: everything, including the keys) or **access**: CALL limited by LSP6 AllowedCalls to the functions of the
+projects' catalog, SETDATA limited to its own name, SIGN and EXECUTE_RELAY_CALL. The account itself refuses anything
+else from an access key, whoever sends it: no transfer of value or tokens, no other contract, no profile, no keys.
+SIGN cannot be limited, so an access key signs for the account (sign-ins, GasTrace's owner requests): the extension
+asks for an administrator's computer for GasTrace ([docs/integration.md](docs/integration.md), section 7). The
+creation's "device" role (operator's page, Android) is the same as access.
 
 LUKSO contracts used (same address on LUKSO and LUKSO Testnet; the page and the service check each has code):
 

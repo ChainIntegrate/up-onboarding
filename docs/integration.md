@@ -1,6 +1,6 @@
 # The extension as the access to ChainIntegrate's projects
 
-**State: extension 0.5.0, 2026-11-13.** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
+**State: extension 0.5.1 released; 0.6.0 in preparation (2026-11-15).** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
 TraceabilityRegistry, Supplier Trust Registry. What is open: [../BACKLOG.md](../BACKLOG.md).
 
 Decisions of the maintainer: live tests on LUKSO mainnet with ChainIntegrate's own demo accounts (costs are
@@ -34,7 +34,7 @@ Cross_Chain's UP Wallet. The client never sees LYX, gas, hex data they must chec
 
 | Project | Site | Who signs | Request | Paid by |
 |---|---|---|---|---|
-| **GasTrace** (gas-cylinder-registry) | `gastrace.chainintegrate.it` | the registry's owner (the supplier's account) | EIP-712 `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings; values encrypted), `TransferOwnership` / `AcceptOwnership`; domain `GasCylinderRegistry` `1`, registries made by the factory `0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` | the project's relayer (`/gcr/`) |
+| **GasTrace** (gas-cylinder-registry) | `gastrace.chainintegrate.it` | the registry's owner (the supplier's account), from an administrator's computer only (section 7) | EIP-712 `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings; values encrypted), `TransferOwnership` / `AcceptOwnership`; domain `GasCylinderRegistry` `1`, registries made by the factory `0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` | the project's relayer (`/gcr/`) |
 | | | drivers | their own app and phone key: **not the extension** (`RecordDocument` is refused) | the project's relayer |
 | **TraceabilityRegistry** | `traceability.chainintegrate.it` | the client company's account | SIWE messages (sign-in, signed details for pinning metadata, library reads) | — |
 | | | | factory `deployRegistry` (`0x54C3A7C31C4eCA1f1997f5E6f19197f3A82b88a3`); on registries made by it: `mintRawMaterialLot(Batch)`, `mintProductionBatch`, `invalidateEntry`, `setDocumentHash(Batch)`, `correctDocumentHash`, `setRegistryMetadata`, `addDelegate`, `removeDelegate` | the account service |
@@ -113,9 +113,29 @@ an existing account"), protected and backed up, and shows its code in groups of 
 a computer that has the account, as:
 
 - **administrator**: the permissions LUKSO's extension gives its main key (`0x7f3f06`);
-- **access** (`UPRelay.ACCESS_PERMS` = `UPDeploy.DEVICE_PERMS`): SIGN, EXECUTE_RELAY_CALL, SUPER_CALL (the relay
-  allows only the catalog's calls) and SETDATA of its own name only; no transfer of value, no profile, no keys.
-  Enough for every project (GasTrace needs SIGN).
+- **access** (`UPRelay.ACCESS_PERMS` = `UPDeploy.DEVICE_PERMS` = `0x640800`): CALL with LSP6 **AllowedCalls**
+  (`UPCatalog.allowedCalls(chainId)`: one entry per function of the catalog, call type CALL only, the contract's
+  address or any address for the contracts made by a project's factory, the function's selector), SETDATA of its own
+  name only (AllowedERC725YDataKeys), SIGN and EXECUTE_RELAY_CALL. The **account** refuses any other call from it,
+  whether through the relay or sent directly by someone holding the key and paying the gas: no transfer of value or
+  of tokens, no ownership handed over, no other contract, no profile, no keys (audit A01 / X-01;
+  `test/creator.js` checks it on LUKSO's own contracts).
+
+**What an access key can still do: sign.** LSP6 cannot limit SIGN: the account's `isValidSignature` (ERC-1271)
+accepts what any key with SIGN signs. GasTrace verifies its owner's requests that way, so an access key could sign
+`TransferOwnership`, `SetOperator` and `SetData` of a registry the account owns, outside the extension. The
+maintainer's decision (2026-11-15): GasTrace is a demo; its demo account has administrator keys only; the extension
+refuses GasTrace's requests from a computer with an access (the catalog's `signer: "admin"`, checked in the window
+from this computer's permissions on the account); if GasTrace is adopted, its next factory checks on its side that
+the signing key is an administrator of the owner account. Clients are told to authorize as access only their
+company's computers.
+
+**Updating an access.** When a project adds an operation to the catalog, the access keys already authorized do not
+have it in their allowed calls yet: the service lists them as `update: true` (`/api/profile/read`), and an
+administrator's "Update" writes their permissions and allowed calls as the catalog's of today (`UPRelay.updateDevice`,
+checked by the service: the key is an access of the account, the payload exactly the one `updateDevice` builds). An
+access of 0.5.x (`UPRelay.OLD_ACCESS_PERMS`, SUPER_CALL) is updated the same way. Until then it loses nothing; only
+the new operations are refused by the account.
 
 The change (`UPRelay.addDevice`, `removeDevice`: the list of keys, the permissions, the name; for access, its allowed
 data key) is signed by the administrator's key and sent over the relay; the service checks it against the account's

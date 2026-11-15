@@ -240,7 +240,7 @@ async function verify(page, file, pw) {
   await page.fill("#devKeyPw", PW); await page.click("#devAddYes");
   await page.waitForFunction(() => /autorizzato/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
   const addOp = sent.find((x) => x[0] === "relay")[1];
-  const addCheck = UPRelay.check(addOp.payload, { signer: code });
+  const addCheck = UPRelay.check(addOp.payload, { signer: code, chainId: 42 });
   check(addCheck.ok && addCheck.items[0].op === "addDevice" && addCheck.items[0].address === NEWPC && addCheck.items[0].role === "access" && addCheck.items[0].name === "Computer ufficio" && addCheck.items[0].length === 3 &&
     ethers.recoverAddress(UPRelay.digest({ chainId: 42, keyManager: KMADDR, nonce: 7n, validity: BigInt(addOp.validity), payload: addOp.payload }), addOp.signature) === code,
     "the new computer's code (typed in groups, lower case) is authorized as access, signed by this computer's key");
@@ -252,6 +252,18 @@ async function verify(page, file, pw) {
   await page.waitForFunction(() => /non ha più accesso/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
   const rmOp = sent.find((x) => x[0] === "relay")[1];
   check(rmOp.payload.toLowerCase() === UPRelay.removeDevice({ list: [URDA, code, OTHER], address: OTHER }).toLowerCase(), "revoking sends the removal of that computer from the account's list");
+  // an access computer whose allowed operations are not today's (an access of 0.5.x, or a new operation): "Update"
+  devAnswer = { ...devAnswer, devices: [devAnswer.devices[0], { ...devAnswer.devices[1], update: true }] };
+  await page.reload(); await visible(page, "pDevices");
+  await page.waitForFunction(() => /da aggiornare per i nuovi servizi/.test(document.querySelector("#devList").textContent));
+  check((await page.locator("#devList button", { hasText: "Aggiorna" }).count()) === 1, "an access to bring up to date is shown as such, with \"Update\" for an administrator");
+  sent.length = 0;
+  await page.fill("#devKeyPw", PW); await page.locator("#devList button", { hasText: "Aggiorna" }).click();
+  await page.waitForFunction(() => /è aggiornato/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
+  const upOp = sent.find((x) => x[0] === "relay")[1];
+  check(upOp.payload.toLowerCase() === UPRelay.updateDevice({ address: OTHER, chainId: 42 }).toLowerCase() && UPRelay.check(upOp.payload, { signer: code, chainId: 42 }).items[0].op === "updateDevice",
+    "\"Update\" sends that computer's permissions and allowed operations as the catalog's of today");
+  devAnswer = { ...devAnswer, devices: [devAnswer.devices[0], { ...devAnswer.devices[1], update: false }] };
   // an access computer: no profile change, no authorizing or revoking
   devAnswer = { ...devAnswer, role: "access" };
   await page.reload(); await visible(page, "pDevices");
@@ -274,6 +286,9 @@ async function verify(page, file, pw) {
   // The GasTrace registry's current data, as getDataBatch answers it (the confirmation window reads it for SetData).
   const GET_BATCH = new ethers.Interface(["function getDataBatch(bytes32[]) view returns (bytes[])"]);
   const regData = {};
+  // This computer's permissions on the account, as the confirmation window reads them for GasTrace (administrator).
+  const GET_DATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)"]);
+  let myPerms = ethers.zeroPadValue(ethers.toBeHex(UPRelay.ADMIN_PERMS), 32);
   const answerRpc = (who) => (r) => {
     rpcSeen[who]++;
     if (who === "service" && serviceDown) return r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"upstream"}' });
@@ -282,6 +297,9 @@ async function verify(page, file, pw) {
     if (q.method === "eth_call" && q.params[0].data.startsWith(GET_BATCH.getFunction("getDataBatch").selector)) {
       const [keys] = GET_BATCH.decodeFunctionData("getDataBatch", q.params[0].data);
       result = GET_BATCH.encodeFunctionResult("getDataBatch", [keys.map((k) => regData[k.toLowerCase()] || "0x")]);
+    } else if (q.method === "eth_call" && q.params[0].data.startsWith(GET_DATA.getFunction("getData").selector)) {
+      const [k] = GET_DATA.decodeFunctionData("getData", q.params[0].data);
+      result = GET_DATA.encodeFunctionResult("getData", [ethers.getAddress(q.params[0].to) === UP && k.toLowerCase() === UPRelay.permKey(code) ? myPerms : "0x"]);
     } else if (q.method === "eth_call") { const a = IS_REG.decodeFunctionData("isRegistry", q.params[0].data)[0]; result = ethers.zeroPadValue(a === REG ? "0x01" : "0x00", 32); }
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: q.id, result }) });
   };
@@ -448,6 +466,16 @@ async function verify(page, file, pw) {
     check(tv.length === 1 && /Cedere il registro all'account .* Non lo controllerai più\./.test(tv[0]), "GasTrace: handing the registry over is shown in red");
     await sw.w.close(); await sw.pending;
   }
+  // from a computer with an access: GasTrace's requests are refused (an administrator's computer is needed)
+  myPerms = ethers.zeroPadValue(ethers.toBeHex(UPRelay.ACCESS_PERMS), 32);
+  pop = ctx.waitForEvent("page");
+  pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(REG))]);
+  w = await pop; await w.waitForSelector("#box.warn", { timeout: 15000 });
+  check(/solo da un computer amministratore/.test(await w.textContent("#title")) && !(await w.isVisible("#ok")) && /admin_only/.test((await pending).e.message),
+    "GasTrace: from an access computer, the owner's requests are refused (audit A01 / X-01)");
+  await plainWords(w, "GasTrace admin only");
+  await w.close();
+  myPerms = ethers.zeroPadValue(ethers.toBeHex(UPRelay.ADMIN_PERMS), 32);
   pop = ctx.waitForEvent("page");
   pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(opTyped(NOTREG))]);
   w = await pop; await w.waitForSelector("#ok:not([hidden])");

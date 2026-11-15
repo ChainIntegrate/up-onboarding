@@ -87,7 +87,7 @@
             <li>in <b>I computer del tuo account</b> apri ${B("Autorizza un altro computer")};</li>
             <li>incolla il codice, dai un nome (per esempio «Computer ufficio») e scegli il tipo:
               <ul>
-                <li><b>Accesso</b>: usa l'account nei servizi di ChainIntegrate e conferma le operazioni, ma non può cambiare il profilo né autorizzare o revocare altri computer. Va bene per la maggior parte dei casi;</li>
+                <li><b>Accesso</b>: usa l'account nei servizi di ChainIntegrate e conferma per conto tuo, anche l'accesso ai siti; non può cambiare il profilo, autorizzare o revocare altri computer, né fare operazioni fuori dai servizi di ChainIntegrate. Le richieste di GasTrace si confermano solo da un computer amministratore. Autorizza come accesso solo computer della tua azienda;</li>
                 <li><b>Amministratore</b>: può fare tutto, come il primo computer.</li>
               </ul></li>
             <li>premi ${B("Autorizza questo computer")}, controlla il riepilogo e conferma.</li>
@@ -221,7 +221,7 @@
             <li>in <b>Your account's computers</b> open ${B("Authorize another computer")};</li>
             <li>paste the code, give a name (for example “Office computer”) and choose the kind:
               <ul>
-                <li><b>Access</b>: uses the account in ChainIntegrate's services and confirms operations, but cannot change the profile nor authorize or revoke other computers. Right for most cases;</li>
+                <li><b>Access</b>: uses the account in ChainIntegrate's services and confirms on your behalf, signing in to the sites too; it cannot change the profile, authorize or revoke other computers, nor do anything outside ChainIntegrate's services. GasTrace's requests are confirmed only from an administrator computer. Authorize as access only your company's computers;</li>
                 <li><b>Administrator</b>: can do everything, like the first computer.</li>
               </ul></li>
             <li>press ${B("Authorize this computer")}, check the summary and confirm.</li>

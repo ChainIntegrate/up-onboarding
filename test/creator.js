@@ -15,6 +15,7 @@ const { ethers } = require("ethers");
 const UPRequest = require("../shared/request.js");
 const UPDeploy = require("../shared/deploy.js");
 const UPRelay = require("../shared/relay.js");
+const UPCatalog = require("../shared/catalog.js");
 
 const RPC = "http://127.0.0.1:8545";
 const PORT = 8788, IPFS = 8789, EXPLORER = 8790;
@@ -84,7 +85,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
     const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", operators: [opw.address], maxInvitesPerDay: 2, backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 11, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 14, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     // Commands that talk to the explorer stub (served by this process) run without blocking it.
@@ -280,6 +281,36 @@ async function waitFor(url, body) {
     await prov.send("hardhat_setCode", [TRACE_FACTORY, RET_TRUE]);
     rr = await relay(admin, UPRelay.projectCall(REG, lots));
     check(rr.status === 200 && rr.body.ops[0].project === "traceability" && rr.body.ops[0].target === REG, "catalog: a registry made by the factory: the account's call is sent, the service pays");
+    rr = await relay(device, UPRelay.projectCall(REG, lots));
+    check(rr.status === 200, "catalog: an access key makes the catalog's calls (its allowed calls, any registry)" + ` [${rr.body.reason || ""}]`);
+    // What an access key cannot do on the network itself, without the service: the account refuses it (audit A01 / X-01).
+    const kmAddr = ethers.getAddress(ethers.dataSlice(await prov.call({ to: created, data: "0x8da5cb5b" }), 12));
+    const direct = async (wallet, payload) => {
+      await prov.send("hardhat_setBalance", [wallet.address, "0x1000000000000000000"]);
+      const km = new ethers.Contract(kmAddr, ["function execute(bytes) payable returns (bytes)"], wallet.connect(prov));
+      // the nonce from the node: ethers' provider caches the same reading for 250 ms
+      const nonce = Number(await prov.send("eth_getTransactionCount", [wallet.address, "pending"]));
+      try { await (await km.execute(payload, { gasLimit: 1000000, nonce })).wait(); return true; } catch (e) { return false; }
+    };
+    const token = ethers.Wallet.createRandom().address;
+    await prov.send("hardhat_setCode", [token, "0x00"]);
+    const lsp8 = new ethers.Interface(["function transfer(address,address,bytes32,bool,bytes)"]).encodeFunctionData("transfer", [created, stranger.address, ethers.ZeroHash, true, "0x"]);
+    const lsp7 = new ethers.Interface(["function transfer(address,address,uint256,bool,bytes)"]).encodeFunctionData("transfer", [created, stranger.address, 1, true, "0x"]);
+    const handOver = new ethers.Interface(["function transferOwnership(address)"]).encodeFunctionData("transferOwnership", [stranger.address]);
+    check(!(await direct(device, UPRelay.UP.encodeFunctionData("execute", [0, token, 0, lsp8]))) && !(await direct(device, UPRelay.UP.encodeFunctionData("execute", [0, token, 0, lsp7]))),
+      "on the network, without the service: an access key cannot move the account's tokens");
+    check(!(await direct(device, UPRelay.UP.encodeFunctionData("execute", [0, REG, 0, handOver]))), "on the network: an access key cannot hand over a contract the account owns");
+    await prov.send("hardhat_setBalance", [created, "0x1000"]);
+    check(!(await direct(device, UPRelay.UP.encodeFunctionData("execute", [0, stranger.address, 1, "0x"]))), "on the network: an access key cannot send value from the account");
+    check(!(await direct(device, UPRelay.UP.encodeFunctionData("execute", [0, SUPPLIER, 0, new ethers.Interface(["function setTierLimits(address,uint8,uint256,uint256,bool,uint256,bool)"]).encodeFunctionData("setTierLimits", [admin.address, 1, 1, 1, true, 1, true])]))),
+      "on the network: an access key cannot call a function outside the catalog of a project's contract");
+    check(await direct(device, UPRelay.projectCall(REG, lots)), "on the network: an access key's catalog call works without the service too");
+    check(await direct(admin, UPRelay.UP.encodeFunctionData("execute", [0, token, 0, lsp7])), "on the network: an administrator's key makes any call");
+    // SIGN cannot be limited by the account: an access key's signature is the account's (ERC-1271), e.g. for GasTrace's
+    // requests: the extension asks for an administrator's computer, GasTrace's next factory checks it on its side.
+    const anyDigest = ethers.id("GasTrace TransferOwnership");
+    const magic = await prov.call({ to: created, data: new ethers.Interface(["function isValidSignature(bytes32,bytes) view returns (bytes4)"]).encodeFunctionData("isValidSignature", [anyDigest, device.signingKey.sign(anyDigest).serialized]) });
+    check(magic.slice(0, 10) === "0x1626ba7e", "on the network: an access key still signs for the account (SIGN, documented residual risk)");
     rr = await relay(admin, UPRelay.projectCall(SUPPLIER, new ethers.Interface(["function setTierLimits(address,uint8,uint256,uint256,bool,uint256,bool)"]).encodeFunctionData("setTierLimits", [admin.address, 1, 1, 1, true, 1, true])));
     check(rr.status === 400 && rr.body.reason === "not_in_catalog", "catalog: ChainIntegrate's administration is refused");
     const relayLog = fs.readFileSync(path.join(dir, "data", "relay.jsonl"), "utf8");
@@ -305,7 +336,7 @@ async function waitFor(url, body) {
     check(pr.role === "admin" && pr.keys.length === 3 && pr.devices.length === 2 && pr.devices.find((d) => d.address === device.address).role === "access",
       "devices: the account's keys are listed with their role (LUKSO's delegate left out)");
     check((await lookDev(third.address)).status === 404, "devices: a new computer's key is unknown before it is authorized");
-    const addPayload = UPRelay.addDevice({ length: pr.keys.length, address: third.address, role: "access", name: "Computer ufficio" });
+    const addPayload = UPRelay.addDevice({ length: pr.keys.length, address: third.address, role: "access", name: "Computer ufficio", chainId: 42 });
     rr = await relay(device, addPayload);
     check(rr.status === 422, "devices: a device key cannot authorize another one");
     const parts = UPRelay.UP.decodeFunctionData("setDataBatch", addPayload);
@@ -313,7 +344,8 @@ async function waitFor(url, body) {
     check(rr.status === 400 && rr.body.reason === "device_change", "devices: an authorization with anything more written is refused");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setDataBatch", [parts[0], [parts[1][0], parts[1][1], ethers.zeroPadValue("0x7f3f07", 32), ...parts[1].slice(3)]]));
     check(rr.status === 400 && rr.body.reason === "device_change", "devices: permissions other than administrator or access are refused");
-    rr = await relay(admin, UPRelay.addDevice({ length: pr.keys.length - 1, address: third.address, role: "access", name: "Computer ufficio" }));
+    rr = await relay(admin, UPRelay.addDevice({ length: pr.keys.length - 1, address: third.address, role: "access", name: "Computer ufficio", chainId: 42 }));
+    check(pr.devices.every((d) => d.update === false), "devices: a new access is up to date with the catalog");
     check(rr.status === 409 && rr.body.reason === "keys_changed", "devices: a request made on an outdated list of keys is refused");
     rr = await relay(admin, addPayload);
     const permOf = async (a) => { const v = await read1.getData(UPRelay.permKey(a)); return v === "0x" ? 0n : BigInt(v); };
@@ -329,6 +361,22 @@ async function waitFor(url, body) {
     check(rr.status === 422 && /NotAllowedERC725YDataKey/.test(rr.body.reason), "devices: an access key cannot change the profile" + ` [${rr.body.reason}]`);
     rr = await relay(third, UPRelay.addDevice({ length: pr.keys.length, address: stranger.address, role: "admin", name: "x" }));
     check(rr.status === 422 && /NotAuthorised/.test(rr.body.reason), "devices: an access key cannot authorize devices" + ` [${rr.body.reason}]`);
+    // An access of 0.5.x (SUPER_CALL, no allowed calls): listed as to update, brought up to date by an administrator.
+    check(await direct(admin, UPRelay.UP.encodeFunctionData("setDataBatch", [[UPRelay.permKey(third.address), UPRelay.allowedCallsKey(third.address)], [ethers.zeroPadValue(ethers.toBeHex(UPRelay.OLD_ACCESS_PERMS), 32), "0x"]])), "devices: (an access as 0.5.x made it)");
+    pr = await readP(admin.address);
+    check(pr.devices.find((d) => d.address === third.address).role === "access" && pr.devices.find((d) => d.address === third.address).update === true && !pr.devices.find((d) => d.address === device.address).update,
+      "devices: an access of 0.5.x is listed as access, to update");
+    rr = await relay(third, UPRelay.updateDevice({ address: third.address, chainId: 42 }));
+    check(rr.status === 422 && /NotAuthorised/.test(rr.body.reason), "devices: an access key cannot update itself" + ` [${rr.body.reason}]`);
+    rr = await relay(admin, UPRelay.updateDevice({ address: admin.address, chainId: 42 }));
+    check(rr.status === 400 && rr.body.reason === "not_a_device", "devices: an administrator cannot be turned into an access by an update");
+    rr = await relay(admin, UPRelay.updateDevice({ address: third.address, chainId: 42 }));
+    pr = await readP(admin.address);
+    check(rr.status === 200 && rr.body.ops[0].op === "updateDevice" && (await permOf(third.address)) === UPRelay.ACCESS_PERMS && (await read1.getData(UPRelay.allowedCallsKey(third.address))).toLowerCase() === UPCatalog.allowedCalls(42) &&
+      pr.devices.find((d) => d.address === third.address).update === false, "devices: an administrator brings the access up to date (permissions and allowed calls), the service pays");
+    check(!(await direct(third, UPRelay.UP.encodeFunctionData("execute", [0, token, 0, lsp7]))), "devices: once updated, the access can no longer make other calls");
+    rr = await relay(admin, UPRelay.updateDevice({ address: third.address, chainId: 42 }));
+    check(rr.status === 409 && rr.body.reason === "up_to_date", "devices: an access already up to date is not written again");
     rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: admin.address }));
     check(rr.status === 400 && rr.body.reason === "own_key", "devices: a computer cannot revoke itself");
     rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: pr.keys[0] }));
@@ -340,6 +388,9 @@ async function waitFor(url, body) {
     check((await lookDev(device.address)).status === 404, "devices: a revoked key no longer finds the account");
     rr = await relay(device, UPRelay.setName(device.address, "ancora io"));
     check(rr.status === 422, "devices: a revoked key can do nothing more");
+    check(!(await direct(device, UPRelay.projectCall(REG, lots))), "devices: a revoked key can make no call on the network");
+    rr = await relay(admin, UPRelay.removeDevice({ list: pr.keys, address: third.address, legacy: true }));
+    check(rr.status === 200 && (await permOf(third.address)) === 0n, "devices: a revocation as 0.5.x built it is still accepted");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Terzo"))]));
     check(rr.status === 200 && (await nameOf(admin)) === "Terzo", "relay: a third operation, under the cap");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(admin.address), ethers.hexlify(ethers.toUtf8Bytes("Quarto"))]));

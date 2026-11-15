@@ -6,7 +6,7 @@
 // announced through EIP-6963 sends with the node's first account. Checked:
 // - the page creates the UP, and its own check after the transaction passes;
 // - on the new UP, a device key can change its own name but not LSP3Profile nor add a controller; an administrator can;
-// - the LYX step funds each key; the request file is saved and loads back;
+// - no step sends LYX to the client's keys; the request file is saved and loads back;
 // - IPFS mode (the node's API answered locally) puts an ipfs:// URL in the profile; no horizontal scroll at phone width;
 // - the client's page uses no crypto term, in Italian or in English.
 "use strict";
@@ -115,9 +115,8 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     check(!(await as(k3, permKey(), ethers.zeroPadValue("0x7f3f06", 32))), "a device key cannot add a controller");
     check(await as(k2, permKey(), ethers.zeroPadValue("0x200000", 32)), "an administrator can add a controller");
 
-    // ---- LYX to the keys, the request file
-    await page.fill("#fundAmount", "0.25"); await page.click("#fundBtn"); await page.waitForTimeout(300); await idle(page);
-    check((await prov.getBalance(k1)) === ethers.parseEther("0.25") && (await prov.getBalance(k3)) > 0n, "the LYX step funds the keys");
+    // ---- the request file
+    check((await page.locator("#fundBtn, #fundAmount").count()) === 0, "no step sends LYX to the client's keys (they pay nothing, audit X-01)");
     const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#saveDraft")]);
     const reqPath = path.join(OUT, "request.json"); await dl.saveAs(reqPath);
     const req = JSON.parse(fs.readFileSync(reqPath));

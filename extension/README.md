@@ -23,13 +23,15 @@ technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in
    - the account: its address (copy), its name and picture, the link to the public profile;
    - "Change the profile or this computer's name" (the profile: administrators only);
    - "Your account's computers": their names and roles; for administrators, "Authorize another computer" (its
-     code, a name, administrator or access) and "Revoke" for the others, each confirmed;
+     code, a name, administrator or access) and "Revoke" for the others, each confirmed, and "Update" for an access
+     whose allowed operations are not the catalog's of today (`UPRelay.updateDevice`);
    - "Connected sites": the projects' sites that see the account's address, each can be disconnected;
    - this computer's code and name; "Check the backup copy", "Create a new backup copy"; "Remove the access from
      this computer", after a confirmation that names the account.
 6. **On a project's site** (`*.chainintegrate.it`, only the sites of the catalog): the site finds "ChainIntegrate
    Account" among the wallets it offers. Connecting, a sign-in, a signature or an operation opens the extension's
-   **confirmation window**: what it does for which project and site, in plain words computed from the request
+   **confirmation window** (GasTrace's requests: only on an administrator's computer, read from the account; an
+   access computer is refused, audit A01 / X-01): what it does for which project and site, in plain words computed from the request
    itself; "Cancel" has the focus; "Confirm" unlocks the key for that one request. A request outside the catalog
    is refused without a window.
 

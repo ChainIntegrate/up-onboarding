@@ -12,6 +12,8 @@
 //   UPCatalog.readCurrent(provider, reads)                   read them, then typedData again with ctx.current
 //   UPCatalog.call({ chainId, to, data, value }, project?)   a transaction from the account (eth_sendTransaction)
 //   UPCatalog.verifyNeeds(provider, needs)                   the on-chain checks the three above ask for
+//   UPCatalog.allowedCalls(chainId)                          the LSP6 AllowedCalls of an "access" key: the catalog's
+//                                                            calls, the only ones the account lets that key make
 // Each returns { ok: true, project, title, lines, needs, digest } (digest: what the key signs, for the first two) or { ok: false, error }: `title` and `lines` are
 // { it, en } texts for the confirmation window; `needs` are on-chain checks to pass before signing or sending
 // (e.g. "this address is a registry made by the project's factory").
@@ -192,6 +194,10 @@
         // What the signature does, under the request (the window's note), and the longest validity accepted.
         note: T("Con questa conferma autorizzi questa modifica del registro; la registra il servizio GasTrace.", "With this confirmation you authorize this change of the registry; GasTrace's service records it."),
         maxValidity: 7 * 24 * 3600,
+        // The registry accepts any signature its owner account accepts (ERC-1271), so any key of the account with
+        // SIGN, an "access" one included (audit A01 / X-01): the extension asks for an administrator's computer.
+        // GasTrace's own guard is for its next factory (decision of the maintainer, 2026-11-15).
+        signer: "admin",
         madeBy: CYLINDER_FACTORY ? { factory: CYLINDER_FACTORY, check: "isRegistry(address)" } : null,
         chainIds: [MAINNET],
         types: {
@@ -338,7 +344,7 @@
     return {
       ok: true, project: project.id, kind: "typedData", digest,
       title: T(`${project.name}: richiesta da firmare`, `${project.name}: a request to sign`),
-      lines, note: spec.note || null,
+      lines, note: spec.note || null, signer: spec.signer || null,
       needs: [{ factory: spec.madeBy.factory, check: spec.madeBy.check, address: registry }],
       // Values to read from the registry for the precise description, when the caller has not given them yet
       // (UPCatalog.readCurrent, then typedData again with ctx.current).
@@ -402,5 +408,23 @@
     return true;
   }
 
-  return { MAINNET, PROJECTS, GCR, projectForOrigin, projectById, parseSignIn, message, typedData, call, verifyNeeds, readCurrent };
+  // The LSP6 AllowedCalls of an "access" key (shared/relay.js ACCESS_PERMS: CALL, not SUPER_CALL): one entry per
+  // function of the catalog, call type CALL (value 0), the contract's address or, for the contracts made by a
+  // project's factory (one per client), any address; any interface; the function's selector. CompactBytesArray of
+  // 32-byte entries; "0x" when the network has none. The account refuses any other call from that key, whoever
+  // sends it (audit A01 / X-01).
+  const ANY_ADDRESS = "0xffffffffffffffffffffffffffffffffffffffff";
+  function allowedCalls(chainId) {
+    const out = [];
+    for (const p of PROJECTS) for (const c of p.contracts) {
+      if (c.chainId !== Number(chainId)) continue;
+      for (const f of Object.keys(c.functions)) {
+        const e = ethers.concat(["0x00000002", c.address || ANY_ADDRESS, "0xffffffff", c.iface.getFunction(f).selector]).toLowerCase();
+        if (!out.includes(e)) out.push(e);
+      }
+    }
+    return out.length ? ethers.concat(out.flatMap((e) => ["0x0020", e])).toLowerCase() : "0x";
+  }
+
+  return { MAINNET, PROJECTS, GCR, allowedCalls, projectForOrigin, projectById, parseSignIn, message, typedData, call, verifyNeeds, readCurrent };
 });

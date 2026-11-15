@@ -16,7 +16,7 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
 | `POST /api/relay/nonce { account, signer }` | the account's Key Manager, the signer's LSP25 nonce, the chain id, the network's time |
 | `POST /api/relay { account, nonce, validity, payload, signature }` | an operation on the account, signed by one of its keys, sent and paid by the service (below) |
 | `POST /api/profile { update, signature }` | a new profile stored on IPFS, asked by a key of the account, keeping the current picture when none is given; the extension then writes its value with the relay |
-| `POST /api/profile/read { account, signer }` | the profile's name, description and picture, the signer's name and role, the account's computers and its list of keys (after a restore, and for "Your account's computers") |
+| `POST /api/profile/read { account, signer }` | the profile's name, description and picture, the signer's name and role, the account's computers (with `update: true` for an access to bring up to date) and its list of keys (after a restore, and for "Your account's computers") |
 | `POST /api/admin/challenge { address }`, `/api/admin/session { nonce, signature }`, `/api/admin/invites { token, action, … }` | the invitations page (`web/invites.html`), for the keys in `operators` only: a sign-in message for the address, signed once (personal_sign; an account checked with ERC-1271), a session of 8 hours in memory; then `create { note, days }` (the code and its link, answered once), `list`, `revoke { id }`; at most `maxInvitesPerDay` codes a day from the page; each action in the journal with its operator |
 | `POST /api/rpc` | reading the network for the extension (only reading methods, one call per request, logs over at most 100,000 blocks and one address, `rpcPerIpPerMinute`, nothing logged): the node's URL carries an access key, which public code cannot hold |
 
@@ -40,8 +40,11 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
 - a call in the projects' catalog (`shared/catalog.js`: `execute(CALL, target, 0, data)`), with its on-chain checks
   (e.g. "a registry made by the project's factory");
 - a computer authorized or revoked (`UPRelay.addDevice`, `removeDevice`): checked against the account's current
-  list of keys on the network and rebuilt byte for byte; a key cannot revoke itself, LUKSO's delegate cannot be
-  removed.
+  list of keys on the network and rebuilt byte for byte (an access with its allowed calls, the catalog's on the
+  service's network; a revocation as 0.5.x built it, without clearing the allowed calls, is still accepted); a key
+  cannot revoke itself, LUKSO's delegate cannot be removed;
+- an access brought up to date (`UPRelay.updateDevice`: its permissions and allowed calls as the catalog's of today):
+  only for a key of the account with an access role (0.5.x's included) that is not up to date already.
 
 Then: the account is one this service created; the request is valid for at most an hour (the key signs a validity
 until ten minutes after the network's time; a validity that starts after the latest block is waited for, up to a

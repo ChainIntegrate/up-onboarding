@@ -5,7 +5,7 @@
 //   (ChainIntegrate's node, shared/ipfs.js) or inside the value itself as a data: URL;
 // - the client's keys (addresses only: the page never sees a private key) become the UP's controllers, as an
 //   administrator (the permissions LUKSO's extension gives its main controller) or as a device (the extension's
-//   "access": sign, operations through the relay, its own name; shared/deploy.js DEVICE_PERMS);
+//   "access": sign, the catalog's calls only (AllowedCalls), its own name; shared/deploy.js DEVICE_PERMS);
 // - one call to LUKSO's LSP23LinkedContractsFactory creates the UP and its Key Manager, through LUKSO's
 //   UniversalProfileInitPostDeploymentModule, exactly as LUKSO's tools do. The operator's wallet sends it and
 //   pays the gas: whoever sends it has no power over the UP, which belongs to the keys written in it.
@@ -52,7 +52,7 @@
       imgRemove: "Togli",
       imgBad: "❌ Immagine non leggibile.",
       panel3Title: "3 · Le chiavi del cliente",
-      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b>: usa la UP nei servizi di ChainIntegrate, firma e conferma le operazioni e cambia il proprio nome, ma non sposta fondi, non cambia il profilo e non gestisce le chiavi (come un computer di tipo \"Accesso\" nell'estensione). Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. ChainIntegrate non aggiunge mai una propria chiave: l'account è solo del cliente.",
+      ctrlNote: "Ogni chiave è un <b>indirizzo</b> (0x…) che il cliente controlla. <b>Amministratore</b>: usa la UP e aggiunge o toglie chiavi (i permessi che l'estensione di LUKSO dà alla sua chiave principale). <b>Dispositivo</b> (come un computer di tipo \"Accesso\" nell'estensione): chiama solo le operazioni del catalogo dei progetti (CALL con AllowedCalls) e cambia il proprio nome; non sposta LYX né token, non cambia il profilo e non gestisce le chiavi. Ha però SIGN, che LSP6 non limita: firma per conto della UP (accessi ai siti, richieste di GasTrace). Per un account che possiede un registro GasTrace servono solo amministratori. Servono <b>almeno due amministratori</b> custoditi in posti diversi: con uno solo, se la chiave si perde, la UP è persa per sempre. ChainIntegrate non aggiunge mai una propria chiave: l'account è solo del cliente.",
       addCtrlBtn: "+ Aggiungi una chiave",
       ctrlAddrPh: "Indirizzo 0x…",
       ctrlNamePh: "Nome (es. PC ufficio, estensione)",
@@ -111,12 +111,6 @@
       verifyOk: "✅ Controllo superato: la UP appartiene al suo Key Manager, le chiavi e i permessi sono quelli scelti, il profilo è quello preparato.",
       verifyBad: (v) => `⚠️ Dopo la creazione qualcosa non corrisponde: ${v.what}. Controlla prima di consegnare la UP.`,
       resultHtml: (v) => `<div class="line-ok" style="font-weight:700;">✅ Universal Profile creata</div><div class="mono" style="margin-top:6px;">${v.up}</div><div style="margin-top:8px;"><a href="${v.ue}" target="_blank" rel="noopener">Profilo su Universal Everything</a> · <a href="${v.exp}" target="_blank" rel="noopener">Explorer</a> · <a href="${v.id}" target="_blank" rel="noopener">Identità (ChainIntegrate)</a></div>`,
-      fundDivider: "— poi, qualche LYX alle chiavi del cliente —",
-      fundNote: "Su LUKSO ogni chiave paga il proprio gas in LYX. Puoi mandarne un po' a ciascuna chiave, dal tuo wallet: una transazione per chiave.",
-      fundLabel: "LYX per ogni chiave",
-      fundBtn: "Manda i LYX alle chiavi",
-      fundBad: "❌ Importo non valido.",
-      fundOne: (v) => `✅ ${v.amount} ${v.cur} a ${v.addr}: ${v.hash}`,
       copyLogBtn: "Copia il log",
       copiedLog: "Copiato ✓",
       busyStart: "Un momento…",
@@ -156,7 +150,7 @@
       imgRemove: "Remove",
       imgBad: "❌ Unreadable image.",
       panel3Title: "3 · The client's keys",
-      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b>: uses the UP in ChainIntegrate's services, signs and confirms operations and changes its own name, but moves no funds, does not change the profile and does not manage keys (as the extension's \"Access\"). You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. ChainIntegrate never adds a key of its own: the account belongs to the client alone.",
+      ctrlNote: "Each key is an <b>address</b> (0x…) the client controls. <b>Administrator</b>: uses the UP and adds or removes keys (the permissions LUKSO's extension gives its main key). <b>Device</b> (as the extension's \"Access\"): calls only the projects' catalog operations (CALL with AllowedCalls) and changes its own name; moves no LYX or tokens, does not change the profile, does not manage keys. It does hold SIGN, which LSP6 cannot limit: it signs for the UP (site sign-ins, GasTrace's requests). An account that owns a GasTrace registry should have administrators only. You need <b>at least two administrators</b> kept in different places: with only one, a lost key means a lost UP, for good. ChainIntegrate never adds a key of its own: the account belongs to the client alone.",
       addCtrlBtn: "+ Add a key",
       ctrlAddrPh: "Address 0x…",
       ctrlNamePh: "Name (e.g. Office PC, extension)",
@@ -215,12 +209,6 @@
       verifyOk: "✅ Check passed: the UP is owned by its Key Manager, the keys and permissions are the ones chosen, the profile is the one prepared.",
       verifyBad: (v) => `⚠️ After creation something does not match: ${v.what}. Check before handing the UP over.`,
       resultHtml: (v) => `<div class="line-ok" style="font-weight:700;">✅ Universal Profile created</div><div class="mono" style="margin-top:6px;">${v.up}</div><div style="margin-top:8px;"><a href="${v.ue}" target="_blank" rel="noopener">Profile on Universal Everything</a> · <a href="${v.exp}" target="_blank" rel="noopener">Explorer</a> · <a href="${v.id}" target="_blank" rel="noopener">Identity (ChainIntegrate)</a></div>`,
-      fundDivider: "— then, a few LYX to the client's keys —",
-      fundNote: "On LUKSO each key pays its own gas in LYX. You can send each key a little, from your wallet: one transaction per key.",
-      fundLabel: "LYX for each key",
-      fundBtn: "Send the LYX to the keys",
-      fundBad: "❌ Invalid amount.",
-      fundOne: (v) => `✅ ${v.amount} ${v.cur} to ${v.addr}: ${v.hash}`,
       copyLogBtn: "Copy the log",
       copiedLog: "Copied ✓",
       busyStart: "One moment…",
@@ -274,7 +262,6 @@
     $("createBtn").disabled = busy || !ready || !$("ackCreate").checked;
     $("previewBtn").disabled = busy;
     $("connectBtn").disabled = busy;
-    $("fundBtn").disabled = busy || !created || !wallet;
   }
   // Any change to the inputs makes the prepared plan stale.
   function invalidate() {
@@ -451,7 +438,7 @@
 
   async function prepare() {
     if (busy) return;
-    created = null; $("resultBox").hidden = true; $("fundBox").hidden = true;
+    created = null; $("resultBox").hidden = true;
     setBusy(true);
     setStatus("previewStatus", t("preparing"), "line-dim");
     try {
@@ -467,7 +454,7 @@
       if (missing.length) { setStatus("previewStatus", t("infraMissing", { name: missing.join(", "), addr: "—" }), "line-err"); return; }
 
       const prof = await buildProfile(p);
-      const pl = UPDeploy.plan({ profileValue: prof.value, controllers: ck.list, salt });
+      const pl = UPDeploy.plan({ profileValue: prof.value, controllers: ck.list, salt, chainId: net().chainId });
       const { postCalldata, args, data } = pl;
       const { up, km } = await UPDeploy.addresses(provider, pl);
       // The initialization must be LUKSO's standard one (deploy-check.js).
@@ -577,25 +564,7 @@
         id: `https://crosschain-lukso.chainintegrate.it/up-identity.html?up=${p.up}`,
       });
       $("resultBox").hidden = false;
-      $("fundBox").hidden = false;
       plan = null;
-    } catch (e) {
-      log(isRejection(e) ? t("rejected") : t("failed", { err: errText(e) }), "line-err");
-    } finally { setBusy(false); }
-  });
-
-  $("fundBtn").addEventListener("click", async () => {
-    if (busy || !created || !wallet) return;
-    let amount;
-    try { amount = ethers.parseEther($("fundAmount").value.trim().replace(",", ".")); } catch (e) { amount = 0n; }
-    if (amount <= 0n || amount > ethers.parseEther("100")) { log(t("fundBad"), "line-err"); return; }
-    setBusy(true);
-    try {
-      const signer = await new ethers.BrowserProvider(wallet.eip1193).getSigner(wallet.address);
-      for (const c of created.controllers) {
-        const tx = await signer.sendTransaction({ to: c.address, value: amount });
-        log(t("fundOne", { amount: ethers.formatEther(amount), cur: net().currency, addr: c.address, hash: tx.hash }), "line-ok");
-      }
     } catch (e) {
       log(isRejection(e) ? t("rejected") : t("failed", { err: errText(e) }), "line-err");
     } finally { setBusy(false); }
