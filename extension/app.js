@@ -78,13 +78,13 @@
       howPasskey: "Con il blocco del computer",
       howPasskeyNote: "Impronta, volto o PIN del computer (Windows Hello, Touch ID), oppure il telefono. È il modo più comodo, se il computer lo permette.",
       howPassword: "Con una password",
-      howPasswordNote: "Una password di almeno 12 caratteri, da scrivere ogni volta. Va bene su qualsiasi computer.",
-      devPwLabel: "Password (almeno 12 caratteri)",
+      howPasswordNote: "Una password da scrivere ogni volta: una frase di almeno 20 caratteri, oppure almeno 14 con maiuscole, minuscole, numeri o simboli. Va bene su qualsiasi computer.",
+      devPwLabel: "Password (una frase di almeno 20 caratteri, o 14 misti)",
       pwAgainLabel: "Ripeti la password",
       continueBtn: "Continua",
       backupTitle: "Crea la copia di backup",
       backupHtml: "La copia di backup è un <b>file protetto da una password</b> che scegli ora. Con il file e la password puoi rientrare nel tuo account da un altro computer.<ul class=\"steps\"><li>Salva il file <b>fuori da questo computer</b>: una chiavetta USB, l'archivio documenti dell'azienda.</li><li>Annota la password in un posto sicuro, <b>separato dal file</b>.</li><li>Chi ha sia il file sia la password può usare il tuo account: non mandarli a nessuno, nemmeno a ChainIntegrate.</li></ul>",
-      bkPwLabel: "Password della copia di backup (almeno 12 caratteri)",
+      bkPwLabel: "Password della copia di backup (una frase di almeno 20 caratteri, o 14 misti)",
       backupBtn: "Scarica la copia di backup",
       verifyTitle: "Controlla la copia di backup",
       verifyHtml: "Per essere sicuri che la copia funzioni, <b>caricala qui</b> dal posto in cui l'hai salvata e scrivi la sua password.",
@@ -171,7 +171,8 @@
       removed: "Accesso tolto da questo computer.",
       // messages
       working: "Un momento…",
-      pwShort: "❌ La password deve avere almeno 12 caratteri.",
+      pwShort: "❌ Password troppo corta: una frase di almeno 20 caratteri, oppure almeno 14 con maiuscole, minuscole, numeri o simboli.",
+      pwWeak: "❌ Password troppo facile da indovinare: evita ripetizioni e sequenze (aaaa, 123456, abcdef) e usa caratteri diversi.",
       pwDiffer: "❌ Le due password non sono uguali.",
       pwWrong: "❌ Password sbagliata.",
       noFile: "❌ Scegli il file della copia di backup.",
@@ -250,13 +251,13 @@
       howPasskey: "With the computer's lock",
       howPasskeyNote: "The computer's fingerprint, face or PIN (Windows Hello, Touch ID), or your phone. The easiest way, if the computer allows it.",
       howPassword: "With a password",
-      howPasswordNote: "A password of at least 12 characters, typed each time. Works on any computer.",
-      devPwLabel: "Password (at least 12 characters)",
+      howPasswordNote: "A password typed each time: a sentence of at least 20 characters, or at least 14 with upper and lower case, digits or symbols. Works on any computer.",
+      devPwLabel: "Password (a sentence of at least 20 characters, or 14 mixed)",
       pwAgainLabel: "Repeat the password",
       continueBtn: "Continue",
       backupTitle: "Create the backup copy",
       backupHtml: "The backup copy is a <b>file protected by a password</b> you choose now. With the file and the password you can get back into your account from another computer.<ul class=\"steps\"><li>Save the file <b>outside this computer</b>: a USB stick, the company's document archive.</li><li>Write the password down somewhere safe, <b>apart from the file</b>.</li><li>Whoever has both the file and the password can use your account: do not send them to anyone, not even to ChainIntegrate.</li></ul>",
-      bkPwLabel: "Backup password (at least 12 characters)",
+      bkPwLabel: "Backup password (a sentence of at least 20 characters, or 14 mixed)",
       backupBtn: "Download the backup copy",
       verifyTitle: "Check the backup copy",
       verifyHtml: "To be sure the copy works, <b>load it here</b> from where you saved it and type its password.",
@@ -342,7 +343,8 @@
       removeYes: "Yes, remove the access",
       removed: "Access removed from this computer.",
       working: "One moment…",
-      pwShort: "❌ The password must have at least 12 characters.",
+      pwShort: "❌ Password too short: a sentence of at least 20 characters, or at least 14 with upper and lower case, digits or symbols.",
+      pwWeak: "❌ Password too easy to guess: avoid repetitions and sequences (aaaa, 123456, abcdef) and use different characters.",
       pwDiffer: "❌ The two passwords are not the same.",
       pwWrong: "❌ Wrong password.",
       noFile: "❌ Choose the backup file.",
@@ -406,13 +408,14 @@
     if (e && e.shown) return e.message;
     if (e && e.code === "WRONG_SECRET") return t("pwWrong");
     if (e && (e.code === "BAD_BACKUP" || e.code === "BAD_RECORD")) return t("badFile");
-    if (e && e.code === "WEAK_PASSWORD") return t("pwShort");
+    if (e && e.code === "WEAK_PASSWORD") return /easy/.test(e.message) ? t("pwWeak") : t("pwShort");
     if (e && e.code === "CANCELLED") return t("passkeyCancelled");
     if (e && e.code === "NO_PRF") return t("noPasskey");
     return t("failed", { err: (e && e.message) || String(e) });
   }
   function newPassword(a, b) {
-    if ([...$(a).value].length < K.MIN_PASSWORD) return t("pwShort");
+    const p = K.passwordProblem($(a).value);
+    if (p) return t(p === "short" ? "pwShort" : "pwWeak");
     if ($(a).value !== $(b).value) return t("pwDiffer");
     return null;
   }

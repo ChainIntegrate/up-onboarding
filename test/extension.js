@@ -118,7 +118,9 @@ async function verify(page, file, pw) {
   await page.click("#startNew"); await visible(page, "sProtect");
   await page.check("input[name=how][value=password]");
   await page.fill("#devPw", "corta"); await page.fill("#devPw2", "corta"); await page.click("#protectBtn");
-  check(/12/.test(await msg(page, "protectMsg")), "a short password is refused");
+  check(/troppo corta/.test(await msg(page, "protectMsg")), "a short password is refused");
+  await page.fill("#devPw", "aaaaaaaaaaaaaaaaaaaaaaaa"); await page.fill("#devPw2", "aaaaaaaaaaaaaaaaaaaaaaaa"); await page.click("#protectBtn");
+  check(/troppo facile/.test(await msg(page, "protectMsg")), "a password made of repetitions is refused (audit A14)");
   await page.fill("#devPw", PW); await page.fill("#devPw2", PW); await page.click("#protectBtn");
   await visible(page, "sBackup");
   check((await page.evaluate(() => chrome.storage.local.get("account"))).account === undefined, "nothing is stored before the backup is checked");

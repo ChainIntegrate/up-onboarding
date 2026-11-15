@@ -7,7 +7,11 @@
 // A key record (what each app stores):
 //   { v: 1, address, method: "password", kdf: { name: "PBKDF2-SHA256", rounds, salt }, iv, ct }
 //   { v: 1, address, method: "secret", hkdf: { name: "HKDF-SHA256", salt, info }, iv, ct, meta }
-// - "password": AES-256-GCM key from PBKDF2-SHA256 (600,000 rounds) of a password of at least 12 characters;
+// - "password": AES-256-GCM key from PBKDF2-SHA256 (600,000 rounds) of a password that passes passwordProblem():
+//   at least 20 characters (a sentence is fine), or at least 14 mixing three kinds of characters (lower case, upper
+//   case, digits, others), as GasTrace asks; at least 8 different characters, no character 4 times in a row, no
+//   run of 6 consecutive letters or digits (abcdef, 123456), not a short block repeated (audit A14, U-05). Records
+//   sealed before with a shorter password still open;
 // - "secret": AES-256-GCM key from HKDF-SHA256 of 32 or more secret bytes the app obtains from the device:
 //   a passkey's PRF value (extension) or a key held in the Android Keystore (app). `meta` is the app's own,
 //   public data needed to obtain the secret again (for a passkey: its credential id and PRF salt).
@@ -19,6 +23,9 @@
 //     account: { address, network } (optional) }
 // `account` names the account the key controls, in clear (public data, outside the encrypted record): a restore
 // finds the account from the file, without the service. It is not trusted for anything else.
+// Kept in clear on purpose (audit U-05 suggested leaving it out): the record's own `address` must be in clear to
+// open it, and that key's account can be found from it on the public network anyway; the file's protection is
+// its password.
 // A record of method "secret" is tied to the device and is never a backup.
 (function (root, factory) {
   const api = factory(root.ethers || (typeof require === "function" ? require("ethers").ethers : null), root.crypto && root.crypto.subtle ? root.crypto : require("crypto").webcrypto);
@@ -29,7 +36,7 @@
   const subtle = webcrypto.subtle;
   const VERSION = 1;
   const ROUNDS = 600000;
-  const MIN_PASSWORD = 12;
+  const MIN_PASSWORD = 14, LONG_PASSWORD = 20;
   const HKDF_INFO = "up-onboarding key encryption v1";
   const BACKUP_KIND = "chainintegrate-up-key-backup";
   const enc = new TextEncoder();
@@ -49,8 +56,28 @@
     return subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt, info: enc.encode(info) }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
 
+  // null when the password is good enough for a new record, else "short" or "weak".
+  function passwordProblem(password) {
+    if (typeof password !== "string") return "short";
+    const ch = [...password], n = ch.length;
+    if (n < MIN_PASSWORD) return "short";
+    const kinds = [/[a-zà-ÿ]/, /[A-ZÀ-Þ]/, /[0-9]/, /[^a-zA-Z0-9à-ÿÀ-Þ]/].filter((re) => re.test(password)).length;
+    if (n < LONG_PASSWORD && kinds < 3) return "short";
+    if (new Set(ch.map((c) => c.toLowerCase())).size < 8) return "weak";
+    if (/(.)\1\1\1/u.test(password)) return "weak";
+    const lower = password.toLowerCase();
+    for (let i = 0; i + 6 <= lower.length; i++) {
+      const s = lower.slice(i, i + 6);
+      if (!/^[a-z0-9]+$/.test(s)) continue;
+      const step = s.charCodeAt(1) - s.charCodeAt(0);
+      if ((step === 1 || step === -1) && [...s].every((c, j) => j === 0 || c.charCodeAt(0) - s.charCodeAt(j - 1) === step)) return "weak";
+    }
+    for (let p = 1; p <= 6; p++) if (n % p === 0 && n / p >= 2 && ch.join("") === ch.slice(0, p).join("").repeat(n / p)) return "weak";
+    return null;
+  }
   function checkPassword(password) {
-    if (typeof password !== "string" || [...password].length < MIN_PASSWORD) throw fail("WEAK_PASSWORD", `The password must have at least ${MIN_PASSWORD} characters.`);
+    const p = passwordProblem(password);
+    if (p) throw fail("WEAK_PASSWORD", p === "short" ? `The password must have at least ${LONG_PASSWORD} characters, or ${MIN_PASSWORD} mixing upper and lower case, digits or symbols.` : "The password is too easy to guess (repeated characters or sequences).");
   }
   function checkSecret(secret) {
     if (!(secret instanceof Uint8Array) || secret.length < 32) throw fail("BAD_SECRET", "The device secret must be at least 32 bytes.");
@@ -131,5 +158,5 @@
     return obj.key;
   }
 
-  return { VERSION, ROUNDS, MIN_PASSWORD, BACKUP_KIND, generate, sealWithPassword, sealWithSecret, open, withKey, backupFile, readBackup, readBackupInfo, wipe };
+  return { VERSION, ROUNDS, MIN_PASSWORD, LONG_PASSWORD, passwordProblem, BACKUP_KIND, generate, sealWithPassword, sealWithSecret, open, withKey, backupFile, readBackup, readBackupInfo, wipe };
 });

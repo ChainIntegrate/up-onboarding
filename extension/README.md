@@ -9,7 +9,7 @@ technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in
 1. **Welcome**: "Start: create your access", "I already have an access: restore from the backup copy", or "Add
    this computer to an existing account".
 2. **Protect the access on this computer**: with the computer's lock (fingerprint, face or PIN through a passkey:
-   Windows Hello, Touch ID, a phone) or with a password of at least 12 characters.
+   Windows Hello, Touch ID, a phone) or with a password (a sentence of at least 20 characters, or 14 mixing upper and lower case, digits or symbols; no repetitions or sequences).
 3. **Create the backup copy**, then **check it**: a file protected by a password chosen now, downloaded and loaded
    back with its password. A wrong password or another access's copy is refused, and nothing is saved on the
    computer before the check passes.

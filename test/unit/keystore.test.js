@@ -69,3 +69,10 @@ test("a backup file can name the account, in clear", async () => {
   assert.throws(() => K.readBackupInfo({ ...file, account: { address: "0x12", network: "lukso" } }), { code: "BAD_BACKUP" });
   assert.throws(() => K.backupFile(rec, { account: { address: acct.address, network: "ethereum" } }), { code: "BAD_BACKUP" });
 });
+
+test("password rule: a sentence of 20 characters, or 14 mixed; no repetitions or sequences (audit A14, U-05)", () => {
+  for (const ok of ["una password lunga 1", "correct horse battery", "Bianchi-2026!x", "Tr3no per Mil@no"]) assert.strictEqual(K.passwordProblem(ok), null, ok);
+  for (const [pw, why] of [["aaaaaaaaaaaa", "short"], ["passwordpassword", "short"], ["abcdefghijklmn", "short"], ["Abcdefgh123456", "weak"],
+    ["aaaaaaaaaaaaaaaaaaaaaaaa", "weak"], ["abababababababababababab", "weak"], ["Xyz1Xyz1Xyz1Xyz1", "weak"], ["Passsssword1234!", "weak"], ["qwertyuiopasdfghjklz", null]])
+    assert.strictEqual(K.passwordProblem(pw), why, pw);
+});

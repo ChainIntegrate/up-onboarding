@@ -40,7 +40,7 @@
         { id: "accesso", title: "3. Creare l'accesso e la copia di backup", html: `
           <ol>
             <li>Nella pagina dell'estensione premi ${B("Inizia: crea il tuo accesso")}.</li>
-            <li><b>Proteggi l'accesso su questo computer</b>: con il <b>blocco del computer</b> (impronta, volto o PIN, come per sbloccare il computer) oppure con una <b>password</b> di almeno 12 caratteri. Ti verrà chiesto ogni volta che usi l'account.</li>
+            <li><b>Proteggi l'accesso su questo computer</b>: con il <b>blocco del computer</b> (impronta, volto o PIN, come per sbloccare il computer) oppure con una <b>password</b>: una frase di almeno 20 caratteri, oppure almeno 14 con maiuscole, minuscole, numeri o simboli, senza ripetizioni o sequenze come 123456. Ti verrà chiesto ogni volta che usi l'account.</li>
             <li><b>Crea la copia di backup</b>: scegli una password per la copia (diversa da quella del computer va benissimo) e premi ${B("Scarica la copia di backup")}. Si scarica un file.</li>
             <li>Sposta il file in un posto sicuro fuori dal computer e annota la password in un posto separato.</li>
             <li><b>Controlla la copia di backup</b>: ricarica il file, scrivi la sua password e premi ${B("Controlla")}. Solo ora l'accesso viene salvato: così sei sicuro che la copia si apre.</li>
@@ -175,7 +175,7 @@
         { id: "accesso", title: "3. Creating the access and the backup copy", html: `
           <ol>
             <li>On the extension's page press ${B("Start: create your access")}.</li>
-            <li><b>Protect the access on this computer</b>: with the <b>computer's lock</b> (fingerprint, face or PIN, as to unlock the computer) or with a <b>password</b> of at least 12 characters. It is asked each time you use the account.</li>
+            <li><b>Protect the access on this computer</b>: with the <b>computer's lock</b> (fingerprint, face or PIN, as to unlock the computer) or with a <b>password</b>: a sentence of at least 20 characters, or at least 14 with upper and lower case, digits or symbols, with no repetitions or sequences such as 123456. It is asked each time you use the account.</li>
             <li><b>Create the backup copy</b>: choose a password for the copy (different from the computer's is fine) and press ${B("Download the backup copy")}. A file is downloaded.</li>
             <li>Move the file to a safe place outside the computer and note the password somewhere else.</li>
             <li><b>Check the backup copy</b>: load the file again, type its password and press ${B("Check")}. Only now is the access saved: so you know the copy opens.</li>
