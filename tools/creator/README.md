@@ -32,8 +32,11 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
    `/api/v0/add`, pinned), then asked from LUKSO's gateway (`warmGateways`) so Universal Everything's indexer finds
    them at once; the LSP23 call of `shared/deploy.js` with a random salt, sent by the gas wallet, refused while the
    wallet would fall under `minBalance`; the account read back (owner, Key Manager, keys, permissions, profile).
-6. **The code** becomes `used`, with the account's address. If something fails after the transaction was sent, the
-   code stays in `review` with the transaction (`invites`).
+6. **The code** becomes `used`, with the account's address. The transaction is signed and written in the code's
+   journal (account address, hash, bytes) **before** it is sent: a stop or an unknown answer after that never opens
+   the code again for a second account. At the next start the service finishes it (sends the same bytes again if
+   the network does not know them; once mined, lists the account and uses the code; audit A18). If something fails
+   after the transaction was sent, the code stays in `review` with the transaction (`invites`).
 
 **Relay** (`/api/relay`, LSP25 `executeRelayCall`, `shared/relay.js`). Allowed, whoever signs:
 - the profile (an IPFS VerifiableURI) and the signer's own name;

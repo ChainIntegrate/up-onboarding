@@ -182,12 +182,32 @@ class HttpError extends Error { constructor(status, code, extra) { super(code); 
 
 function makeService(cfg) {
   const store = new Store(cfg.dataDir);
-  // A code left "creating" by a stop before any transaction is open again.
+  // A code left "creating" by a stop before any transaction is open again; one with a signed transaction is
+  // finished by reconcile() once the network can be read.
   { const all = store.load(); let n = 0; for (const k of Object.keys(all)) if (all[k].state === "creating" && !all[k].tx) { all[k].state = "open"; delete all[k].startedAt; n++; } if (n) store.save(all); }
   // cacheTimeout -1: ethers would otherwise answer identical RPC calls from a 250 ms cache, the gas wallet's
   // transaction count included, and two sends close together would reuse a nonce.
   const provider = new ethers.JsonRpcProvider(cfg.rpc, cfg.chainId, { staticNetwork: true, cacheTimeout: -1 });
   const wallet = new ethers.Wallet(secret(cfg.gasKeyFile), provider);
+  // A creation stopped after its transaction was signed (audit A18): sent again if the network does not know it
+  // (the same bytes: one account at most); once mined, the account is checked and listed (so the client finds it)
+  // and the code used; else the code stays "creating" and alert.js reports it.
+  async function reconcile() {
+    const all = store.load();
+    for (const [h, i] of Object.entries(all)) {
+      if (!(i.state === "creating" || (i.state === "review" && i.unsent)) || !i.tx || !i.up) continue;
+      try {
+        let rc = await provider.getTransactionReceipt(i.tx);
+        if (!rc && i.raw && i.state === "creating") { try { await provider.broadcastTransaction(i.raw); } catch (e) { console.error(`reconcile ${i.id}: sending again: ${e.shortMessage || e.message}`); } rc = await waitReceipt(provider, i.tx, cfg.confirmSeconds * 1000); }
+        if (!rc) continue;
+        if (rc.status === 1 && (await provider.getCode(i.up)) !== "0x") {
+          if (!store.created().some((e) => e.up && ethers.getAddress(e.up) === ethers.getAddress(i.up))) store.log({ up: i.up, km: i.km, tx: i.tx, network: cfg.network, keys: i.keys || [], reconciled: true });
+          store.update(h, { state: "used", usedAt: i.usedAt || new Date().toISOString(), raw: undefined, unsent: undefined });
+          console.log(`reconciled: ${i.up} created (tx ${i.tx}), code ${i.id} used`);
+        } else { store.update(h, { state: "review", raw: undefined, unsent: undefined }); console.error(`reconciled: tx ${i.tx} of code ${i.id} failed: in review`); }
+      } catch (e) { console.error(`reconcile ${i.id}: ${e.shortMessage || e.message}`); }
+    }
+  }
   const recent = new Map(); // ip -> [timestamps of the last minute]
   let queue = Promise.resolve(); // one creation at a time: one nonce sequence for the gas wallet
 
@@ -258,7 +278,10 @@ function makeService(cfg) {
     return { value: UPDeploy.profileValue(json, url), url };
   }
 
-  async function create(request) {
+  // `record(fields)` is called with the transaction already signed, before it is broadcast: the code's journal then
+  // holds the account's address and the transaction (hash and bytes), so a stop at any point after cannot open the
+  // code again for a second account (audit A18); at the next start reconcile() finishes it.
+  async function create(request, record) {
     const { value } = await pinProfile(request.profile, request.images);
     const plan = UPDeploy.plan({ profileValue: value, controllers: request.controllers, salt: ethers.hexlify(crypto.randomBytes(32)), chainId: cfg.chainId });
     const { up, km } = await UPDeploy.addresses(provider, plan);
@@ -272,7 +295,11 @@ function makeService(cfg) {
       console.error(`LOW BALANCE: ${ethers.formatEther(balance)} on ${wallet.address}`);
       throw new HttpError(503, "unavailable");
     }
-    const tx = await wallet.sendTransaction({ to: plan.to, data: plan.data, gasLimit: (gas * 12n) / 10n });
+    const populated = await wallet.populateTransaction({ to: plan.to, data: plan.data, gasLimit: (gas * 12n) / 10n });
+    const raw = await wallet.signTransaction(populated);
+    const hash = ethers.keccak256(raw);
+    record({ tx: hash, raw, up, km, keys: request.controllers.map((c) => c.address) });
+    const tx = await provider.broadcastTransaction(raw);
     return { up, km, tx, plan };
   }
 
@@ -286,10 +313,10 @@ function makeService(cfg) {
       checkInvite(body.invite);
       if (store.usedToday() >= cfg.maxPerDay) { console.error("DAILY LIMIT reached"); throw new HttpError(429, "daily_limit"); }
       store.update(hash, { state: "creating", startedAt: new Date().toISOString() });
-      let sent = null;
+      let sent = null, signed = null;
       try {
-        sent = await create(request);
-        store.update(hash, { state: "review", tx: sent.tx.hash, up: sent.up, usedAt: new Date().toISOString() });
+        sent = await create(request, (f) => { signed = f; store.update(hash, { tx: f.tx, raw: f.raw, up: f.up, km: f.km, keys: f.keys }); });
+        store.update(hash, { state: "review", tx: sent.tx.hash, up: sent.up, usedAt: new Date().toISOString(), raw: undefined });
         const rc = await waitReceipt(provider, sent.tx.hash, cfg.confirmSeconds * 1000);
         if (!rc || rc.status !== 1) throw new HttpError(502, "failed", { tx: sent.tx.hash });
         const problems = await UPDeploy.verify(provider, sent.plan, sent.up, sent.km, { blockTag: rc.blockNumber });
@@ -299,11 +326,13 @@ function makeService(cfg) {
         console.log(`created ${sent.up} (${cfg.network}) tx ${sent.tx.hash}`);
         return { up: sent.up, km: sent.km, tx: sent.tx.hash, network: cfg.network };
       } catch (e) {
-        // Before a transaction, the code is open again; after one, it stays in "review" for the operator.
-        if (!sent) store.update(hash, { state: "open", startedAt: undefined });
+        // Before a signed transaction, the code is open again; after one (even if its sending failed or is unknown),
+        // it stays in "review" for the operator, with the transaction.
+        if (!signed) store.update(hash, { state: "open", startedAt: undefined });
+        else if (!sent) store.update(hash, { state: "review", unsent: true, usedAt: new Date().toISOString() });
         if (e instanceof HttpError) throw e;
         console.error("create failed:", e.shortMessage || e.message);
-        throw new HttpError(sent ? 502 : 503, sent ? "failed" : "unavailable", sent ? { tx: sent.tx.hash } : {});
+        throw new HttpError(signed ? 502 : 503, signed ? "failed" : "unavailable", signed ? { tx: signed.tx } : {});
       }
     });
     queue = run.catch(() => {});
@@ -722,6 +751,8 @@ function makeService(cfg) {
     } finally { release(); }
   }
 
+  // Once at the start, in the queue (the gas wallet's nonces).
+  queue = queue.then(reconcile).catch((e) => console.error("reconcile:", e.message));
   return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, handleAdminChallenge, handleAdminSession, handleAdminInvites, wallet, provider, store };
 }
 

@@ -477,6 +477,21 @@ async function waitFor(url, body) {
     const left = BigInt(await prov.send("eth_getBalance", [gas.address, "latest"])); // not ethers' 250 ms cache
     check(left === 0n && BigInt(await prov.send("eth_getBalance", [mine, "latest"])) > ethers.parseEther("9"), "withdraw sends everything but the fee (nothing left)" + ` [left ${left}]`);
     // ---- an account (Universal Profile) as the operator: its signature checked with ERC-1271 through its Key Manager
+    // ---- a creation stopped after its transaction was signed, before it was sent (audit A18): the next start sends
+    // the same transaction, lists the account and uses the code; the code is never open again
+    const stopCode = cli("invite", "--note", "Fermato");
+    const stopKey = ethers.Wallet.createRandom();
+    const stopPlan = UPDeploy.plan({ profileValue: "0x", controllers: [{ address: stopKey.address, name: "PC", role: "admin" }], salt: ethers.hexlify(ethers.randomBytes(32)), chainId: 42 });
+    const stopAddr = await UPDeploy.addresses(prov, stopPlan);
+    await prov.send("hardhat_setBalance", [gas.address, "0x1000000000000000000"]); // (withdrawn above)
+    const gasW = gas.connect(new ethers.JsonRpcProvider(RPC, 42, { staticNetwork: true, cacheTimeout: -1 }));
+    const stopRaw = await gasW.signTransaction(await gasW.populateTransaction({ to: stopPlan.to, data: stopPlan.data, gasLimit: 3000000 }));
+    {
+      const invFile = path.join(dir, "data", "invites.json"), all = JSON.parse(fs.readFileSync(invFile, "utf8"));
+      const h = require("crypto").createHash("sha256").update(stopCode.replace(/-/g, "")).digest("hex");
+      all[h] = { ...all[h], state: "creating", startedAt: new Date().toISOString(), tx: ethers.keccak256(stopRaw), raw: stopRaw, up: stopAddr.up, km: stopAddr.km, keys: [stopKey.address] };
+      fs.writeFileSync(invFile, JSON.stringify(all));
+    }
     if (created) {
       fs.writeFileSync(path.join(dir, "config-op.json"), JSON.stringify({ ...config, port: PORT + 5, operators: [created] }));
       const svc2 = spawn(process.execPath, [CREATOR, "serve"], { env: { ...env, CREATOR_CONFIG: path.join(dir, "config-op.json") }, stdio: "ignore" });
@@ -493,6 +508,12 @@ async function waitFor(url, body) {
         check(await direct(admin, UPRelay.addDevice({ length: (await readP(admin.address)).keys.length, address: acc.address, role: "access", name: "Accesso operatore", chainId: 42 })), "invitations: (an access key on the operator's account)");
         const ch3 = await adm("challenge", { address: created }, PORT + 5);
         const acs = await adm("session", { nonce: ch3.body.nonce, signature: acc.signingKey.sign(ethers.hashMessage(ch3.body.message)).serialized }, PORT + 5);
+        for (let i = 0; i < 40 && !/"reconciled":true/.test(fs.readFileSync(path.join(dir, "data", "created.jsonl"), "utf8")); i++) await sleep(250);
+        const stopInv = JSON.parse(fs.readFileSync(path.join(dir, "data", "invites.json"), "utf8"));
+        const stopEntry = Object.values(stopInv).find((i) => i.note === "Fermato");
+        check((await prov.getCode(stopAddr.up)) !== "0x" && stopEntry.state === "used" && !stopEntry.raw &&
+          fs.readFileSync(path.join(dir, "data", "created.jsonl"), "utf8").includes(stopAddr.up), "creation stopped after signing: at the next start the same transaction is sent, the account listed, the code used (audit A18)");
+        check((await lookDev(stopKey.address)).status === 200, "… and the client finds the account");
         check(acs.status === 401 && acs.body.reason === "not_admin", "invitations: an access key of the operator's account cannot sign in (an administrator's key is needed)");
       } finally { svc2.kill(); }
     }
