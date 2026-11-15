@@ -250,6 +250,13 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     const pvEn = await pv.textContent("body");
     check(/titolare/.test(pvIt + pvEn) || /Chi è il titolare/.test(pvIt), "the privacy notice shows its sections");
     check(/info@chainintegrate\.it/.test(pvIt) && /GDPR/.test(pvEn) && pvIt !== pvEn, "the privacy notice is in Italian and English, with contacts and rights");
+    const pvAll = pvIt + pvEn;
+    check(/Simone Cavalletti/.test(pvAll) && /6\.1\.b/.test(pvAll) && /api\.universalprofile\.cloud/.test(pvAll) && /creato tramite ChainIntegrate/.test(pvAll) && /nomi dei computer/.test(pvAll),
+      "the privacy notice names the controller, the legal bases, the third parties and what is public (audit P-02, U-12)");
+    await pv.goto(`http://127.0.0.1:${PORT}/termini.html`);
+    const tsA = await pv.textContent("body"); await pv.click("#langToggle"); const tsB = await pv.textContent("body");
+    const tsIt = /Termini di servizio/.test(tsA) ? tsA : tsB, tsEn = tsIt === tsA ? tsB : tsA;
+    check(/non può recuperare l'account/.test(tsIt) && /cannot recover the account/.test(tsEn) && /legge italiana/.test(tsIt), "the terms of service, in Italian and English (audit U-13)");
     await pv.close();
 
     // ---- IPFS mode, phone width

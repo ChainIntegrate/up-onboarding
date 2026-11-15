@@ -322,7 +322,7 @@ function makeService(cfg) {
         const problems = await UPDeploy.verify(provider, sent.plan, sent.up, sent.km, { blockTag: rc.blockNumber });
         if (problems.length) { store.log({ up: sent.up, tx: sent.tx.hash, problems }); throw new HttpError(502, "failed", { tx: sent.tx.hash }); }
         store.update(hash, { state: "used" });
-        store.log({ up: sent.up, km: sent.km, tx: sent.tx.hash, network: cfg.network, keys: request.controllers.map((c) => c.address) });
+        store.log({ up: sent.up, km: sent.km, tx: sent.tx.hash, network: cfg.network, keys: request.controllers.map((c) => c.address), ...(request.terms ? { terms: request.terms } : {}) });
         console.log(`created ${sent.up} (${cfg.network}) tx ${sent.tx.hash}`);
         return { up: sent.up, km: sent.km, tx: sent.tx.hash, network: cfg.network };
       } catch (e) {

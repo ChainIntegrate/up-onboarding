@@ -34,6 +34,9 @@
   // The profile's name, shown by Universal Everything as a handle (@name#abcd): lowercase letters, digits and
   // hyphens, 3 to 32 characters, not starting or ending with a hyphen (the maintainer's rule, 2026-11-12).
   const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/;
+  // The version (date) of the terms of service (web/termini.html) the client accepts in the extension before the
+  // creation; sent with the request (optional: 0.5.x sent none) and kept by the service (audit U-13).
+  const TERMS = "2026-11-15";
 
   // One line: no control, zero-width or bidi characters, spaces collapsed, at most `max` characters.
   const BAD = "[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]";
@@ -104,6 +107,10 @@
     else if (!controllers.some((c) => c.role === "admin")) errors.push("controllers.noAdmin");
 
     const request = { kind: KIND, version: VERSION, network, profile, images, controllers };
+    if (src.terms != null) {
+      if (typeof src.terms === "string" && /^\d{4}-\d{2}-\d{2}$/.test(src.terms)) request.terms = src.terms;
+      else errors.push("terms");
+    }
     if (salt) request.salt = salt;
     return { request, errors };
   }
@@ -140,5 +147,5 @@
   // The message a key of the account signs (personal_sign) to have the service store a new profile on IPFS.
   const updateMessage = (update) => `ChainIntegrate profile update\n${ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(update)))}`;
 
-  return { KIND, VERSION, NETWORKS, ROLES, LIMITS, NAME_RE, create, parse, warnings, oneLine, signingMessage, profileUpdate, updateMessage };
+  return { KIND, VERSION, TERMS, NETWORKS, ROLES, LIMITS, NAME_RE, create, parse, warnings, oneLine, signingMessage, profileUpdate, updateMessage };
 });

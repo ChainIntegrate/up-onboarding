@@ -186,7 +186,11 @@
       leaveWarning: "La configurazione non è finita: se chiudi ora, dovrai ricominciare.",
       backupFileName: "chainintegrate-copia-di-backup",
       backupLabel: (v) => `Copia di backup ChainIntegrate, ${v.date}`,
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
+      termsAck: `Ho letto e accetto i <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">termini di servizio</a> e l'<a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">informativa sulla privacy</a>. In breve: l'account è tuo e ChainIntegrate non può recuperarlo, le copie di backup le custodisci tu, il profilo e i nomi dei computer sono pubblici.`,
+      termsMissing: "❌ Per creare l'account leggi e accetta i termini di servizio.",
+      termsChanged: (v) => `I <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">termini di servizio</a> e l'<a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">informativa sulla privacy</a> sono stati aggiornati il ${v.date}.`,
+      termsSeen: "Ho letto",
+      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">Termini</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Siti collegati",
       sitesNote: "I siti dei progetti ChainIntegrate a cui hai collegato il tuo account: vedono il suo indirizzo e possono chiederti conferme. Ogni operazione la confermi tu, ogni volta, in una finestra di questa estensione.",
       sitesNone: "Nessun sito collegato.",
@@ -358,7 +362,11 @@
       leaveWarning: "Setup is not finished: if you close now, you will have to start again.",
       backupFileName: "chainintegrate-backup-copy",
       backupLabel: (v) => `ChainIntegrate backup copy, ${v.date}`,
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
+      termsAck: `I have read and accept the <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">terms of service</a> and the <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">privacy policy</a>. In short: the account is yours and ChainIntegrate cannot recover it, you keep the backup copies, the profile and the computers' names are public.`,
+      termsMissing: "❌ To create the account, read and accept the terms of service.",
+      termsChanged: (v) => `The <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">terms of service</a> and the <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">privacy policy</a> were updated on ${v.date}.`,
+      termsSeen: "Read",
+      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">Terms</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Connected sites",
       sitesNote: "The sites of ChainIntegrate's projects you connected your account to: they see its address and may ask you for confirmations. You confirm every operation yourself, each time, in a window of this extension.",
       sitesNone: "No site connected.",
@@ -748,11 +756,15 @@
     $("createPwBox").hidden = has || account.record.method !== "password";
     if (has) { renderAccount(); prefillEdit(); if (account.accountFromFile) confirmAccount(); } else if (!join) findAccount();
     $("sitesBox").hidden = !has; if (has) renderSites();
+    // Terms or privacy policy changed since this computer last accepted or read them (also an account made before).
+    $("termsBox").hidden = !has || account.termsAccepted === UPRequest.TERMS;
+    if (!$("termsBox").hidden) $("termsText").innerHTML = t("termsChanged", { date: new Date(UPRequest.TERMS + "T12:00:00Z").toLocaleDateString(LANG === "it" ? "it-IT" : "en-GB", { day: "numeric", month: "long", year: "numeric" }) });
     if (has && !account.profileName) fillFromNetwork();
     $("unlockBox").hidden = true;
     $("removeAck").checked = false; $("removeBtn").disabled = true; $("removeConfirm").hidden = true;
     if (!has) resetCreateForm();
   }
+  $("termsOk").addEventListener("click", async () => { await save({ ...account, termsAccepted: UPRequest.TERMS }); $("termsBox").hidden = true; });
   $("copyCode").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(account.record.address); say("mainMsg", t("copied"), "line-ok"); } catch (e) { /* select by hand */ }
   });
@@ -857,6 +869,7 @@
     if (!UPRequest.NAME_RE.test($("pName").value)) { say("createMsg", t("nameBad"), "line-err"); return; }
     const devName = oneLine($("cName").value);
     if (!devName) { say("createMsg", t("noDevName"), "line-err"); return; }
+    if (!$("termsAck").checked) { say("createMsg", t("termsMissing"), "line-err"); return; }
     busy(true, "createMsg");
     let network;
     try { network = (await (await fetch(CONFIG.health)).json()).network; } catch (e) { network = null; }
@@ -866,6 +879,7 @@
       profile: { name: $("pName").value, description: $("pDesc").value, tags: [], links: [] },
       images: { avatar, cover: null },
       controllers: [{ address: account.record.address, name: devName, role: "admin" }],
+      terms: UPRequest.TERMS,
     });
     if (errors.length) { say("createMsg", errors.includes("profile.nameRule") ? t("nameBad") : t("err_bad_request"), "line-err"); busy(false); return; }
     let secret = null;
@@ -893,7 +907,7 @@
         const msg = body.error === "failed" ? t("err_failed", { ref: (body.tx || "").slice(0, 18) }) : I18N[LANG][key] ? t(key) : t("err_unavailable");
         throw Object.assign(new Error(msg), { shown: true });
       }
-      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, profileDesc: request.profile.description, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString() });
+      await save({ ...account, up: body.up, network: body.network || network, profileName: request.profile.name, profileDesc: request.profile.description, name: devName, nameInAccount: devName, picture: avatar ? (await resize(avatar.dataUrl, 128)).dataUrl : null, createdAt: new Date().toISOString(), termsAccepted: UPRequest.TERMS });
       $("invite").value = ""; $("pName").value = ""; $("pDesc").value = ""; resetCreateForm();
       verifyMode = "setup";
       show("sBackup");

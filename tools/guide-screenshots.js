@@ -82,7 +82,7 @@ async function run(lang) {
   const logoFile = path.join(dir, "logo.png"); fs.writeFileSync(logoFile, logo);
   await page.fill("#invite", T.invite); await page.type("#pName", T.name); await page.fill("#cName", T.cname); await page.fill("#pDesc", T.desc);
   await page.setInputFiles("#pAvatar", logoFile); await page.waitForSelector("#avatarPrev img");
-  await page.fill("#createPw", PW);
+  await page.fill("#createPw", PW); await page.check("#termsAck");
   await shot(page.locator("#pCreate"), lang, "create");
   await ctx.route("https://account.chainintegrate.it/api/create", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ up: UP, km: ethers.ZeroAddress, tx: "0x" + "ab".repeat(32), network: "lukso" }) }));
   const devices = [{ address: code, name: T.cname, role: "admin" }, { address: OTHER, name: T.other, role: "access" }];

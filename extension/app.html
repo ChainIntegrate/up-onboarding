@@ -239,12 +239,17 @@
     <input type="file" id="pAvatar" accept="image/png,image/jpeg,image/webp,image/gif">
     <div class="img-prev" id="avatarPrev"></div>
     <div class="note" style="margin-top:12px;" data-i18n-html="publicNote"></div>
+    <label class="check-row"><input type="checkbox" id="termsAck"> <span data-i18n-html="termsAck"></span></label>
     <div id="createPwBox" hidden>
       <label for="createPw" data-i18n="unlockPwLabel">Password di questo computer</label>
       <input type="password" id="createPw" autocomplete="current-password">
     </div>
     <button id="createBtn" type="button" data-i18n="createBtn">Crea il mio account</button>
     <div class="msg" id="createMsg"></div>
+  </div>
+  <div class="panel" id="termsBox" hidden style="border:2px solid var(--brand);">
+    <div class="lead" id="termsText"></div>
+    <button id="termsOk" class="secondary" type="button" data-i18n="termsSeen">Ho letto</button>
   </div>
   <div class="panel" id="pAccount" hidden>
     <h2 data-i18n="accountTitle">Il tuo account</h2>

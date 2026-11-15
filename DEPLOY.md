@@ -147,6 +147,15 @@ sudo cp /var/www/up-onboarding/tools/nginx/account.chainintegrate.it.conf /etc/n
 sudo systemctl restart up-onboarding-creator
 ```
 
+## Logs kept at most 30 days
+
+The privacy notice (section 6) says the server's logs are kept at most 30 days. The service's own events go to
+the system journal; nginx's logs are rotated by logrotate (Ubuntu's default: 14 days). Once, on the server:
+
+```bash
+sudo mkdir -p /etc/systemd/journald.conf.d && printf '[Journal]\nMaxRetentionSec=30day\n' | sudo tee /etc/systemd/journald.conf.d/retention.conf && sudo systemctl restart systemd-journald
+```
+
 ## Every update
 
 ```bash

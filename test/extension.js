@@ -163,6 +163,9 @@ async function verify(page, file, pw) {
   await page.fill("#pDesc", "Vino toscano");
   await page.setInputFiles("#pAvatar", path.join(__dirname, "..", "web", "icon-192.png"));
   await page.waitForSelector("#avatarPrev img");
+  await page.fill("#createPw", PW); await page.click("#createBtn");
+  check(/accetta i termini/.test(await msg(page, "createMsg")) && seen === null, "the account is created only once the terms of service are accepted (audit U-13)");
+  await page.check("#termsAck");
   await page.fill("#createPw", PW + "x"); await page.click("#createBtn");
   await page.waitForFunction(() => !document.querySelector("#createBtn").disabled);
   check(/sbagliata/.test(await msg(page, "createMsg")) && seen === null, "a wrong password sends nothing" + ` [${await msg(page, "createMsg")}]`);
@@ -171,8 +174,8 @@ async function verify(page, file, pw) {
   check(/già stato usato/.test(await msg(page, "createMsg")), "the service's refusal is told in plain words");
   const req = UPRequest.parse(seen.request);
   check(req.errors.length === 0 && req.request.controllers.length === 1 && req.request.controllers[0].address === code && req.request.controllers[0].role === "admin" &&
-    req.request.controllers[0].name === "PC ufficio" && req.request.profile.name === "rossi-srl" && !!req.request.images.avatar && req.request.network === "lukso-testnet",
-    "the request names this computer's key as administrator, with the profile, the picture and the service's network");
+    req.request.controllers[0].name === "PC ufficio" && req.request.profile.name === "rossi-srl" && !!req.request.images.avatar && req.request.network === "lukso-testnet" && req.request.terms === UPRequest.TERMS,
+    "the request names this computer's key as administrator, with the profile, the picture, the service's network and the terms accepted");
   check(ethers.verifyMessage(UPRequest.signingMessage(req.request), seen.signature) === code && seen.invite === "ABCD-EFGH-JKMN", "the request is signed with this computer's key");
   check(req.request.images.avatar.dataUrl.startsWith("data:image/jpeg;"), "a picture without transparency is sent as JPEG");
   // a logo with transparent pixels stays PNG
@@ -198,6 +201,7 @@ async function verify(page, file, pw) {
   check(acc.backupHasAccount === true && (await page.textContent("#accountAddr")).trim() === UP, "then the account is ready, its address shown");
   check(acc.nameInAccount === "PC ufficio" && (await page.isVisible("#devNameLine")) && /PC ufficio/.test(await page.textContent("#devNameLine")), "after the creation the computer's name written in the account is shown");
   check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
+  check(acc.termsAccepted === UPRequest.TERMS && await page.isHidden("#termsBox"), "the terms accepted at the creation are remembered: no notice");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
   check((await page.inputValue("#pAvatar")) === "" && (await page.inputValue("#pName")) === "", "after the creation the form is empty, the picture field too (the same file can be chosen again)");
 

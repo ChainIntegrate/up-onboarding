@@ -23,6 +23,7 @@ when the changes are nearly complete). What is done and what is next: [BACKLOG.m
 | The client's page: "Create your ChainIntegrate account" (install the extension) | https://account.chainintegrate.it/ |
 | The guide for the client (every step, in Italian and English) | https://account.chainintegrate.it/guida.html |
 | The privacy notice (extension and account service) | https://account.chainintegrate.it/privacy.html |
+| The terms of service, accepted in the extension before the creation | https://account.chainintegrate.it/termini.html |
 | The invitations page (ChainIntegrate only): invitation codes and the message to send the client | https://account.chainintegrate.it/invites.html |
 | The operator's page (ChainIntegrate only) | https://account.chainintegrate.it/operator.html |
 | The extension's releases | [GitHub releases](https://github.com/ChainIntegrate/up-onboarding/releases), `extension-v<version>` |

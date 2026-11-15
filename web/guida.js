@@ -14,7 +14,7 @@
       h1: "Guida all'account ChainIntegrate",
       subtitle: "Tutto quello che serve per usare il tuo account: dall'installazione ai servizi di ChainIntegrate, passo per passo.",
       tocTitle: "In questa guida",
-      footerHtml: `ChainIntegrate · <a href="./">Crea il tuo account</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · e-mail info@chainintegrate.it`,
+      footerHtml: `ChainIntegrate · <a href="./">Crea il tuo account</a> · <a href="termini.html">Termini</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · e-mail info@chainintegrate.it`,
       sections: [
         { id: "prima", title: "1. Prima di iniziare", html: `
           <p>Ti servono:</p>
@@ -149,7 +149,7 @@
       h1: "Guide to the ChainIntegrate account",
       subtitle: "Everything you need to use your account: from the installation to ChainIntegrate's services, step by step.",
       tocTitle: "In this guide",
-      footerHtml: `ChainIntegrate · <a href="./">Create your account</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · e-mail info@chainintegrate.it`,
+      footerHtml: `ChainIntegrate · <a href="./">Create your account</a> · <a href="termini.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · e-mail info@chainintegrate.it`,
       sections: [
         { id: "prima", title: "1. Before you start", html: `
           <p>You need:</p>

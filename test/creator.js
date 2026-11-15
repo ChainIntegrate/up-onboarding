@@ -104,7 +104,7 @@ async function waitFor(url, body) {
     const { request } = UPRequest.create({ network: "lukso",
       profile: { name: "rossi-srl", description: "Vino", tags: ["vino"], links: [{ title: "Sito", url: "https://www.rossi.it" }] },
       images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null },
-      controllers: [{ address: admin.address, name: "PC ufficio", role: "admin" }, { address: device.address, name: "Telefono", role: "device" }] });
+      controllers: [{ address: admin.address, name: "PC ufficio", role: "admin" }, { address: device.address, name: "Telefono", role: "device" }], terms: UPRequest.TERMS });
     const sign = (w, req) => w.signMessage(UPRequest.signingMessage(req));
 
     const inv = require("child_process").spawnSync(process.execPath, [CREATOR, "invite", "--note", "Rossi Srl"], { env, encoding: "utf8" });
@@ -135,6 +135,7 @@ async function waitFor(url, body) {
     if (r.status === 200) {
       const { up, km } = r.body;
       check((await prov.getCode(up)) !== "0x", "the account exists on the network");
+      check(fs.readFileSync(path.join(dir, "data", "created.jsonl"), "utf8").includes(`"terms":"${UPRequest.TERMS}"`), "the terms of service the client accepted are kept with the account (audit U-13)");
       const read = new ethers.Contract(up, ["function getDataBatch(bytes32[]) view returns (bytes[])"], prov);
       const perm = async (a) => { const v = (await read.getDataBatch(["0x4b80742de2bf82acb3630000" + a.slice(2).toLowerCase()]))[0]; return v === "0x" ? 0n : BigInt(v); };
       check((await perm(admin.address)) === UPDeploy.ADMIN_PERMS && (await perm(device.address)) === UPRelay.ACCESS_PERMS && UPDeploy.DEVICE_PERMS === UPRelay.ACCESS_PERMS && (await perm(gas.address)) === 0n,

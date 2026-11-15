@@ -60,6 +60,30 @@ The access role (audit A01 / X-01, D-07; maintainer's decisions 2026-11-15):
 - With the release: run `node tools/guide-screenshots.js` again (the computers' screens changed) and say in the guide
   that "Update" exists.
 
+The audit's Medium findings (maintainer's consent 2026-11-15, all together):
+- **U-01, A13**: limits per account (operations, profiles stored), a gas cap per operation; a profile stored only for
+  an administrator key, each signed update once, within an hour.
+- **U-02**: the invitations page signs in with SIWE, an administrator key of the operator's account, 2-hour sessions
+  for one browser, an e-mail at each sign-in.
+- **U-10**: "ChainIntegrate will never ask you to authorize a computer"; one more confirmation for an administrator;
+  the computers added or revoked since the last opening, until "Seen". No e-mail (maintainer's choice).
+- **A14, U-05**: passwords as GasTrace's (20 characters, or 14 mixed; no repetitions or sequences). The backup keeps
+  naming its account: the key's address is in clear anyway.
+- **A18**: the creation's transaction journaled before it is sent, finished at the next start.
+- **A15**: the node's chain id asked to the node (service: at the start and every 10 minutes, stopping on another
+  network; alert.js; the extension before using a node).
+- **A17, Q-02**: the service on ethers 6.17.0, no advisory left; the rest is test tooling (Hardhat 2), triaged.
+- **P-02, A20, I-04, X-03**: the privacy notice completed (controller Simone Cavalletti as ChainIntegrate, legal
+  bases, retention, third parties, what the code guarantees, IP kept at most two minutes); DEPLOY.md keeps the
+  journal 30 days.
+- **U-12**: said in the privacy notice and the terms: that an account was made through ChainIntegrate is public;
+  neutral names for discretion (maintainer: a minor issue, said clearly).
+- **U-13**: the terms of service (`web/termini.html`, a draft for the maintainer's review before the release),
+  accepted in the extension before the creation (`UPRequest.TERMS` sent and kept with the account); the extension
+  says when they change.
+- Not changed, by the maintainer's decision: **X-04** (side-loaded extension, until clients are many: item 18) and
+  **X-05** (one server, while the volume is small).
+
 ## Next extension version
 
 - **This computer's name**: the "This computer" panel shows the name the extension saved itself, while the list of
