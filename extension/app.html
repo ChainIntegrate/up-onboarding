@@ -281,6 +281,10 @@
   <div class="panel" id="pDevices" hidden>
     <h2 data-i18n="devicesTitle">I computer del tuo account</h2>
     <div class="note" data-i18n="devicesNote"></div>
+    <div id="devChanges" hidden style="margin-top:12px; padding:14px; border:2px solid var(--err); border-radius:8px;">
+      <div class="lead" id="devChangesText"></div>
+      <button id="devChangesOk" class="secondary" type="button" data-i18n="devChangesOk">Ho visto</button>
+    </div>
     <div id="devList"></div>
     <div id="devRevokeConfirm" hidden style="margin-top:14px; padding:14px; border:2px solid var(--err); border-radius:8px;">
       <div class="lead" id="devRevokeText"></div>
@@ -290,6 +294,7 @@
     <details id="devAddBox" style="margin-top:14px;" hidden>
       <summary data-i18n="devAddTitle" style="cursor:pointer; font-weight:600;">Autorizza un altro computer</summary>
       <div class="note" style="margin-top:10px;" data-i18n-html="devAddNote"></div>
+      <div class="lead" style="margin-top:10px; padding:10px; border-left:4px solid var(--warn);" data-i18n-html="devNeverAsk"></div>
       <label for="devCode" data-i18n="devCodeLabel">Codice del computer da autorizzare</label>
       <input type="text" id="devCode" maxlength="60" autocomplete="off" spellcheck="false" style="font-family:monospace;" placeholder="0x1234 5678 …">
       <label for="devName" data-i18n="devNameLabel">Nome del computer</label>
@@ -299,6 +304,8 @@
       <button id="devAddBtn" type="button" data-i18n="devAddBtn">Autorizza questo computer</button>
       <div id="devAddConfirm" hidden style="margin-top:14px; padding:14px; border:2px solid var(--brand); border-radius:8px;">
         <div class="lead" id="devAddText"></div>
+        <div class="lead" style="margin-top:8px;" data-i18n-html="devNeverAsk"></div>
+        <label class="check-row" id="devAdminAckRow" hidden style="margin-top:8px;"><input type="checkbox" id="devAdminAck"> <span data-i18n="devAdminAck"></span></label>
         <button id="devAddCancel" class="secondary" type="button" data-i18n="removeCancel">Annulla</button>
         <button id="devAddYes" type="button" data-i18n="devAddYes">Sì, autorizza</button>
       </div>

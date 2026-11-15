@@ -50,6 +50,13 @@
       devNameLabel: "Nome del computer (es. «Computer ufficio»)",
       devRoleAccess: "<b>Accesso</b>: usa il tuo account nei servizi di ChainIntegrate e conferma per conto tuo, anche l'accesso ai siti. Non può cambiare il profilo, autorizzare o revocare altri computer, né fare operazioni fuori dai servizi di ChainIntegrate. Le richieste di GasTrace si confermano solo da un computer amministratore. Autorizza solo computer della tua azienda.",
       devToUpdate: "da aggiornare per i nuovi servizi",
+      devNeverAsk: "<b>ChainIntegrate non ti chiederà mai di autorizzare un computer.</b> Autorizza solo un computer che hai davanti, tuo o della tua azienda. Se qualcuno te lo chiede, anche a nome di ChainIntegrate, non farlo.",
+      devAdminAck: "Ho capito: un computer amministratore può fare tutto, anche revocare questo computer.",
+      devChangesTitle: "Dall'ultima volta, nel tuo account:",
+      devChangesAdded: (v) => `è stato autorizzato il computer «${v.name}» (${v.role});`,
+      devChangesRemoved: (v) => `è stato revocato il computer «${v.name}»;`,
+      devChangesHint: "Se non sei stato tu o un collega, revoca subito i computer che non conosci e scrivi a ChainIntegrate.",
+      devChangesOk: "Ho visto",
       devUpdate: "Aggiorna",
       devUpdated: (v) => `✅ Il computer ${v.name} è aggiornato: può usare tutti i servizi.`,
       devRoleAdmin: "<b>Amministratore</b>: può fare tutto, come questo computer, anche autorizzare e revocare altri computer.",
@@ -215,6 +222,13 @@
       devNameLabel: "Name of the computer (e.g. “Office computer”)",
       devRoleAccess: "<b>Access</b>: uses your account in ChainIntegrate's services and confirms on your behalf, signing in to the sites too. It cannot change the profile, authorize or revoke other computers, nor do anything outside ChainIntegrate's services. GasTrace's requests are confirmed only from an administrator computer. Authorize only your company's computers.",
       devToUpdate: "to update for the new services",
+      devNeverAsk: "<b>ChainIntegrate will never ask you to authorize a computer.</b> Authorize only a computer you have in front of you, yours or your company's. If someone asks you to, even on ChainIntegrate's behalf, do not.",
+      devAdminAck: "I understand: an administrator computer can do everything, revoking this computer too.",
+      devChangesTitle: "Since last time, on your account:",
+      devChangesAdded: (v) => `the computer “${v.name}” was authorized (${v.role});`,
+      devChangesRemoved: (v) => `the computer “${v.name}” was revoked;`,
+      devChangesHint: "If it was not you or a colleague, revoke at once the computers you do not know and write to ChainIntegrate.",
+      devChangesOk: "Seen",
       devUpdate: "Update",
       devUpdated: (v) => `✅ The computer ${v.name} is up to date: it can use every service.`,
       devRoleAdmin: "<b>Administrator</b>: can do everything, like this computer, including authorizing and revoking other computers.",
@@ -564,7 +578,28 @@
   async function refreshDevices() {
     try { const b = await readDevices(); devState = { keys: b.keys, devices: b.devices || [], role: b.role }; } catch (e) { return; }
     renderDevices();
+    await showChanges();
   }
+  // The account's computers as this computer last saw them: what changed since is shown until "Seen" (audit U-10).
+  // The changes made from here are saved at once (rememberDevices), so only the others' show.
+  const deviceList = () => devState.devices.map((d) => ({ address: d.address, name: d.name || "", role: d.role }));
+  async function rememberDevices() { if (account && account.up) await save({ ...account, knownDevices: deviceList() }); }
+  async function showChanges() {
+    if (!account || !account.up) return;
+    if (!Array.isArray(account.knownDevices)) { await rememberDevices(); return; } // the first time: nothing to compare
+    const before = new Map(account.knownDevices.map((d) => [d.address, d])), now = new Map(deviceList().map((d) => [d.address, d]));
+    const added = [...now.values()].filter((d) => !before.has(d.address)), removed = [...before.values()].filter((d) => !now.has(d.address));
+    const box = $("devChanges");
+    if (!added.length && !removed.length) { box.hidden = true; return; }
+    const ul = document.createElement("ul");
+    const li = (text) => ul.appendChild(Object.assign(document.createElement("li"), { textContent: text }));
+    for (const d of added) li(t("devChangesAdded", { name: d.name || t("devNoName"), role: t("devRole_" + d.role) }));
+    for (const d of removed) li(t("devChangesRemoved", { name: d.name || t("devNoName") }));
+    const text = $("devChangesText"); text.innerHTML = "";
+    text.append(Object.assign(document.createElement("b"), { textContent: t("devChangesTitle") }), ul, Object.assign(document.createElement("div"), { textContent: t("devChangesHint") }));
+    box.hidden = false;
+  }
+  $("devChangesOk").addEventListener("click", async () => { await rememberDevices(); $("devChanges").hidden = true; });
   function renderDevices() {
     const box = $("devList"); box.innerHTML = "";
     const me = account && account.record ? ethers.getAddress(account.record.address) : null;
@@ -622,7 +657,7 @@
       const now = await readDevices();
       await relaySend(sk, UPRelay.removeDevice({ list: now.keys, address: d.address }));
     });
-    if (ok) { await refreshDevices(); say("devMsg", t("devRevoked", { name: d.name || t("devNoName") }), "line-ok"); }
+    if (ok) { await refreshDevices(); await rememberDevices(); $("devChanges").hidden = true; say("devMsg", t("devRevoked", { name: d.name || t("devNoName") }), "line-ok"); }
   });
   async function updateDevice(d) {
     revoking = null; adding = null; $("devRevokeConfirm").hidden = true; $("devAddConfirm").hidden = true;
@@ -637,18 +672,22 @@
     if (!name) { say("devMsg", t("devNameMissing"), "line-err"); return; }
     adding = { address, name, role }; revoking = null; $("devRevokeConfirm").hidden = true;
     $("devAddText").innerHTML = t("devAddText", { name: esc2(name), code: esc2(grouped(address)), role: esc2(t("devRole_" + role)) });
+    // An administrator can do everything: one more explicit confirmation.
+    $("devAdminAckRow").hidden = role !== "admin"; $("devAdminAck").checked = false; $("devAddYes").disabled = role === "admin";
     $("devAddConfirm").hidden = false; $("devAddCancel").focus();
   });
   $("devAddCancel").addEventListener("click", () => { adding = null; $("devAddConfirm").hidden = true; });
+  $("devAdminAck").addEventListener("change", () => { $("devAddYes").disabled = !$("devAdminAck").checked; });
   $("devAddYes").addEventListener("click", async () => {
     const a = adding; if (!a) return;
+    if (a.role === "admin" && !$("devAdminAck").checked) return;
     $("devAddConfirm").hidden = true; adding = null;
     const ok = await withDeviceKey(async (sk) => {
       const now = await readDevices();
       if (now.keys.includes(a.address)) throw Object.assign(new Error(t("devCodeKnown")), { shown: true });
       await relaySend(sk, (chainId) => UPRelay.addDevice({ length: now.keys.length, address: a.address, role: a.role, name: a.name, chainId }));
     });
-    if (ok) { $("devCode").value = ""; $("devName").value = ""; await refreshDevices(); say("devMsg", t("devAdded", { name: a.name }), "line-ok"); }
+    if (ok) { $("devCode").value = ""; $("devName").value = ""; await refreshDevices(); await rememberDevices(); $("devChanges").hidden = true; say("devMsg", t("devAdded", { name: a.name }), "line-ok"); }
   });
 
   // ---- after a restore the extension knows only the key and the account: the profile (name, description, picture)

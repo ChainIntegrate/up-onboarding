@@ -233,6 +233,13 @@ async function verify(page, file, pw) {
   await page.click("#devAddBox summary");
   const spaced = NEWPC.toLowerCase().slice(2).match(/.{4}/g).join(" ");
   await page.fill("#devCode", spaced); await page.fill("#devName", "Computer ufficio");
+  check(/ChainIntegrate non ti chiederà mai di autorizzare un computer/.test(await page.textContent("#devAddBox")), "authorizing: \"ChainIntegrate will never ask you to authorize a computer\" (audit U-10)");
+  await page.check("input[name=devRole][value=admin]"); await page.click("#devAddBtn"); await visible(page, "devAddConfirm");
+  check(await page.isVisible("#devAdminAckRow") && await page.isDisabled("#devAddYes"), "authorizing an administrator needs one more explicit confirmation");
+  await page.check("#devAdminAck");
+  check(!(await page.isDisabled("#devAddYes")), "… then it can be confirmed");
+  await page.click("#devAddCancel");
+  await page.check("input[name=devRole][value=access]");
   await page.click("#devAddBtn"); await visible(page, "devAddConfirm");
   check((await page.evaluate(() => document.activeElement.id)) === "devAddCancel" && /Computer ufficio/.test(await page.textContent("#devAddText")) && /accesso/.test(await page.textContent("#devAddText")),
     "authorizing a computer asks for a confirmation that names it and its role, with Cancel focused");
@@ -252,6 +259,19 @@ async function verify(page, file, pw) {
   await page.waitForFunction(() => /non ha più accesso/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });
   const rmOp = sent.find((x) => x[0] === "relay")[1];
   check(rmOp.payload.toLowerCase() === UPRelay.removeDevice({ list: [URDA, code, OTHER], address: OTHER }).toLowerCase(), "revoking sends the removal of that computer from the account's list");
+  check(await page.isHidden("#devChanges"), "the changes made from this computer are not shown as news");
+  // a computer authorized elsewhere since the last opening: shown until "Seen"
+  const INTRUDER = ethers.Wallet.createRandom().address;
+  const devBefore = devAnswer;
+  devAnswer = { ...devAnswer, keys: [...devAnswer.keys, INTRUDER], devices: [...devAnswer.devices, { address: INTRUDER, name: "Assistenza", role: "admin" }] };
+  await page.reload(); await visible(page, "pDevices");
+  await page.waitForFunction(() => !document.querySelector("#devChanges").hidden, null, { timeout: 15000 });
+  const news = await page.textContent("#devChanges");
+  check(/Assistenza/.test(news) && /amministratore/.test(news) && !/Vecchio PC/.test(news), "a computer authorized from elsewhere since the last opening is shown (audit U-10)" + ` [${news.slice(0, 120)}]`);
+  await page.click("#devChangesOk");
+  await page.reload(); await visible(page, "pDevices"); await page.waitForTimeout(800);
+  check(await page.isHidden("#devChanges"), "… until \"Seen\"");
+  devAnswer = devBefore;
   // an access computer whose allowed operations are not today's (an access of 0.5.x, or a new operation): "Update"
   devAnswer = { ...devAnswer, devices: [devAnswer.devices[0], { ...devAnswer.devices[1], update: true }] };
   await page.reload(); await visible(page, "pDevices");
