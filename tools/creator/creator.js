@@ -138,11 +138,20 @@ class Store {
     try { return fs.readFileSync(path.join(this.dir, "created.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); }
     catch (e) { if (e.code === "ENOENT") return []; throw e; }
   }
-  relayLog(entry) { fs.appendFileSync(path.join(this.dir, "relay.jsonl"), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n", { mode: 0o600 }); }
+  relayLog(entry) {
+    const line = JSON.stringify({ at: new Date().toISOString(), ...entry });
+    fs.appendFileSync(path.join(this.dir, "relay.jsonl"), line + "\n", { mode: 0o600 });
+    if (this.today && line.includes(`"at":"${this.today.day}`)) this.today.lines.push(line);
+  }
+  // Today's lines: the file read once a day by this process, then kept in memory (it only grows; audit U-08).
   relayLines() {
     const day = new Date().toISOString().slice(0, 10);
-    try { return fs.readFileSync(path.join(this.dir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)); }
-    catch (e) { if (e.code === "ENOENT") return []; throw e; }
+    if (this.today && this.today.day === day) return this.today.lines;
+    let lines = [];
+    try { lines = fs.readFileSync(path.join(this.dir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)); }
+    catch (e) { if (e.code !== "ENOENT") throw e; }
+    this.today = { day, lines };
+    return lines;
   }
   relayToday() { return this.relayLines().length; }
   // Today's lines of one account: { relayed, pins }.
@@ -350,7 +359,11 @@ function makeService(cfg) {
     if (!body || typeof body.address !== "string" || !ethers.isAddress(body.address)) throw new HttpError(400, "bad_request", { problems: ["address"] });
     const want = ethers.getAddress(body.address);
     const created = store.created().filter((e) => e.up).reverse();
-    const accounts = [...new Map(created.map((e) => [ethers.getAddress(e.up), e])).values()];
+    // The accounts where this key is likely first (written at the creation, or authorized through this service), then
+    // the others: an unknown key still reads every account, but a known one costs one or two readings (audit U-08).
+    const likely = new Set(created.filter((e) => Array.isArray(e.keys) && e.keys.includes(want)).map((e) => ethers.getAddress(e.up)));
+    try { for (const l of fs.readFileSync(path.join(cfg.dataDir, "relay.jsonl"), "utf8").split("\n")) if (l.includes(`addDevice:`) && l.includes(want)) { try { likely.add(ethers.getAddress(JSON.parse(l).account)); } catch (e) { /* a broken line */ } } } catch (e) { /* none yet */ }
+    const accounts = [...new Map(created.map((e) => [ethers.getAddress(e.up), e])).values()].sort((a, b) => likely.has(ethers.getAddress(b.up)) - likely.has(ethers.getAddress(a.up)));
     try {
       const data = UP_DATA.encodeFunctionData("getData", [UPRelay.permKey(want)]);
       for (const e of accounts) {
@@ -616,7 +629,8 @@ function makeService(cfg) {
       if (store.invites().filter((i) => i.by && i.created.startsWith(today)).length >= cfg.maxInvitesPerDay) throw new HttpError(429, "daily_limit");
       const note = String(body.note || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80);
       const inv = store.newInvite({ days, note, by: s.operator });
-      console.log(`invitations: ${s.operator} made code ${inv.id} (${note || "no note"})`);
+      // The code's id only: its note often names the client, and the journal is no place for it (audit U-08).
+      console.log(`invitations: ${s.operator} made code ${inv.id}`);
       return { ...inv, link: `${cfg.siteUrl}#invito=${inv.code}`, invites: list() };
     }
     if (body.action === "revoke") {
