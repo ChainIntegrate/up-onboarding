@@ -76,6 +76,10 @@ function loadConfig() {
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
     rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    // Per account, so that one client (or one stolen key) cannot use up the day for everyone (audit U-01, A13):
+    // operations relayed, profiles stored on IPFS; and the gas one relayed operation may cost at most.
+    maxRelayPerAccountPerDay: Number(c.maxRelayPerAccountPerDay ?? 40), maxPinsPerAccountPerDay: Number(c.maxPinsPerAccountPerDay ?? 10),
+    maxRelayGas: BigInt(c.maxRelayGas ?? 2000000),
     // ChainIntegrate's keys that may use the invitations page (web/invites.html): an address (a key, or an
     // account checked with ERC-1271). None: the page is off.
     operators: Array.isArray(c.operators) ? c.operators.filter((a) => ethers.isAddress(a)).map((a) => ethers.getAddress(a)) : [],
@@ -132,11 +136,23 @@ class Store {
     catch (e) { if (e.code === "ENOENT") return []; throw e; }
   }
   relayLog(entry) { fs.appendFileSync(path.join(this.dir, "relay.jsonl"), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n", { mode: 0o600 }); }
-  relayToday() {
+  relayLines() {
     const day = new Date().toISOString().slice(0, 10);
-    try { return fs.readFileSync(path.join(this.dir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)).length; }
-    catch (e) { if (e.code === "ENOENT") return 0; throw e; }
+    try { return fs.readFileSync(path.join(this.dir, "relay.jsonl"), "utf8").split("\n").filter((l) => l.includes(`"at":"${day}`)); }
+    catch (e) { if (e.code === "ENOENT") return []; throw e; }
   }
+  relayToday() { return this.relayLines().length; }
+  // Today's lines of one account: { relayed, pins }.
+  relayTodayFor(account) {
+    const mine = this.relayLines().filter((l) => l.includes(`"account":"${account}"`));
+    return { relayed: mine.length, pins: mine.filter((l) => l.includes(`"ops":["pin"]`)).length };
+  }
+  // The profile updates already served (the hash of their signed message): each is served once (audit A13).
+  updateUsed(hash) {
+    try { return fs.readFileSync(path.join(this.dir, "profile-updates.txt"), "utf8").split("\n").includes(hash); }
+    catch (e) { if (e.code === "ENOENT") return false; throw e; }
+  }
+  markUpdate(hash) { fs.appendFileSync(path.join(this.dir, "profile-updates.txt"), hash + "\n", { mode: 0o600 }); }
   usedToday() {
     const day = new Date().toISOString().slice(0, 10);
     return Object.values(this.load()).filter((i) => i.usedAt && i.usedAt.slice(0, 10) === day).length;
@@ -330,6 +346,18 @@ function makeService(cfg) {
   // calls in the projects' catalog, with its on-chain checks); simulated before sending, so a call the account's Key Manager or the target contract
   // would refuse costs nothing; a daily cap for the whole service, against a fault that repeats.
   const recentRelays = new Map();
+  // Per account: today's operations and stored profiles, plus those in progress (reserved at once, so requests
+  // arriving together cannot pass the limit). Returns the function that frees the reservation.
+  const inFlight = new Map();
+  function reserve(account, kind) {
+    const t = store.relayTodayFor(account), f = inFlight.get(account) || { relayed: 0, pins: 0 };
+    if (t.relayed + f.relayed >= cfg.maxRelayPerAccountPerDay) throw new HttpError(429, "daily_limit", { reason: "account" });
+    if (kind === "pin" && t.pins + f.pins >= cfg.maxPinsPerAccountPerDay) throw new HttpError(429, "daily_limit", { reason: "account_pins" });
+    f.relayed++; if (kind === "pin") f.pins++;
+    inFlight.set(account, f);
+    let done = false;
+    return () => { if (done) return; done = true; f.relayed--; if (kind === "pin") f.pins--; if (!f.relayed && !f.pins) inFlight.delete(account); };
+  }
   function rateLimitRelay(ip) {
     const now = Date.now();
     const list = (recentRelays.get(ip) || []).filter((t) => now - t < 60000);
@@ -442,6 +470,7 @@ function makeService(cfg) {
     try { isProject = await UPCatalog.verifyNeeds(provider, allowed.needs); } catch (e) { throw new HttpError(503, "unavailable"); }
     if (!isProject) throw new HttpError(400, "not_allowed", { reason: "not_a_project_contract" });
     const data = UPRelay.KM.encodeFunctionData("executeRelayCall", [signature, nonce, validity, payload]);
+    const release = reserve(account, "relay");
     // A validity that starts after the latest block (a client clock a little ahead; blocks come every ~12 s): wait,
     // within a minute and a half, for the network to reach it, else the Key Manager refuses it (RelayCallBeforeStartTime).
     if (start > 0n) {
@@ -461,6 +490,8 @@ function makeService(cfg) {
         console.error(`relay refused ${account} signer ${signer}: ${reason}`);
         throw new HttpError(422, "refused", { reason });
       }
+      // One operation never costs more than maxRelayGas (audit U-01).
+      if (gas > cfg.maxRelayGas) { console.error(`relay refused ${account}: gas ${gas}`); throw new HttpError(422, "refused", { reason: "too_much_gas" }); }
       const fee = await provider.getFeeData();
       const balance = await provider.getBalance(wallet.address);
       if (balance < gas * (fee.maxFeePerGas || fee.gasPrice) * 2n + ethers.parseEther(cfg.minBalance)) {
@@ -474,7 +505,7 @@ function makeService(cfg) {
       console.log(`relay ${account} ${allowed.items.map(opName).join("+")} tx ${tx.hash} ${ok ? "ok" : "FAILED"}`);
       if (!ok) throw new HttpError(502, "failed", { tx: tx.hash });
       return { tx: tx.hash, ops: allowed.items };
-    });
+    }).finally(release);
     queue = run.catch(() => {});
     return run;
   }
@@ -649,19 +680,31 @@ function makeService(cfg) {
     const { update, errors } = UPRequest.profileUpdate((body && body.update) || {});
     if (errors.length) throw new HttpError(400, "bad_request", { problems: errors });
     const { account } = await knownAccount({ account: update.account });
+    // Each signed update is served once, within an hour of when it was asked (audit A13); 0.5.x sent no time.
+    const message = UPRequest.updateMessage(update);
+    if (update.at !== undefined && Math.abs(Date.now() / 1000 - update.at) > 3600) throw new HttpError(400, "bad_request", { problems: ["at"] });
+    const used = ethers.keccak256(ethers.toUtf8Bytes(message));
+    if (store.updateUsed(used)) throw new HttpError(409, "already_used");
     let signer;
-    try { signer = ethers.verifyMessage(UPRequest.updateMessage(update), body.signature); } catch (e) { throw new HttpError(400, "bad_signature"); }
+    try { signer = ethers.verifyMessage(message, body.signature); } catch (e) { throw new HttpError(400, "bad_signature"); }
     const permKey = "0x4b80742de2bf82acb3630000" + signer.slice(2).toLowerCase();
     const perms = UP_GETDATA.decodeFunctionResult("getData", await provider.call({ to: account, data: UP_GETDATA.encodeFunctionData("getData", [permKey]) }))[0];
     if (!perms || perms === "0x" || BigInt(perms) === 0n) throw new HttpError(400, "bad_signature");
+    // Only a key that may change the profile (an administrator): an access key cannot write it anyway.
+    if ((BigInt(perms) & 0x4n) === 0n) throw new HttpError(403, "not_allowed", { reason: "not_admin" });
     if (store.relayToday() >= cfg.maxRelayPerDay) throw new HttpError(429, "daily_limit");
-    let images = update.images;
-    if (update.keepPicture) images = { avatar: { entries: await currentPictures(account) }, cover: null };
-    let pinned;
-    try { pinned = await pinProfile(update.profile, images); }
-    catch (e) { console.error("profile pin failed:", e.message); throw new HttpError(503, "unavailable"); }
-    store.relayLog({ account, signer, ops: ["pin"], url: pinned.url, ok: true });
-    return { value: pinned.value, url: pinned.url };
+    const release = reserve(account, "pin");
+    try {
+      if (store.updateUsed(used)) throw new HttpError(409, "already_used");
+      store.markUpdate(used);
+      let images = update.images;
+      if (update.keepPicture) images = { avatar: { entries: await currentPictures(account) }, cover: null };
+      let pinned;
+      try { pinned = await pinProfile(update.profile, images); }
+      catch (e) { console.error("profile pin failed:", e.message); throw new HttpError(503, "unavailable"); }
+      store.relayLog({ account, signer, ops: ["pin"], url: pinned.url, ok: true });
+      return { value: pinned.value, url: pinned.url };
+    } finally { release(); }
   }
 
   return { handleCreate, handleLookup, handleRelayNonce, handleRelay, handleProfile, handleProfileRead, handleRpc, handleAdminChallenge, handleAdminSession, handleAdminInvites, wallet, provider, store };

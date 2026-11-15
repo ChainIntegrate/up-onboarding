@@ -1025,7 +1025,7 @@
   $("eProfileBtn").addEventListener("click", async () => {
     if (!UPRequest.NAME_RE.test($("eName").value)) { say("editMsg", t("nameBad"), "line-err"); return; }
     const { update, errors } = UPRequest.profileUpdate({ account: account.up, profile: { name: $("eName").value, description: $("eDesc").value, tags: [], links: [] },
-      images: { avatar: editAvatar, cover: null }, keepPicture: !editAvatar });
+      images: { avatar: editAvatar, cover: null }, keepPicture: !editAvatar, at: Math.floor(Date.now() / 1000) });
     if (errors.length) { say("editMsg", errors.includes("profile.nameRule") ? t("nameBad") : t("err_bad_request"), "line-err"); return; }
     const picture = editAvatar ? (await resize(editAvatar.dataUrl, 128)).dataUrl : account.picture;
     await withUnlocked(async (sk) => {

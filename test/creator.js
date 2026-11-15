@@ -85,7 +85,7 @@ async function waitFor(url, body) {
     fs.writeFileSync(path.join(dir, "ipfs-auth"), "Basic dGVzdDp0ZXN0", { mode: 0o600 });
     fs.writeFileSync(path.join(dir, "rpc-url"), RPC + "\n", { mode: 0o600 });
     const config = { network: "lukso", rpcFile: "rpc-url", chainId: 42, gasKeyFile: "gas-key", dataDir: "data", operators: [opw.address], maxInvitesPerDay: 2, backupDir: "backups", warmGateways: [`http://127.0.0.1:${IPFS}/ipfs/`], explorerApi: `http://127.0.0.1:${EXPLORER}/api/v2/`,
-      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 14, relayPerIpPerMinute: 100 };
+      ipfsApi: `http://127.0.0.1:${IPFS}/`, ipfsAuthFile: "ipfs-auth", port: PORT, maxPerDay: 2, perIpPerMinute: 2, confirmSeconds: 30, maxRelayPerDay: 15, maxPinsPerAccountPerDay: 3, relayPerIpPerMinute: 100 };
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
     const env = { ...process.env, CREATOR_CONFIG: path.join(dir, "config.json") };
     // Commands that talk to the explorer stub (served by this process) run without blocking it.
@@ -231,7 +231,8 @@ async function waitFor(url, body) {
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.LSP3_KEY, newProfile]));
     check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === newProfile.toLowerCase(), "relay: the profile is updated");
     // a new profile stored by the service on IPFS, asked by a key of the account, then written with the relay
-    const upd = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Vino toscano, nuova descrizione", tags: [], links: [] }, images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null } }).update;
+    const now = () => Math.floor(Date.now() / 1000);
+    const upd = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Vino toscano, nuova descrizione", tags: [], links: [] }, images: { avatar: { dataUrl: avatar, w: 192, h: 192 }, cover: null }, at: now() }).update;
     const profilePost = async (body) => { const x = await fetch(`http://127.0.0.1:${PORT}/api/profile`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": "10.8.8.9" }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
     let pp = await profilePost({ update: upd, signature: await stranger.signMessage(UPRequest.updateMessage(upd)) });
     check(pp.status === 400 && pp.body.error === "bad_signature", "profile: a key that is not the account's cannot store a profile");
@@ -241,6 +242,17 @@ async function waitFor(url, body) {
     const pinsBefore = pins.length;
     pp = await profilePost({ update: upd, signature: await admin.signMessage(UPRequest.updateMessage(upd)) });
     check(pp.status === 200 && /^ipfs:\/\//.test(pp.body.url) && pins.length === pinsBefore + 2, "profile: a key of the account has the new profile and picture stored");
+    const firstStored = pp;
+    const pinsAfter = pins.length;
+    pp = await profilePost({ update: upd, signature: await admin.signMessage(UPRequest.updateMessage(upd)) });
+    check(pp.status === 409 && pp.body.error === "already_used" && pins.length === pinsAfter, "profile: the same signed update sent again stores nothing (audit A13)");
+    const oldUpd = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Vecchia", tags: [], links: [] }, images: { avatar: null, cover: null }, keepPicture: true, at: now() - 7200 }).update;
+    pp = await profilePost({ update: oldUpd, signature: await admin.signMessage(UPRequest.updateMessage(oldUpd)) });
+    check(pp.status === 400 && pp.body.problems.includes("at"), "profile: an update asked more than an hour ago is refused");
+    const byAccess = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Da un accesso", tags: [], links: [] }, images: { avatar: null, cover: null }, keepPicture: true, at: now() }).update;
+    pp = await profilePost({ update: byAccess, signature: await device.signMessage(UPRequest.updateMessage(byAccess)) });
+    check(pp.status === 403 && pp.body.reason === "not_admin" && pins.length === pinsAfter, "profile: an access key cannot have profiles stored (it cannot write them either)");
+    pp = firstStored;
     rr = await relay(admin, UPRelay.setProfile(pp.body.value));
     check(rr.status === 200 && (await read1.getData(UPRelay.LSP3_KEY)).toLowerCase() === pp.body.value.toLowerCase(), "profile: its value is written with the relay");
     const jsonAt = (url) => JSON.parse(ipfsFiles.get(url.replace("ipfs://", "")).toString("utf8")).LSP3Profile;
@@ -249,6 +261,12 @@ async function waitFor(url, body) {
     pp = await profilePost({ update: keep, signature: await admin.signMessage(UPRequest.updateMessage(keep)) });
     check(pp.status === 200 && jsonAt(pp.body.url).description === "Solo la descrizione cambia" && JSON.stringify(jsonAt(pp.body.url).profileImage) === JSON.stringify(pictureBefore) && pictureBefore.length === 1,
       "profile: an update without a new picture keeps the current one (read back with its hash)");
+    const third3 = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Terza", tags: [], links: [] }, images: { avatar: null, cover: null }, keepPicture: true, at: now() }).update;
+    pp = await profilePost({ update: third3, signature: await admin.signMessage(UPRequest.updateMessage(third3)) });
+    check(pp.status === 200, "profile: a third update, under the account's limit");
+    const fourth = UPRequest.profileUpdate({ account: created, profile: { name: "rossi-srl", description: "Quarta", tags: [], links: [] }, images: { avatar: null, cover: null }, keepPicture: true, at: now() }).update;
+    pp = await profilePost({ update: fourth, signature: await admin.signMessage(UPRequest.updateMessage(fourth)) });
+    check(pp.status === 429 && pp.body.reason === "account_pins", "profile: one account cannot store more than its daily number of profiles (audit U-01)");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", [UPRelay.nameKey(device.address), ethers.hexlify(ethers.toUtf8Bytes("x"))]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a key cannot rename another key");
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("setData", ["0x4b80742de2bf82acb3630000" + stranger.address.slice(2).toLowerCase(), ethers.zeroPadValue("0x7f3f06", 32)]));

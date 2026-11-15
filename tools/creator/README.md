@@ -15,7 +15,7 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
 | `POST /api/lookup { address }` | the account a key controls today, among the accounts this service created, read on the network (a key authorized later is found, a revoked one is not); 10 per minute per address |
 | `POST /api/relay/nonce { account, signer }` | the account's Key Manager, the signer's LSP25 nonce, the chain id, the network's time |
 | `POST /api/relay { account, nonce, validity, payload, signature }` | an operation on the account, signed by one of its keys, sent and paid by the service (below) |
-| `POST /api/profile { update, signature }` | a new profile stored on IPFS, asked by a key of the account, keeping the current picture when none is given; the extension then writes its value with the relay |
+| `POST /api/profile { update, signature }` | a new profile stored on IPFS, asked by an administrator key of the account (each signed update served once, within an hour of its `at`), keeping the current picture when none is given; the extension then writes its value with the relay |
 | `POST /api/profile/read { account, signer }` | the profile's name, description and picture, the signer's name and role, the account's computers (with `update: true` for an access to bring up to date) and its list of keys (after a restore, and for "Your account's computers") |
 | `POST /api/admin/challenge { address }`, `/api/admin/session { nonce, signature }`, `/api/admin/invites { token, action, … }` | the invitations page (`web/invites.html`), for the keys in `operators` only: a sign-in message for the address, signed once (personal_sign; an account checked with ERC-1271), a session of 8 hours in memory; then `create { note, days }` (the code and its link, answered once), `list`, `revoke { id }`; at most `maxInvitesPerDay` codes a day from the page; each action in the journal with its operator |
 | `POST /api/rpc` | reading the network for the extension (only reading methods, one call per request, logs over at most 100,000 blocks and one address, `rpcPerIpPerMinute`, nothing logged): the node's URL carries an access key, which public code cannot hold |
@@ -95,6 +95,7 @@ their owner: `sudo -u up-onboarding CREATOR_CONFIG=/etc/up-onboarding/config.jso
 | Key | |
 |---|---|
 | `network`, `chainId` | `lukso` (42) or `lukso-testnet` (4201) |
+| `maxRelayPerAccountPerDay`, `maxPinsPerAccountPerDay`, `maxRelayGas` | per account: operations relayed a day (default 40), profiles stored on IPFS a day (default 10); the gas one relayed operation may cost at most (default 2,000,000). The global `maxRelayPerDay` still holds (audit U-01, A13) |
 | `rpcFile` or `rpc` | the network's node. `rpcFile`: a file (one line, mode 640, group `up-onboarding`) with the URL of ChainIntegrate's node, `https://rpc.chainintegrate.it/rpc/<key>`, with an access key for this service only; its URL is never logged or sent in alerts. `rpc`: a plain URL (LUKSO's public node, tests) |
 | `rpcPerIpPerMinute` | `/api/rpc`, the extension's reading of the network through this service (only reading methods, one call per request; logs over at most 100,000 blocks and one address): per-address limit (120) |
 | `gasKeyFile` | the gas wallet's private key, one line, mode 600: a wallet used only for this, with little LYX |
