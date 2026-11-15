@@ -44,7 +44,10 @@ async function launch(health, extDir = EXT, profile = null, sums = null) {
   let [sw] = ctx.serviceWorkers();
   if (!sw) sw = await ctx.waitForEvent("serviceworker");
   const id = new URL(sw.url()).host;
-  if (sums) await ctx.route("https://account.chainintegrate.it/extension/**", (r) => r.fulfill({ status: 200, contentType: "text/plain", body: sums }));
+  // The published list: the repository's own for this version unless the test gives one (never the live site's,
+  // which may hold an earlier build of a version not released yet).
+  const published = sums || fs.readFileSync(path.join(__dirname, "..", "web", "extension", JSON.parse(fs.readFileSync(path.join(extDir, "manifest.json"))).version, "SHA256SUMS"), "utf8");
+  await ctx.route("https://account.chainintegrate.it/extension/**", (r) => r.fulfill({ status: 200, contentType: "text/plain", body: published }));
   if (health) await ctx.route("https://account.chainintegrate.it/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => check(false, "page error: " + e.message));
