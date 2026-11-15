@@ -128,6 +128,12 @@ npm run pack:extension   # the extension's zip, in dist/ (reproducible)
   computers, joining an account, integrity, the projects' pages (EIP-6963, connect, sign-in, operations, GasTrace's
   typed data, refusals), and no crypto term on any screen or confirmation window.
 
+**Dependencies** (audit A17 / Q-02, checked 2026-11-15 with `npm audit`). What runs on the server, the account
+service (`tools/creator`: ethers 6.17.0, nodemailer), has no known advisory; CI installs it as the server does. The
+pages and the extension load ethers 6.13.4 (its integrity hash pinned; the root `devDependencies` keep that version
+to check it). The advisories left are all in the test tooling (Hardhat 2 and what it brings: a local chain for the
+tests, never deployed nor packaged), and go away only with Hardhat 3, a rewrite of the test setup: not urgent.
+
 All run on GitHub Actions at every push (`.github/workflows/test.yml`); a release runs them again
 (`.github/workflows/extension-release.yml`).
 

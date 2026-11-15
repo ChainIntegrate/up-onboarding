@@ -14,6 +14,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
+      # The account service's own dependencies, as on the server (its ethers is not the pages' one).
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: tools/creator
       - run: npx playwright install --with-deps chromium
       - run: npm run test:unit
       - run: npm run test:e2e
