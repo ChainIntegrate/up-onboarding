@@ -75,7 +75,10 @@ function loadConfig() {
     maxControllers: Number(c.maxControllers ?? 5), inviteDays: Number(c.inviteDays ?? 30),
     minBalance: c.minBalance || "0.05", confirmSeconds: Number(c.confirmSeconds ?? 180),
     maxRelayPerDay: Number(c.maxRelayPerDay ?? 200), relayPerIpPerMinute: Number(c.relayPerIpPerMinute ?? 20),
-    rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 120),
+    rpcPerIpPerMinute: Number(c.rpcPerIpPerMinute ?? 60),
+    // /api/rpc answers only the extension (the Origin its requests carry; audit U-03): its ID is fixed by the
+    // manifest's key.
+    rpcOrigins: Array.isArray(c.rpcOrigins) ? c.rpcOrigins.map(String) : ["chrome-extension://djmmccacningahefoaepjgefdojohmbj"],
     // Per account, so that one client (or one stolen key) cannot use up the day for everyone (audit U-01, A13):
     // operations relayed, profiles stored on IPFS; and the gas one relayed operation may cost at most.
     maxRelayPerAccountPerDay: Number(c.maxRelayPerAccountPerDay ?? 40), maxPinsPerAccountPerDay: Number(c.maxPinsPerAccountPerDay ?? 10),
@@ -645,7 +648,8 @@ function makeService(cfg) {
     if (f.blockHash) return f.fromBlock === undefined && f.toBlock === undefined;
     try { const a = BigInt(f.fromBlock), b = BigInt(f.toBlock); return a <= b && b - a <= MAX_LOG_BLOCKS; } catch (e) { return false; }
   }
-  async function handleRpc(body, ip) {
+  async function handleRpc(body, ip, ua, origin) {
+    if (!cfg.rpcOrigins.includes(String(origin || ""))) throw new HttpError(403, "not_allowed", { reason: "rpc_origin" });
     const now = Date.now();
     const list = (recentRpc.get(ip) || []).filter((t) => now - t < 60000);
     if (list.length >= cfg.rpcPerIpPerMinute) throw new HttpError(429, "rate_limited");
@@ -797,7 +801,7 @@ function serve(cfg) {
       try {
         const handler = { "/api/create": svc.handleCreate, "/api/lookup": svc.handleLookup, "/api/relay/nonce": svc.handleRelayNonce, "/api/relay": svc.handleRelay, "/api/profile": svc.handleProfile, "/api/profile/read": svc.handleProfileRead, "/api/rpc": svc.handleRpc,
           "/api/admin/challenge": svc.handleAdminChallenge, "/api/admin/session": svc.handleAdminSession, "/api/admin/invites": svc.handleAdminInvites }[url.pathname];
-        send(200, await handler(body, ip, req.headers["user-agent"]));
+        send(200, await handler(body, ip, req.headers["user-agent"], req.headers.origin));
       }
       catch (e) { if (e instanceof HttpError) send(e.status, { error: e.code, ...e.extra }); else { console.error(e); send(500, { error: "internal" }); } }
     });

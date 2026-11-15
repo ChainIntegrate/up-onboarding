@@ -68,7 +68,8 @@ needs, digest }`: `title` and `lines` in Italian and English, `needs` the on-cha
 `digest` what the key signs.
 
 - **Sign-in messages** (`personal_sign`): EIP-4361 as the project writes it, parsed; the domain must be the page's own
-  host, URI and resources its origin, the chain the account's, the address the account's, not expired; the
+  host, URI and resources its origin, the chain the account's, the address the account's, not expired, issued within 15 minutes, no `Not Before` still
+  to come, an expiry at most 7 days away; the
   statement one the project declares (TraceabilityRegistry's operations, Supplier Trust's upload), described in
   plain words ("Confirm it is you, to upload a document").
 - **Typed data** (`eth_signTypedData_v4`): the domain's name and version, no other domain field, exactly one

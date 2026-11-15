@@ -282,6 +282,13 @@
     if (!m.resources.every(sameOrigin)) return fail("other_site");
     const exp = m.fields["Expiration Time"] ? Date.parse(m.fields["Expiration Time"]) : null;
     if (exp !== null && (isNaN(exp) || exp < Date.now())) return fail("expired");
+    // A message signed now (audit U-06): issued within 15 minutes (computers' clocks differ a little), not valid
+    // before a later time, valid for at most 7 days. The projects do not all write an expiry: one written now is
+    // the bound for those.
+    const iat = Date.parse(m.fields["Issued At"]);
+    if (isNaN(iat) || Math.abs(iat - Date.now()) > 15 * 60000) return fail("not_now");
+    if (m.fields["Not Before"] !== undefined) { const nbf = Date.parse(m.fields["Not Before"]); if (isNaN(nbf) || nbf > Date.now() + 15 * 60000) return fail("not_now"); }
+    if (exp !== null && exp > Date.now() + 7 * 24 * 3600000) return fail("deadline_too_far");
     const said = project.signIn.statement(m.statement);
     if (!said) return fail("not_in_catalog");
     const lines = [said];

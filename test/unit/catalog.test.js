@@ -14,10 +14,10 @@ const STATEMENT = "[IT] Firma di conferma dalla tua Universal Profile: non si tr
   "and writes nothing on the blockchain. It only proves it's really you asking for this.";
 
 // As traceability-registry/frontend/traceability-siwe.js writes it.
-function traceSiwe({ host = "traceability.chainintegrate.it", uri = TRACE, address = account, chainId = 42, op = "Caricamento documento / Upload document", expiresAt = null } = {}) {
+function traceSiwe({ host = "traceability.chainintegrate.it", uri = TRACE, address = account, chainId = 42, op = "Caricamento documento / Upload document", expiresAt = null, issuedAt = Date.now(), notBefore = null } = {}) {
   return host + " wants you to sign in with your Ethereum account:\n" + address + "\n\n" + STATEMENT + " [Operazione / Operation: " + op + "]\n\n" +
-    "URI: " + uri + "\nVersion: 1\nChain ID: " + chainId + "\nNonce: " + "ab".repeat(32) + "\nIssued At: " + new Date().toISOString() + "\n" +
-    (expiresAt ? "Expiration Time: " + new Date(expiresAt).toISOString() + "\n" : "") +
+    "URI: " + uri + "\nVersion: 1\nChain ID: " + chainId + "\nNonce: " + "ab".repeat(32) + "\nIssued At: " + new Date(issuedAt).toISOString() + "\n" +
+    (expiresAt ? "Expiration Time: " + new Date(expiresAt).toISOString() + "\n" : "") + (notBefore ? "Not Before: " + new Date(notBefore).toISOString() + "\n" : "") +
     "Resources:\n- " + uri + "/how-it-works.html\n- " + uri + "/explorer.html?registry=" + TRACE_FACTORY;
 }
 // As supplier-trust-registry/backend/auth.js writes it.
@@ -52,6 +52,12 @@ test("sign-in messages refused", () => {
   assert.strictEqual(C.message(p, traceSiwe({ chainId: 4201 }), ctx).error, "other_network");
   assert.strictEqual(C.message(p, traceSiwe({ op: "Transfer everything" }), ctx).error, "not_in_catalog");
   assert.strictEqual(C.message(p, traceSiwe({ expiresAt: Date.now() - 1000 }), ctx).error, "expired");
+  // signed now: issued within 15 minutes, no later start, at most 7 days (audit U-06)
+  assert.strictEqual(C.message(p, traceSiwe({ issuedAt: Date.now() - 3600000 }), ctx).error, "not_now");
+  assert.strictEqual(C.message(p, traceSiwe({ issuedAt: Date.now() + 3600000 }), ctx).error, "not_now");
+  assert.strictEqual(C.message(p, traceSiwe({ notBefore: Date.now() + 3600000 }), ctx).error, "not_now");
+  assert.strictEqual(C.message(p, traceSiwe({ expiresAt: Date.now() + 30 * 86400000 }), ctx).error, "deadline_too_far");
+  assert.strictEqual(C.message(p, traceSiwe({ issuedAt: Date.now() - 5 * 60000, expiresAt: Date.now() + 3600000 }), ctx).ok, true, "a few minutes of clock difference, one hour of validity");
   assert.strictEqual(C.message(p, "Please sign this: 0xdeadbeef", ctx).error, "not_sign_in");
   assert.strictEqual(C.message(p, traceSiwe() + "\n- " + TRACE + "/x‮", ctx).error, "not_sign_in");
   // A Supplier Trust message on the Traceability site, and the reverse.

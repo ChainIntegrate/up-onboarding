@@ -324,8 +324,10 @@ async function verify(page, file, pw) {
   // This computer's permissions on the account, as the confirmation window reads them for GasTrace (administrator).
   const GET_DATA = new ethers.Interface(["function getData(bytes32) view returns (bytes)"]);
   let myPerms = ethers.zeroPadValue(ethers.toBeHex(UPRelay.ADMIN_PERMS), 32);
+  let rpcOrigins = new Set();
   const answerRpc = (who) => (r) => {
     rpcSeen[who]++;
+    if (who === "service") rpcOrigins.add(r.request().headers()["origin"]);
     if (who === "service" && serviceDown) return r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"upstream"}' });
     const q = JSON.parse(r.request().postData());
     let result = who === "service" ? "0x10" : "0x11";
@@ -353,6 +355,7 @@ async function verify(page, file, pw) {
   serviceOtherChain = false;
   const lukso0 = rpcSeen.lukso;
   check((await ask("eth_chainId", [])).r === "0x2a" && (await ask("eth_blockNumber", [])).r === "0x10" && rpcSeen.lukso === lukso0, "the page reads the network through the extension, from ChainIntegrate's node");
+  check([...rpcOrigins].every((o) => o === `chrome-extension://${EXPECTED_ID}`) && rpcOrigins.size === 1, "the extension's readings carry its own origin, which the service requires (audit U-03)" + ` [${[...rpcOrigins]}]`);
   serviceDown = true;
   check((await ask("eth_blockNumber", [])).r === "0x11", "when ChainIntegrate's node does not answer, LUKSO's public node does");
   serviceDown = false;

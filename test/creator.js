@@ -280,7 +280,11 @@ async function waitFor(url, body) {
     rr = await relay(admin, UPRelay.UP.encodeFunctionData("execute", [0, stranger.address, ethers.parseEther("1"), "0x"]));
     check(rr.status === 400 && rr.body.error === "not_allowed", "relay: a transfer from the account is refused (not in the catalog)");
     // ---- /api/rpc: the extension reads the network through the service (the node's URL stays in rpc-url)
-    const rpcPost = async (body, ip = "10.7.7.7") => { const x = await fetch(`http://127.0.0.1:${PORT}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": ip }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    const rpcPost = async (body, ip = "10.7.7.7", origin = "chrome-extension://djmmccacningahefoaepjgefdojohmbj") => { const x = await fetch(`http://127.0.0.1:${PORT}/api/rpc`, { method: "POST", headers: { "content-type": "application/json", "x-real-ip": ip, ...(origin ? { origin } : {}) }, body: JSON.stringify(body) }); return { status: x.status, body: await x.json() }; };
+    let rpo = await rpcPost({ jsonrpc: "2.0", id: 4, method: "eth_blockNumber", params: [] }, "10.7.7.8", null);
+    check(rpo.status === 403 && rpo.body.reason === "rpc_origin", "rpc: a request that does not come from the extension is refused (audit U-03)");
+    rpo = await rpcPost({ jsonrpc: "2.0", id: 4, method: "eth_blockNumber", params: [] }, "10.7.7.8", "https://evil.example");
+    check(rpo.status === 403, "rpc: … also from another site");
     let rp = await rpcPost({ jsonrpc: "2.0", id: 5, method: "eth_blockNumber", params: [] });
     check(rp.status === 200 && rp.body.id === 5 && /^0x[0-9a-f]+$/.test(rp.body.result), "rpc: a reading is answered by the node");
     rp = await rpcPost({ jsonrpc: "2.0", id: 6, method: "eth_call", params: [{ to: created, data: "0x8da5cb5b" }, "latest"] });
