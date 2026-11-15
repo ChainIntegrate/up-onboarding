@@ -267,6 +267,9 @@ const idle = (page, timeout = 60000) => page.waitForFunction(() => !document.get
     await phone.fill("#pName", "mario-rossi");
     await phone.setInputFiles("#pAvatar", pngPath);
     await phone.check("#storeIpfs"); await phone.fill("#ipfsApi", "https://ipfs.chainintegrate.it"); await phone.dispatchEvent("#ipfsApi", "change");
+    await phone.fill("#ipfsAuth", "Basic c2VncmV0bw=="); await phone.check("#rememberJwt"); await phone.dispatchEvent("#ipfsAuth", "change");
+    const kept = await phone.evaluate(() => localStorage.getItem("uponboarding.operator.ipfs") || "");
+    check(/ipfs\.chainintegrate\.it/.test(kept) && !/c2VncmV0bw/.test(kept), "operator page: the IPFS API's address is remembered, never its authorization (audit U-04)");
     await phone.click("#previewBtn"); await idle(phone);
     check(/ipfs:\/\/bafybei\w+test02/.test(await phone.textContent("#previewStatus")) && uploads === 2, "IPFS mode uploads the image and the JSON");
     check(!(await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)), "no horizontal scroll at phone width");

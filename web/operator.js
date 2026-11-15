@@ -70,7 +70,7 @@
       storeIpfs: "<b>IPFS</b>, sul nodo di ChainIntegrate (servito da ipfs.chainintegrate.it): immagini di buona qualità, come le crea LUKSO. L'API di scrittura del nodo accetta solo i server autorizzati dal suo firewall (come per gli altri progetti), quindi dal browser di solito non è raggiungibile: in quel caso usa \"Sulla blockchain\", oppure il servizio di creazione, che carica dal server.",
       ipfsApiLabel: "API del nodo IPFS",
       ipfsAuthLabel: "Autorizzazione (facoltativa)",
-      rememberJwt: "Ricorda l'API e l'autorizzazione in questo browser",
+      rememberJwt: "Ricorda l'indirizzo dell'API in questo browser (l'autorizzazione no: va scritta a ogni apertura)",
       storeChain: "<b>Sulla blockchain</b>, senza servizi esterni: il profilo e immagini piccole (96 px; copertina 320 px) dentro la UP. Più gas alla creazione; qualche app potrebbe non mostrare le immagini.",
       panel5Title: "5 · Crea la UP",
       deployNote: "Collega il <b>tuo</b> wallet su LUKSO (MetaMask o un altro wallet del browser, oppure l'estensione Universal Profile di LUKSO con la tua UP): paga il gas della creazione, circa un centesimo di LYX con i dati su IPFS. Poi \"Prepara e controlla\" calcola l'indirizzo della nuova UP e simula la transazione.",
@@ -168,7 +168,7 @@
       storeIpfs: "<b>IPFS</b>, on ChainIntegrate's node (served by ipfs.chainintegrate.it): good-quality images, as LUKSO creates them. The node's write API accepts only the servers its firewall allows (as for the other projects), so it is usually not reachable from a browser: then use \"On the blockchain\", or the creation service, which uploads from the server.",
       ipfsApiLabel: "IPFS node API",
       ipfsAuthLabel: "Authorization (optional)",
-      rememberJwt: "Remember the API and the authorization in this browser",
+      rememberJwt: "Remember the API's address in this browser (not the authorization: typed at each opening)",
       storeChain: "<b>On the blockchain</b>, with no external service: the profile and small images (96 px; cover 320 px) inside the UP. More gas at creation; some apps may not show the images.",
       panel5Title: "5 · Create the UP",
       deployNote: "Connect <b>your</b> wallet on LUKSO (MetaMask or another browser wallet, or LUKSO's Universal Profile extension with your UP): it pays the creation's gas, about a cent of LYX with the data on IPFS. Then \"Prepare and check\" computes the new UP's address and simulates the transaction.",
@@ -389,10 +389,15 @@
   // ==================== STORAGE ====================
   const store = () => ($("storeIpfs").checked ? "ipfs" : "chain");
   const IPFS_KEY = "uponboarding.operator.ipfs";
-  try { const j = JSON.parse(localStorage.getItem(IPFS_KEY) || "null"); if (j) { $("ipfsApi").value = j.api || $("ipfsApi").value; $("ipfsAuth").value = j.auth || ""; $("rememberJwt").checked = true; $("storeIpfs").checked = true; } } catch (e) { /* no storage */ }
+  // Only the API's address is remembered: the authorization stays in memory (this site's storage is shared by its
+  // pages; audit U-04). An authorization saved by an earlier version is removed.
+  try {
+    const j = JSON.parse(localStorage.getItem(IPFS_KEY) || "null");
+    if (j) { $("ipfsApi").value = j.api || $("ipfsApi").value; $("rememberJwt").checked = true; $("storeIpfs").checked = true; if (j.auth) localStorage.setItem(IPFS_KEY, JSON.stringify({ api: j.api })); }
+  } catch (e) { /* no storage */ }
   function syncStore() {
     $("ipfsBox").style.display = store() === "ipfs" ? "" : "none";
-    try { if ($("rememberJwt").checked) localStorage.setItem(IPFS_KEY, JSON.stringify({ api: $("ipfsApi").value.trim(), auth: $("ipfsAuth").value.trim() })); else localStorage.removeItem(IPFS_KEY); } catch (e) { /* no storage */ }
+    try { if ($("rememberJwt").checked) localStorage.setItem(IPFS_KEY, JSON.stringify({ api: $("ipfsApi").value.trim() })); else localStorage.removeItem(IPFS_KEY); } catch (e) { /* no storage */ }
   }
   ["storeIpfs", "storeChain", "rememberJwt", "ipfsApi", "ipfsAuth"].forEach((id) => $(id).addEventListener("change", () => { syncStore(); invalidate(); }));
 
