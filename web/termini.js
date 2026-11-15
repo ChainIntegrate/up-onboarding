@@ -1,6 +1,6 @@
 // The terms of service of the ChainIntegrate Account extension and of the account service (termini.html), accepted
 // in the extension before an account is created (the date below is UPRequest.TERMS, sent with the request).
-// A draft written for the maintainer's review (audit U-13). Static text only: every string is written here.
+// Approved by the maintainer on 2026-11-15 (audit U-13). Static text only: every string is written here.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);

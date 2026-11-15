@@ -40,7 +40,7 @@
       inviteNote: "Ti servirà al passo 3, nell'estensione. Vale per <b>un solo account</b> e scade dopo qualche settimana: non condividerlo.",
       q4: "Dove trovo il codice di invito?",
       a4: "Te lo dà ChainIntegrate. Vale per un solo account e scade dopo qualche settimana: se è scaduto, chiedine uno nuovo.",
-      footerHtml: `ChainIntegrate · Servizi di integrazione dati per le aziende · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="guida.html">Guida</a> · <a href="termini.html">Termini</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Codice sorgente</a>`,
+      footerHtml: `ChainIntegrate · Servizi di integrazione dati per le aziende · Assistenza: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> o <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="guida.html">Guida</a> · <a href="termini.html">Termini</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Codice sorgente</a>`,
     },
     en: {
       pageTitle: "Create your ChainIntegrate account",
@@ -71,7 +71,7 @@
       inviteNote: "You will need it at step 3, in the extension. It is good for <b>one account</b> and expires after a few weeks: do not share it.",
       q4: "Where do I get the invitation code?",
       a4: "ChainIntegrate gives it to you. It is good for one account and expires after a few weeks: if it has expired, ask for a new one.",
-      footerHtml: `ChainIntegrate · Data integration services for companies · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="guida.html">Guide</a> · <a href="termini.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Source code</a>`,
+      footerHtml: `ChainIntegrate · Data integration services for companies · Support: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> or <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="guida.html">Guide</a> · <a href="termini.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/ChainIntegrate/up-onboarding" target="_blank" rel="noopener">Source code</a>`,
     },
   };
   const t = (k) => I18N[LANG][k] ?? I18N.it[k];

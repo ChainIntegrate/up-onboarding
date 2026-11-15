@@ -251,6 +251,11 @@ async function verify(page, file, pw) {
   await page.waitForFunction(() => /Vecchio PC/.test(document.querySelector("#devList").textContent));
   check((await page.locator("#devList button").count()) === 1 && /questo computer/.test(await page.textContent("#devList")) && await page.isVisible("#devAddBox"),
     "the account's computers are listed; an administrator can revoke the others, not this one");
+  check(await page.isVisible("#secondAdmin") && /un solo computer amministratore/.test(await page.textContent("#secondAdmin")), "one administrator only: a second one is advised, without blocking anything (audit U-09)");
+  await page.click("#secondAdminLater");
+  check(await page.isHidden("#secondAdmin"), "… \"Later\" puts it off");
+  await page.reload(); await visible(page, "pDevices"); await page.waitForFunction(() => /Vecchio PC/.test(document.querySelector("#devList").textContent));
+  check(await page.isHidden("#secondAdmin"), "… also after reopening (30 days)");
   await page.click("#devAddBox summary");
   const spaced = NEWPC.toLowerCase().slice(2).match(/.{4}/g).join(" ");
   await page.fill("#devCode", spaced); await page.fill("#devName", "Computer ufficio");

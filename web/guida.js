@@ -14,7 +14,7 @@
       h1: "Guida all'account ChainIntegrate",
       subtitle: "Tutto quello che serve per usare il tuo account: dall'installazione ai servizi di ChainIntegrate, passo per passo.",
       tocTitle: "In questa guida",
-      footerHtml: `ChainIntegrate · <a href="./">Crea il tuo account</a> · <a href="termini.html">Termini</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · e-mail info@chainintegrate.it`,
+      footerHtml: `ChainIntegrate · <a href="./">Crea il tuo account</a> · <a href="termini.html">Termini</a> · <a href="privacy.html">Privacy</a> · Assistenza: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> o <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · e-mail info@chainintegrate.it`,
       sections: [
         { id: "prima", title: "1. Prima di iniziare", html: `
           <p>Ti servono:</p>
@@ -74,6 +74,7 @@
           <p>In <b>Siti collegati</b> vedi i siti a cui hai collegato l'account; ${B("Scollega")} toglie il collegamento (il sito non vede più il tuo account finché non lo ricolleghi).</p>
           <p>L'estensione funziona solo sui siti di ChainIntegrate previsti: altrove non fa nulla.</p>` },
         { id: "computer", title: "7. Usare l'account da più computer", html: `
+          <p>Consigliato: <b>almeno due computer amministratori</b>, ognuno con la sua copia di backup. Se l'account ne ha uno solo, l'estensione lo ricorda (si può rimandare): perso quel computer con la sua copia, l'account non si potrebbe più modificare.</p>
           <p>Per usare l'account da <b>più postazioni</b> (per esempio l'ufficio e casa, o due colleghi) aggiungi ogni computer così. Ognuno ha il <b>suo accesso</b>, il <b>suo nome</b> e la <b>sua copia di backup</b>, e puoi revocarlo da solo senza toccare gli altri.</p>
           <div class="warn"><b>Non usare la copia di backup per questo.</b> Ripristinata su un secondo computer, la copia ci porta <b>lo stesso accesso</b> del primo: i due computer risultano un computer solo, con un solo nome, e non puoi revocarne uno senza bloccare anche l'altro.</div>
           <p><b>Sul computer nuovo</b>:</p>
@@ -150,7 +151,7 @@
       h1: "Guide to the ChainIntegrate account",
       subtitle: "Everything you need to use your account: from the installation to ChainIntegrate's services, step by step.",
       tocTitle: "In this guide",
-      footerHtml: `ChainIntegrate · <a href="./">Create your account</a> · <a href="termini.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · e-mail info@chainintegrate.it`,
+      footerHtml: `ChainIntegrate · <a href="./">Create your account</a> · <a href="termini.html">Terms</a> · <a href="privacy.html">Privacy</a> · Support: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> or <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · e-mail info@chainintegrate.it`,
       sections: [
         { id: "prima", title: "1. Before you start", html: `
           <p>You need:</p>
@@ -210,6 +211,7 @@
           <p>In <b>Connected sites</b> you see the sites your account is connected to; ${B("Disconnect")} removes the connection (the site no longer sees your account until you connect it again).</p>
           <p>The extension works only on ChainIntegrate's own sites: anywhere else it does nothing.</p>` },
         { id: "computer", title: "7. Using the account from more computers", html: `
+          <p>Advised: <b>at least two administrator computers</b>, each with its own backup copy. When the account has only one, the extension reminds you (it can be put off): with that computer and its copy lost, the account could no longer be changed.</p>
           <p>To use the account from <b>more than one place</b> (for example the office and home, or two colleagues) add each computer this way. Each one has <b>its own access</b>, <b>its own name</b> and <b>its own backup copy</b>, and you can revoke it alone without touching the others.</p>
           <div class="warn"><b>Do not use the backup copy for this.</b> Restored on a second computer, the copy brings it <b>the same access</b> as the first: the two computers count as one, with one name, and you cannot revoke one without blocking the other too.</div>
           <p><b>On the new computer</b>:</p>

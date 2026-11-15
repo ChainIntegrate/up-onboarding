@@ -57,6 +57,9 @@
       devChangesRemoved: (v) => `è stato revocato il computer «${v.name}»;`,
       devChangesHint: "Se non sei stato tu o un collega, revoca subito i computer che non conosci e scrivi a ChainIntegrate.",
       devChangesOk: "Ho visto",
+      secondAdminText: "<b>Il tuo account ha un solo computer amministratore.</b> Se perdi questo computer insieme alla sua copia di backup, nessuno, nemmeno ChainIntegrate, potrà più modificare l'account. Ti consigliamo un secondo computer amministratore, tuo o della tua azienda: installa l'estensione sull'altro computer, scegli <b>«Aggiungi questo computer a un account esistente»</b> e autorizzalo qui come <b>amministratore</b>.",
+      secondAdminGo: "Aggiungi un secondo amministratore",
+      secondAdminLater: "Più tardi",
       devUpdate: "Aggiorna",
       devUpdated: (v) => `✅ Il computer ${v.name} è aggiornato: può usare tutti i servizi.`,
       devRoleAdmin: "<b>Amministratore</b>: può fare tutto, come questo computer, anche autorizzare e revocare altri computer.",
@@ -191,7 +194,7 @@
       termsMissing: "❌ Per creare l'account leggi e accetta i termini di servizio.",
       termsChanged: (v) => `I <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">termini di servizio</a> e l'<a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">informativa sulla privacy</a> sono stati aggiornati il ${v.date}.`,
       termsSeen: "Ho letto",
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Assistenza su Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">Termini</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
+      footerHtml: `ChainIntegrate · Assistenza: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> o <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">Termini</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Siti collegati",
       sitesNote: "I siti dei progetti ChainIntegrate a cui hai collegato il tuo account: vedono il suo indirizzo e possono chiederti conferme. Ogni operazione la confermi tu, ogni volta, in una finestra di questa estensione.",
       sitesNone: "Nessun sito collegato.",
@@ -235,6 +238,9 @@
       devChangesRemoved: (v) => `the computer “${v.name}” was revoked;`,
       devChangesHint: "If it was not you or a colleague, revoke at once the computers you do not know and write to ChainIntegrate.",
       devChangesOk: "Seen",
+      secondAdminText: "<b>Your account has only one administrator computer.</b> If you lose this computer together with its backup copy, nobody, ChainIntegrate included, can ever change the account again. We advise a second administrator computer, yours or your company's: install the extension on the other computer, choose <b>“Add this computer to an existing account”</b> and authorize it here as <b>administrator</b>.",
+      secondAdminGo: "Add a second administrator",
+      secondAdminLater: "Later",
       devUpdate: "Update",
       devUpdated: (v) => `✅ The computer ${v.name} is up to date: it can use every service.`,
       devRoleAdmin: "<b>Administrator</b>: can do everything, like this computer, including authorizing and revoking other computers.",
@@ -368,7 +374,7 @@
       termsMissing: "❌ To create the account, read and accept the terms of service.",
       termsChanged: (v) => `The <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">terms of service</a> and the <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">privacy policy</a> were updated on ${v.date}.`,
       termsSeen: "Read",
-      footerHtml: `ChainIntegrate · <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Support on Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">Terms</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
+      footerHtml: `ChainIntegrate · Support: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> or <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">Terms</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Connected sites",
       sitesNote: "The sites of ChainIntegrate's projects you connected your account to: they see its address and may ask you for confirmations. You confirm every operation yourself, each time, in a window of this extension.",
       sitesNone: "No site connected.",
@@ -619,6 +625,12 @@
     text.append(Object.assign(document.createElement("b"), { textContent: t("devChangesTitle") }), ul, Object.assign(document.createElement("div"), { textContent: t("devChangesHint") }));
     box.hidden = false;
   }
+  $("secondAdminLater").addEventListener("click", async () => { await save({ ...account, secondAdminLater: new Date(Date.now() + 30 * 86400000).toISOString() }); $("secondAdmin").hidden = true; });
+  $("secondAdminGo").addEventListener("click", () => {
+    $("devAddBox").open = true; $("devAddBox").hidden = false;
+    $("devAddBox").querySelector("input[name=devRole][value=admin]").checked = true;
+    $("devCode").focus(); $("devAddBox").scrollIntoView({ block: "start" });
+  });
   $("devChangesOk").addEventListener("click", async () => { await rememberDevices(); $("devChanges").hidden = true; });
   function renderDevices() {
     const box = $("devList"); box.innerHTML = "";
@@ -645,6 +657,9 @@
       box.appendChild(row);
     }
     $("devAddBox").hidden = !admin;
+    // One administrator only: a second one advised, never required; "Later" waits 30 days (audit U-09).
+    const admins = devState.devices.filter((d) => d.role === "admin").length;
+    $("secondAdmin").hidden = !admin || admins !== 1 || (account.secondAdminLater && Date.now() < Date.parse(account.secondAdminLater));
     $("devKeyBox").hidden = !admin || account.record.method !== "password";
     // An access key cannot change the profile (the account refuses it): only its own name.
     $("eProfileBox").hidden = devState.role === "access"; $("eProfileBtn").hidden = devState.role === "access";

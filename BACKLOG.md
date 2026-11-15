@@ -78,7 +78,7 @@ The audit's Medium findings (maintainer's consent 2026-11-15, all together):
   journal 30 days.
 - **U-12**: said in the privacy notice and the terms: that an account was made through ChainIntegrate is public;
   neutral names for discretion (maintainer: a minor issue, said clearly).
-- **U-13**: the terms of service (`web/termini.html`, a draft for the maintainer's review before the release),
+- **U-13**: the terms of service (`web/termini.html`, approved by the maintainer 2026-11-15, as the privacy notice),
   accepted in the extension before the creation (`UPRequest.TERMS` sent and kept with the account); the extension
   says when they change.
 
@@ -96,6 +96,9 @@ The audit's Low findings (maintainer's consent 2026-11-15):
 - **Q-03, D-04**: a release runs every suite. **D-01, D-02, D-03, D-05**: the documents fixed; `?lang=` in a link
   wins, the toggle's choice then kept. **A22**: where the tests run, written in the README.
 - **I-02**: nothing set on the pages' window. **I-03**: the guide says the offline check is skipped.
+- **U-09** (High): one administrator only: the extension advises a second administrator computer, never required,
+  "Later" for 30 days; no recovery by ChainIntegrate (maintainer's decision). **I-06**: support stays on Telegram,
+  with the e-mail next to it on the pages and in the extension.
 - Not changed, by the maintainer's decision: **X-04** (side-loaded extension, until clients are many: item 18) and
   **X-05** (one server, while the volume is small).
 
