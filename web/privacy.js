@@ -7,6 +7,7 @@
   let LANG = SiteUI.initialLang();
   const TG = `<a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a>`;
   const LI = `<a href="https://www.linkedin.com/company/chainintegrate" target="_blank" rel="noopener">LinkedIn</a>`;
+  const ME = `<a href="https://www.linkedin.com/in/simone-cavalletti" target="_blank" rel="noopener">Simone Cavalletti</a>`;
   const I18N = {
     it: {
       pageTitle: "Informativa sulla privacy — ChainIntegrate Account",
@@ -21,7 +22,7 @@
         <li>Nessuna pubblicità, nessun tracciamento, nessuna statistica d'uso.</li>
       </ul>`,
       s2t: "2 · Chi è il titolare",
-      s2: `Il titolare del trattamento è <b>Simone Cavalletti</b>, che offre servizi di integrazione dati e blockchain con il nome <b>ChainIntegrate</b>: sviluppa l'estensione e gestisce il sito account.chainintegrate.it e il servizio degli account. Contatti per la privacy e per ogni richiesta: e-mail <b>info@chainintegrate.it</b>; anche ${TG} e ${LI}. Non è stato nominato un responsabile della protezione dei dati (non è obbligatorio per questa attività).`,
+      s2: `Il titolare del trattamento è <b>${ME}</b>, che offre servizi di integrazione dati e blockchain con il nome <b>ChainIntegrate</b>: sviluppa l'estensione e gestisce il sito account.chainintegrate.it e il servizio degli account. Contatti per la privacy e per ogni richiesta: e-mail <b>info@chainintegrate.it</b>; anche ${TG} e la pagina ${LI} di ChainIntegrate. Non è stato nominato un responsabile della protezione dei dati (non è obbligatorio per questa attività).`,
       s3t: "3 · Cosa resta sul tuo computer",
       s3: `Nella memoria dell'estensione, sul computer:<ul>
         <li>la chiave del tuo accesso, solo cifrata (con il blocco del computer o con la password che hai scelto), e il suo indirizzo pubblico (il "codice del dispositivo");</li>
@@ -83,7 +84,7 @@
         <li>No ads, no tracking, no usage statistics.</li>
       </ul>`,
       s2t: "2 · Who is responsible",
-      s2: `The controller is <b>Simone Cavalletti</b>, who offers data and blockchain integration services as <b>ChainIntegrate</b>: he develops the extension and runs the site account.chainintegrate.it and the account service. Contact for privacy and any request: e-mail <b>info@chainintegrate.it</b>; also ${TG} and ${LI}. No data protection officer has been appointed (not required for this activity).`,
+      s2: `The controller is <b>${ME}</b>, who offers data and blockchain integration services as <b>ChainIntegrate</b>: he develops the extension and runs the site account.chainintegrate.it and the account service. Contact for privacy and any request: e-mail <b>info@chainintegrate.it</b>; also ${TG} and ChainIntegrate's ${LI} page. No data protection officer has been appointed (not required for this activity).`,
       s3t: "3 · What stays on your computer",
       s3: `In the extension's storage, on the computer:<ul>
         <li>your access's key, only encrypted (with the computer's lock or the password you chose), and its public address (the "device code");</li>

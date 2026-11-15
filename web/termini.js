@@ -6,6 +6,8 @@
   const $ = (id) => document.getElementById(id);
   let LANG = SiteUI.initialLang();
   const TG = `<a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a>`;
+  const ME = `<a href="https://www.linkedin.com/in/simone-cavalletti" target="_blank" rel="noopener">Simone Cavalletti</a>`;
+  const LI = `<a href="https://www.linkedin.com/company/chainintegrate" target="_blank" rel="noopener">ChainIntegrate</a>`;
   const I18N = {
     it: {
       pageTitle: "Termini di servizio — ChainIntegrate Account",
@@ -13,7 +15,7 @@
       subtitle: "Versione del 15 novembre 2026. Riguardano l'estensione ChainIntegrate Account e il servizio degli account su account.chainintegrate.it. Come trattiamo i dati è scritto nell'<a href=\"privacy.html\">informativa sulla privacy</a>.",
       langToggleBtn: "English",
       s1t: "1 · Chi offre il servizio",
-      s1: `Il servizio è offerto da <b>Simone Cavalletti</b>, con il nome <b>ChainIntegrate</b> (di seguito "ChainIntegrate"). Contatti: info@chainintegrate.it, ${TG}. Il servizio è riservato ad aziende e professionisti che hanno ricevuto un codice di invito.`,
+      s1: `Il servizio è offerto da <b>${ME}</b>, con il nome <b>${LI}</b> (di seguito "ChainIntegrate"). Contatti: info@chainintegrate.it, ${TG}. Il servizio è riservato ad aziende e professionisti che hanno ricevuto un codice di invito.`,
       s2t: "2 · Cosa offre",
       s2: `<ul>
         <li>L'estensione per il browser, gratuita, che crea e custodisce sul tuo computer l'accesso al tuo account.</li>
@@ -43,7 +45,7 @@
       subtitle: "Version of 15 November 2026. They cover the ChainIntegrate Account extension and the account service at account.chainintegrate.it. How data is handled is in the <a href=\"privacy.html\">privacy policy</a>. The Italian text prevails.",
       langToggleBtn: "Italiano",
       s1t: "1 · Who offers the service",
-      s1: `The service is offered by <b>Simone Cavalletti</b>, as <b>ChainIntegrate</b> (below "ChainIntegrate"). Contact: info@chainintegrate.it, ${TG}. The service is for companies and professionals who received an invitation code.`,
+      s1: `The service is offered by <b>${ME}</b>, as <b>${LI}</b> (below "ChainIntegrate"). Contact: info@chainintegrate.it, ${TG}. The service is for companies and professionals who received an invitation code.`,
       s2t: "2 · What it offers",
       s2: `<ul>
         <li>The browser extension, free of charge, which creates and keeps on your computer the access to your account.</li>
