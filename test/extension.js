@@ -478,7 +478,13 @@ async function verify(page, file, pw) {
       const w = await pop; await w.waitForSelector("#ok:not([hidden]), #box.warn", { timeout: 15000 });
       return { w, pending };
     };
-    const noWindow = async (typed) => { const before = ctx.pages().length; const r = await askGt("eth_signTypedData_v4", [UP, JSON.stringify(typed)]); return r.e && r.e.code === 4100 && ctx.pages().length === before ? r.e.message : null; };
+    // No window opened for the request (a window closed just before does not count: pages are watched, not counted).
+    const noWindow = async (typed) => {
+      let opened = false; const seen = () => { opened = true; };
+      ctx.on("page", seen);
+      try { const r = await askGt("eth_signTypedData_v4", [UP, JSON.stringify(typed)]); await gt.waitForTimeout(200); return r.e && r.e.code === 4100 && !opened ? r.e.message : null; }
+      finally { ctx.off("page", seen); }
+    };
     const sensitive = (w) => w.evaluate(() => [...document.querySelectorAll("#what li.sensitive")].map((l) => l.textContent));
     const cases = [
       ["a new customer", [[cp1, enc]], {}, /Aggiungere 1 cliente o centro di ricarica/, false],
