@@ -113,13 +113,33 @@ function precheck(project, account, chainId, origin, method, params) {
   return { error: ERR.unsupported };
 }
 
-async function openWindow(req) {
-  const busyFor = Object.values(await session.get(null)).some((r) => r && r.rid && r.origin === req.origin);
-  if (busyFor) return { error: ERR.busy };
+// One request per site at a time. A request left behind (its window gone, never created, or older than 15 minutes:
+// a service worker stopped in between) no longer blocks the site; two requests at the same moment are taken one
+// after the other (audit U-07).
+const opening = new Map(); // origin -> promise of the last openWindow
+function openWindow(req) {
+  const prev = opening.get(req.origin) || Promise.resolve();
+  const run = prev.catch(() => {}).then(() => openWindowNow(req));
+  opening.set(req.origin, run);
+  run.finally(() => { if (opening.get(req.origin) === run) opening.delete(req.origin); });
+  return run;
+}
+async function windowAlive(id) { try { await chrome.windows.get(id); return true; } catch (e) { return false; } }
+async function openWindowNow(req) {
+  const all = await session.get(null);
+  for (const [k, r] of Object.entries(all)) {
+    if (!k.startsWith("req:") || !r || r.origin !== req.origin) continue;
+    const alive = Number.isInteger(r.win) && Date.now() - (r.at || 0) < 15 * 60000 && (await windowAlive(r.win));
+    if (alive) return { error: ERR.busy };
+    await session.remove([k, ...(Number.isInteger(r.win) ? ["win:" + r.win] : [])]);
+  }
   const rid = crypto.randomUUID();
   await session.set({ ["req:" + rid]: { ...req, rid, at: Date.now() } });
-  const w = await chrome.windows.create({ url: chrome.runtime.getURL("confirm.html?r=" + rid), type: "popup", width: 460, height: 680, focused: true });
-  await session.set({ ["win:" + w.id]: rid });
+  let w;
+  try { w = await chrome.windows.create({ url: chrome.runtime.getURL("confirm.html?r=" + rid), type: "popup", width: 460, height: 680, focused: true }); }
+  catch (e) { await session.remove("req:" + rid); return { error: { code: -32603, message: "The confirmation window could not be opened." } }; }
+  const k = "req:" + rid, cur = (await session.get(k))[k];
+  await session.set({ ["win:" + w.id]: rid, ...(cur ? { [k]: { ...cur, win: w.id } } : {}) });
   return { pending: true };
 }
 

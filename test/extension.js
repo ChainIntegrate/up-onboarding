@@ -97,6 +97,12 @@ async function verify(page, file, pw) {
     await r.page.click("#startNew");
     check(await r.page.isVisible("#sProtect") && !(await r.page.isVisible("#integrityBox")), "integrity: the published files let the extension work");
     await r.ctx.close();
+    for (const [label, list] of [["an empty list", "\n"], ["a page that is not the list", "<html>not found</html>"], ["a list without manifest.json", good.split("\n").filter((l) => !/\/manifest\.json$/.test(l)).join("\n")]]) {
+      r = await launch(null, EXT, null, list);
+      const st = await r.page.evaluate(() => Integrity.check());
+      check(st.state === "unknown", `integrity: ${label} is not a successful check (audit U-14 / A19) [${st.state}]`);
+      await r.ctx.close();
+    }
     const bad = good.replace(/^[0-9a-f]{64}(  chainintegrate-account\/passkey\.js)$/m, "0".repeat(64) + "$1");
     r = await launch(null, EXT, null, bad);
     await r.page.click("#startRestore");
@@ -422,10 +428,14 @@ async function verify(page, file, pw) {
   await gt.goto(GT + "/admin.html");
   await gt.waitForFunction(() => window.got.length > 0, null, { timeout: 10000 });
   const askGt = (method, params) => gt.evaluate(([m, p]) => window.got[0].provider.request({ method: m, params: p }).then((r) => ({ r }), (e) => ({ e: { code: e.code, message: e.message } })), [method, params]);
+  // a request left behind by a stopped service worker (no window) does not block the site (audit U-07)
+  const swk = ctx.serviceWorkers()[0];
+  await swk.evaluate((o) => chrome.storage.session.set({ "req:left-behind": { rid: "left-behind", origin: o, at: Date.now() - 3600000 } }), GT);
   pop = ctx.waitForEvent("page");
   pending = askGt("eth_requestAccounts", []);
   w = await pop; await w.waitForSelector("#ok:not([hidden])"); await w.click("#ok");
   check(JSON.stringify((await pending).r) === JSON.stringify([UP]), "GasTrace: the owner's page connects to the account");
+  check(!(await swk.evaluate(() => chrome.storage.session.get("req:left-behind")))["req:left-behind"], "a request left behind does not block the site, and is cleared (audit U-07)");
   const PHONE = ethers.Wallet.createRandom().address;
   const OP_TYPES = { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
   const opTyped = (registry) => ({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: registry },
