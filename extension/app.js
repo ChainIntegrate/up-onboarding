@@ -182,7 +182,8 @@
       passkeyCancelled: "Operazione annullata. Riprova, oppure usa una password.",
       failed: (v) => `❌ Non riuscito: ${v.err}`,
       backupSaved: "✅ Copia di backup scaricata. Ora controlliamo che funzioni.",
-      verifyOk: "✅ La copia di backup funziona.",
+      verifyOk: "✅ La copia di backup funziona. Ora spostala fuori da questo computer (una chiavetta USB, l'archivio dei documenti dell'azienda) e cancella quella rimasta in Download. Non tenerla in una cartella sincronizzata (OneDrive, iCloud, Google Drive) né insieme alla sua password.",
+      bkOld: (v) => `⚠️ La copia di backup è stata controllata l'ultima volta il ${v.date}: controlla che ci sia ancora e che si apra («Controlla la copia di backup»).`,
       leaveWarning: "La configurazione non è finita: se chiudi ora, dovrai ricominciare.",
       backupFileName: "chainintegrate-copia-di-backup",
       backupLabel: (v) => `Copia di backup ChainIntegrate, ${v.date}`,
@@ -358,7 +359,8 @@
       passkeyCancelled: "Cancelled. Try again, or use a password.",
       failed: (v) => `❌ Failed: ${v.err}`,
       backupSaved: "✅ Backup copy downloaded. Now let us check it works.",
-      verifyOk: "✅ The backup copy works.",
+      verifyOk: "✅ The backup copy works. Now move it off this computer (a USB stick, the company's document archive) and delete the one left in Downloads. Do not keep it in a synced folder (OneDrive, iCloud, Google Drive) nor together with its password.",
+      bkOld: (v) => `⚠️ The backup copy was last checked on ${v.date}: check that it is still there and opens (“Check the backup copy”).`,
       leaveWarning: "Setup is not finished: if you close now, you will have to start again.",
       backupFileName: "chainintegrate-backup-copy",
       backupLabel: (v) => `ChainIntegrate backup copy, ${v.date}`,
@@ -428,6 +430,13 @@
     return null;
   }
 
+  // The backup copy's state; checked more than six months ago: a reminder to check it again (audit U-11).
+  function showBackupState() {
+    const at = account && account.backupCheckedAt;
+    const old = at && Date.now() - Date.parse(at) > 182 * 86400000;
+    $("bkState").textContent = at ? t(old ? "bkOld" : "bkChecked", { date: fmt(at) }) : "";
+    $("bkState").className = "lead" + (old ? " line-warn" : "");
+  }
   function download(json, name) {
     const blob = new Blob([json], { type: "application/json" });
     const a = document.createElement("a");
@@ -747,7 +756,7 @@
     const esc = (v) => String(v || "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
     $("devNameLine").hidden = !(account.up && account.nameInAccount);
     if (account.up && account.nameInAccount) $("devNameLine").innerHTML = t("devNameLine", { name: esc(account.nameInAccount) });
-    $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
+    showBackupState();
     const has = !!account.up;
     const join = !has && !!account.join;
     $("pCreate").hidden = has || join; $("pAccount").hidden = !has; $("pJoin").hidden = !join;
@@ -972,7 +981,7 @@
     if (latest) showUpdate();
     if (account && !account.up) { syncName(); showAvatar(); }
     if (account && account.up) { syncEditName(); showEditAvatar(); renderDevices(); }
-    if (account && !$("sMain").hidden) $("bkState").textContent = account.backupCheckedAt ? t("bkChecked", { date: fmt(account.backupCheckedAt) }) : "";
+    if (account && !$("sMain").hidden) showBackupState();
   }
   $("langToggle").addEventListener("click", () => { LANG = LANG === "it" ? "en" : "it"; SiteUI.saveLang(LANG); applyI18n(); });
 

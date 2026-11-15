@@ -208,6 +208,12 @@ async function verify(page, file, pw) {
   check(acc.nameInAccount === "PC ufficio" && (await page.isVisible("#devNameLine")) && /PC ufficio/.test(await page.textContent("#devNameLine")), "after the creation the computer's name written in the account is shown");
   check(acc.up === UP && acc.profileName === "rossi-srl" && /^data:image\//.test(acc.picture) && !(await page.isVisible("#pCreate")), "the created account is shown and remembered");
   check(acc.termsAccepted === UPRequest.TERMS && await page.isHidden("#termsBox"), "the terms accepted at the creation are remembered: no notice");
+  // a backup copy checked long ago: a reminder (audit U-11)
+  await page.evaluate(() => chrome.storage.local.get("account").then((x) => chrome.storage.local.set({ account: { ...x.account, backupCheckedAt: "2026-01-02T10:00:00.000Z" } })));
+  await page.reload(); await visible(page, "pAccount");
+  check(/controllata l'ultima volta/.test(await page.textContent("#bkState")), "a backup copy checked more than six months ago: the page asks to check it again (audit U-11)");
+  await page.evaluate((at) => chrome.storage.local.get("account").then((x) => chrome.storage.local.set({ account: { ...x.account, backupCheckedAt: at } })), acc.backupCheckedAt);
+  await page.reload(); await visible(page, "pAccount");
   check((await page.getAttribute("#profileLink", "href")).endsWith(UP), "the public profile link points to the account");
   check((await page.inputValue("#pAvatar")) === "" && (await page.inputValue("#pName")) === "", "after the creation the form is empty, the picture field too (the same file can be chosen again)");
 
