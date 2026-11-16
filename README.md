@@ -13,8 +13,9 @@ The same browser extension is then the client's access to ChainIntegrate's proje
 Supplier Trust Registry): each request of a project's page is confirmed in the extension's own window, in plain
 words, and ChainIntegrate's service sends the operations and pays for them.
 
-**Status: 0.5 on LUKSO mainnet**, used with ChainIntegrate's own demo accounts. No professional audit yet (planned
-when the changes are nearly complete). What is done and what is next: [BACKLOG.md](BACKLOG.md).
+**Status: 0.6 on LUKSO mainnet**, used with ChainIntegrate's own demo accounts. An independent technical review of
+this project and GasTrace (November 2026, not a formal smart-contract audit): its findings for this repository are
+closed in 0.6.0 or decided by the maintainer, as [BACKLOG.md](BACKLOG.md) lists, with what is done and what is next.
 
 ## Where
 

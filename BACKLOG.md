@@ -21,9 +21,6 @@ and conversations that cite them stay readable.
 16. **The Android app** ([android/](android/)): the same flows as the extension on the phone, its key in the
     Android Keystore. The creation's "device" role is ready for it (item 10); it joins an existing account as a
     second computer does (0.5.0).
-17. **Security review**, when the changes are nearly complete (maintainer's decision, 2026-11-12): the extension
-    (provider, confirmation window, key store), the account service (relay, catalog checks, device changes) and
-    the catalog.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
@@ -41,7 +38,7 @@ GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation
   this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
   validity shown; requests valid for more than 7 days refused (G-07 / U-06).
 
-## 0.6.0 (in preparation: released only once every change that closes the audit is in, maintainer's decision 2026-11-15)
+## 0.6.0 (released 2026-11-16)
 
 Left from 0.5.x, done here: this computer's name read from the account at each opening; the restore screen says
 restoring is for a computer that replaces the previous one; the password field inside the computers' confirmations;

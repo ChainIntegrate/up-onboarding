@@ -1,6 +1,6 @@
 # The extension as the access to ChainIntegrate's projects
 
-**State: extension 0.5.1 released; 0.6.0 in preparation (2026-11-15).** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
+**State: extension 0.6.0, 2026-11-16.** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
 TraceabilityRegistry, Supplier Trust Registry. What is open: [../BACKLOG.md](../BACKLOG.md).
 
 Decisions of the maintainer: live tests on LUKSO mainnet with ChainIntegrate's own demo accounts (costs are
