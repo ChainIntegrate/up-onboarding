@@ -94,6 +94,7 @@
             <li>premi ${B("Autorizza questo computer")}, controlla il riepilogo e conferma.</li>
           </ol>
           <p>Sul computer nuovo l'account compare da solo entro pochi secondi (oppure premi ${B("Controlla adesso")}); l'estensione chiede poi la copia di backup che contiene l'account, come al passo 4. È la copia <b>di questo computer</b>: conservala insieme a quella del primo, sono due copie diverse (sezione 8).</p>
+          <p>Se accanto a un computer di tipo accesso compare <b>«da aggiornare per i nuovi servizi»</b>, un amministratore preme ${B("Aggiorna")}: quel computer potrà usare anche le operazioni aggiunte di recente.</p>
           <p>Non serve fare tutto subito: puoi creare l'accesso sul computer nuovo, copiare il codice e autorizzarlo anche giorni dopo dall'altro computer. Riaprendo l'estensione sul computer nuovo, l'account compare da solo.</p>
           <div class="tip">Se un computer si rompe o lo cambi, con la <b>copia di backup</b> ritrovi l'accesso su un altro computer, come il primo giorno. I computer che hai autorizzato restano autorizzati.</div>` },
         { id: "backup", title: "8. La copia di backup", html: `
@@ -231,6 +232,7 @@
             <li>press ${B("Authorize this computer")}, check the summary and confirm.</li>
           </ol>
           <p>On the new computer the account appears by itself within a few seconds (or press ${B("Check now")}); the extension then asks for the backup copy holding the account, as in step 4. It is <b>this computer's</b> copy: keep it along with the first computer's, they are two different copies (section 8).</p>
+          <p>If “to update for the new services” appears next to an access computer, an administrator presses ${B("Update")}: that computer can then use the operations added recently too.</p>
           <p>No need to do everything at once: you can create the access on the new computer, copy the code and authorize it even days later from the other computer. Opening the extension on the new computer again, the account appears by itself.</p>
           <div class="tip">If a computer breaks or you replace it, with the <b>backup copy</b> you get the access back on another computer, as on the first day. The computers you authorized stay authorized.</div>` },
         { id: "backup", title: "8. The backup copy", html: `

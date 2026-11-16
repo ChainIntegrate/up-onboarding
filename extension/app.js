@@ -24,7 +24,7 @@
       subtitle: "Su questo computer",
       langToggleBtn: "English",
       welcomeTitle: "Benvenuto",
-      welcomeHtml: "Questa estensione è il tuo <b>accesso all'account ChainIntegrate</b> da questo computer. In pochi passi:<ol class=\"steps\"><li>scegli come proteggere l'accesso (il blocco del computer o una password);</li><li>crei la <b>copia di backup</b> e la controlli: ti serve se cambi computer o se questo si rompe;</li><li>mandi a ChainIntegrate il <b>codice</b> di questo computer.</li></ol>",
+      welcomeHtml: "Questa estensione è il tuo <b>accesso all'account ChainIntegrate</b> da questo computer. In pochi passi:<ol class=\"steps\"><li>scegli come proteggere l'accesso (il blocco del computer o una password);</li><li>crei la <b>copia di backup</b> e la controlli: ti serve se cambi computer o se questo si rompe;</li><li>scrivi il <b>codice di invito</b> ricevuto da ChainIntegrate e crei il tuo account (oppure aggiungi questo computer a un account che hai già).</li></ol>",
       startNewBtn: "Inizia: crea il tuo accesso",
       startRestoreBtn: "Ho già un accesso: ripristina dalla copia di backup",
       startJoinBtn: "Aggiungi questo computer a un account esistente",
@@ -71,7 +71,7 @@
       devCodeKnown: "❌ Questo computer ha già accesso al tuo account.",
       devNameMissing: "❌ Scrivi un nome per il computer.",
       restoreTitle: "Ripristina dalla copia di backup",
-      restoreHtml: "Scegli il file della copia di backup e scrivi la sua password. Ritroverai lo stesso accesso, con lo stesso codice.",
+      restoreHtml: "Scegli il file della copia di backup e scrivi la sua password. Ritroverai lo stesso accesso, con lo stesso codice: serve a un computer che <b>sostituisce</b> quello di prima. Se quel computer funziona ancora e vuoi usarli entrambi, torna indietro e scegli <b>«Aggiungi questo computer a un account esistente»</b>.",
       backupFileLabel: "File della copia di backup",
       backupPwLabel: "Password della copia di backup",
       restoreBtn: "Ripristina",
@@ -194,7 +194,7 @@
       termsMissing: "❌ Per creare l'account leggi e accetta i termini di servizio.",
       termsChanged: (v) => `I <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">termini di servizio</a> e l'<a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">informativa sulla privacy</a> sono stati aggiornati il ${v.date}.`,
       termsSeen: "Ho letto",
-      footerHtml: `ChainIntegrate · Assistenza: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> o <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">Termini</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
+      footerHtml: `ChainIntegrate · Assistenza: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> o <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/guida.html?lang=it" target="_blank" rel="noopener">Guida</a> · <a href="https://account.chainintegrate.it/termini.html?lang=it" target="_blank" rel="noopener">Termini</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=it" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Siti collegati",
       sitesNote: "I siti dei progetti ChainIntegrate a cui hai collegato il tuo account: vedono il suo indirizzo e possono chiederti conferme. Ogni operazione la confermi tu, ogni volta, in una finestra di questa estensione.",
       sitesNone: "Nessun sito collegato.",
@@ -205,7 +205,7 @@
       subtitle: "On this computer",
       langToggleBtn: "Italiano",
       welcomeTitle: "Welcome",
-      welcomeHtml: "This extension is your <b>access to your ChainIntegrate account</b> from this computer. In a few steps:<ol class=\"steps\"><li>choose how to protect the access (the computer's lock or a password);</li><li>create the <b>backup copy</b> and check it: you need it if you change computer or this one breaks;</li><li>send ChainIntegrate this computer's <b>code</b>.</li></ol>",
+      welcomeHtml: "This extension is your <b>access to your ChainIntegrate account</b> from this computer. In a few steps:<ol class=\"steps\"><li>choose how to protect the access (the computer's lock or a password);</li><li>create the <b>backup copy</b> and check it: you need it if you change computer or this one breaks;</li><li>type the <b>invitation code</b> you received from ChainIntegrate and create your account (or add this computer to an account you already have).</li></ol>",
       startNewBtn: "Start: create your access",
       startRestoreBtn: "I already have an access: restore from the backup copy",
       startJoinBtn: "Add this computer to an existing account",
@@ -252,7 +252,7 @@
       devCodeKnown: "❌ This computer already has access to your account.",
       devNameMissing: "❌ Type a name for the computer.",
       restoreTitle: "Restore from the backup copy",
-      restoreHtml: "Choose the backup file and type its password. You will get the same access back, with the same code.",
+      restoreHtml: "Choose the backup file and type its password. You will get the same access back, with the same code: it is for a computer that <b>replaces</b> the previous one. If that computer still works and you want to use both, go back and choose <b>“Add this computer to an existing account”</b>.",
       backupFileLabel: "Backup file",
       backupPwLabel: "Backup password",
       restoreBtn: "Restore",
@@ -374,7 +374,7 @@
       termsMissing: "❌ To create the account, read and accept the terms of service.",
       termsChanged: (v) => `The <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">terms of service</a> and the <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">privacy policy</a> were updated on ${v.date}.`,
       termsSeen: "Read",
-      footerHtml: `ChainIntegrate · Support: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> or <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">Terms</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
+      footerHtml: `ChainIntegrate · Support: <a href="mailto:info@chainintegrate.it">info@chainintegrate.it</a> or <a href="https://t.me/Simone_1977_2" target="_blank" rel="noopener">Telegram</a> · <a href="https://account.chainintegrate.it/guida.html?lang=en" target="_blank" rel="noopener">Guide</a> · <a href="https://account.chainintegrate.it/termini.html?lang=en" target="_blank" rel="noopener">Terms</a> · <a href="https://account.chainintegrate.it/privacy.html?lang=en" target="_blank" rel="noopener">Privacy</a>`,
       sitesTitle: "Connected sites",
       sitesNote: "The sites of ChainIntegrate's projects you connected your account to: they see its address and may ask you for confirmations. You confirm every operation yourself, each time, in a window of this extension.",
       sitesNone: "No site connected.",
@@ -605,6 +605,13 @@
     try { const b = await readDevices(); devState = { keys: b.keys, devices: b.devices || [], role: b.role }; } catch (e) { return; }
     renderDevices();
     await showChanges();
+    // This computer's name as written in the account (it may have been changed from another computer, or a restored
+    // copy may carry an older one).
+    const me = account && account.record ? devState.devices.find((d) => d.address === ethers.getAddress(account.record.address)) : null;
+    if (me && me.name && me.name !== account.nameInAccount) {
+      await save({ ...account, name: me.name, nameInAccount: me.name });
+      $("devNameLine").hidden = false; $("devNameLine").innerHTML = t("devNameLine", { name: esc2(me.name) });
+    }
   }
   // The account's computers as this computer last saw them: what changed since is shown until "Seen" (audit U-10).
   // The changes made from here are saved at once (rememberDevices), so only the others' show.
@@ -666,12 +673,20 @@
   }
   const esc2 = (v) => String(v || "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   let revoking = null, adding = null;
+  // The password field goes inside the confirmation being shown (authorize or revoke), and back below otherwise.
+  const keyHome = { parent: $("devKeyBox").parentNode, next: $("devKeyBox").nextSibling };
+  function placeKeyBox(confirmBox) {
+    const box = $("devKeyBox");
+    if (confirmBox) confirmBox.insertBefore(box, confirmBox.querySelector("button"));
+    else keyHome.parent.insertBefore(box, keyHome.next);
+  }
   function askRevoke(d) {
     revoking = d; adding = null; $("devAddConfirm").hidden = true;
+    placeKeyBox($("devRevokeConfirm"));
     $("devRevokeText").innerHTML = t("devRevokeText", { name: esc2(d.name || t("devNoName")), code: esc2(grouped(d.address)) });
     $("devRevokeConfirm").hidden = false; $("devRevokeCancel").focus();
   }
-  $("devRevokeCancel").addEventListener("click", () => { revoking = null; $("devRevokeConfirm").hidden = true; });
+  $("devRevokeCancel").addEventListener("click", () => { revoking = null; $("devRevokeConfirm").hidden = true; placeKeyBox(null); });
   // The key unlocked once for one change of the list, then wiped; the list read again just before, so the change
   // is made on the account as it is now.
   async function withDeviceKey(fn) {
@@ -687,7 +702,7 @@
   }
   $("devRevokeYes").addEventListener("click", async () => {
     const d = revoking; if (!d) return;
-    $("devRevokeConfirm").hidden = true; revoking = null;
+    $("devRevokeConfirm").hidden = true; revoking = null; placeKeyBox(null);
     const ok = await withDeviceKey(async (sk) => {
       const now = await readDevices();
       await relaySend(sk, UPRelay.removeDevice({ list: now.keys, address: d.address }));
@@ -695,7 +710,7 @@
     if (ok) { await refreshDevices(); await rememberDevices(); $("devChanges").hidden = true; say("devMsg", t("devRevoked", { name: d.name || t("devNoName") }), "line-ok"); }
   });
   async function updateDevice(d) {
-    revoking = null; adding = null; $("devRevokeConfirm").hidden = true; $("devAddConfirm").hidden = true;
+    revoking = null; adding = null; $("devRevokeConfirm").hidden = true; $("devAddConfirm").hidden = true; placeKeyBox(null);
     const ok = await withDeviceKey(async (sk) => { await relaySend(sk, (chainId) => UPRelay.updateDevice({ address: d.address, chainId })); });
     if (ok) { await refreshDevices(); say("devMsg", t("devUpdated", { name: d.name || t("devNoName") }), "line-ok"); }
   }
@@ -709,14 +724,15 @@
     $("devAddText").innerHTML = t("devAddText", { name: esc2(name), code: esc2(grouped(address)), role: esc2(t("devRole_" + role)) });
     // An administrator can do everything: one more explicit confirmation.
     $("devAdminAckRow").hidden = role !== "admin"; $("devAdminAck").checked = false; $("devAddYes").disabled = role === "admin";
+    placeKeyBox($("devAddConfirm"));
     $("devAddConfirm").hidden = false; $("devAddCancel").focus();
   });
-  $("devAddCancel").addEventListener("click", () => { adding = null; $("devAddConfirm").hidden = true; });
+  $("devAddCancel").addEventListener("click", () => { adding = null; $("devAddConfirm").hidden = true; placeKeyBox(null); });
   $("devAdminAck").addEventListener("change", () => { $("devAddYes").disabled = !$("devAdminAck").checked; });
   $("devAddYes").addEventListener("click", async () => {
     const a = adding; if (!a) return;
     if (a.role === "admin" && !$("devAdminAck").checked) return;
-    $("devAddConfirm").hidden = true; adding = null;
+    $("devAddConfirm").hidden = true; adding = null; placeKeyBox(null);
     const ok = await withDeviceKey(async (sk) => {
       const now = await readDevices();
       if (now.keys.includes(a.address)) throw Object.assign(new Error(t("devCodeKnown")), { shown: true });

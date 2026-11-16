@@ -43,6 +43,11 @@ GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation
 
 ## 0.6.0 (in preparation: released only once every change that closes the audit is in, maintainer's decision 2026-11-15)
 
+Left from 0.5.x, done here: this computer's name read from the account at each opening; the restore screen says
+restoring is for a computer that replaces the previous one; the password field inside the computers' confirmations;
+the welcome text's step 3 (the invitation code); the guide in the extension's footer. The guide's screenshots made
+again, and the guide says "Update" exists.
+
 The access role (audit A01 / X-01, D-07; maintainer's decisions 2026-11-15):
 - **CALL with AllowedCalls instead of SUPER_CALL** (`UPRelay.ACCESS_PERMS` = `UPDeploy.DEVICE_PERMS` = `0x640800`):
   an access key may call only the catalog's functions (`UPCatalog.allowedCalls`), enforced by the account itself,
@@ -57,8 +62,6 @@ The access role (audit A01 / X-01, D-07; maintainer's decisions 2026-11-15):
   its next factory checks the signer's role on its side (decision in GasTrace's conversation, 2026-11-15).
 - The role described as it is (extension, guide, README, docs/integration.md, the operator's page); the operator's
   page no longer sends LYX to the client's keys.
-- With the release: run `node tools/guide-screenshots.js` again (the computers' screens changed) and say in the guide
-  that "Update" exists.
 
 The audit's Medium findings (maintainer's consent 2026-11-15, all together):
 - **U-01, A13**: limits per account (operations, profiles stored), a gas cap per operation; a profile stored only for
@@ -104,16 +107,7 @@ The audit's Low findings (maintainer's consent 2026-11-15):
 
 ## Next extension version
 
-- **This computer's name**: the "This computer" panel shows the name the extension saved itself, while the list of
-  computers shows the one written in the account: two computers restored from the same backup copy (one key) showed
-  "Laptop" and "PC-Ufficio" for the same key (found 2026-11-13). Read it from the account at each opening.
-- **Restoring vs adding a computer**: on the restore screen, say that restoring brings the same access as the
-  previous computer, for one that replaces it; for a second place "Add this computer to an existing account".
-- **The computers' section**: the password field inside the authorize/revoke confirmation, not below it.
-- **The welcome text**: its step 3 still says "send ChainIntegrate this computer's code" (the flow before the
-  invitation codes); now: "type the invitation code and create your account".
-- **The guide in the footer** of the extension's page.
-- The security review's findings (item 17), after discussing them.
+- Nothing yet.
 
 ## Pages, after 0.5.0 (no new extension version)
 

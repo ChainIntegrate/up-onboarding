@@ -251,6 +251,9 @@ async function verify(page, file, pw) {
   await page.waitForFunction(() => /Vecchio PC/.test(document.querySelector("#devList").textContent));
   check((await page.locator("#devList button").count()) === 1 && /questo computer/.test(await page.textContent("#devList")) && await page.isVisible("#devAddBox"),
     "the account's computers are listed; an administrator can revoke the others, not this one");
+  await page.waitForFunction(() => /Portatile Simone/.test(document.querySelector("#devNameLine").textContent), null, { timeout: 10000 }).catch(() => {});
+  check(/Portatile Simone/.test(await page.textContent("#devNameLine")) && (await page.evaluate(() => chrome.storage.local.get("account"))).account.nameInAccount === "Portatile Simone",
+    "this computer's name is the one written in the account, read at each opening");
   check(await page.isVisible("#secondAdmin") && /un solo computer amministratore/.test(await page.textContent("#secondAdmin")), "one administrator only: a second one is advised, without blocking anything (audit U-09)");
   await page.click("#secondAdminLater");
   check(await page.isHidden("#secondAdmin"), "… \"Later\" puts it off");
@@ -269,6 +272,7 @@ async function verify(page, file, pw) {
   await page.click("#devAddBtn"); await visible(page, "devAddConfirm");
   check((await page.evaluate(() => document.activeElement.id)) === "devAddCancel" && /Computer ufficio/.test(await page.textContent("#devAddText")) && /accesso/.test(await page.textContent("#devAddText")),
     "authorizing a computer asks for a confirmation that names it and its role, with Cancel focused");
+  check((await page.locator("#devAddConfirm #devKeyPw").count()) === 1, "the password field is inside the confirmation");
   sent.length = 0;
   await page.fill("#devKeyPw", PW); await page.click("#devAddYes");
   await page.waitForFunction(() => /autorizzato/.test(document.querySelector("#devMsg").textContent), null, { timeout: 30000 });

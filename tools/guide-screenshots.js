@@ -103,6 +103,15 @@ async function run(lang) {
   await shot(page.locator("#pDevices"), lang, "devices-confirm");
 
   // ---- a project's page: connecting and a request, in the extension's window
+  // The network, as the window reads it: on LUKSO, this computer an administrator of the account, the registry the factory's.
+  const rpc = (r) => {
+    const q = JSON.parse(r.request().postData());
+    const result = q.method === "eth_chainId" ? "0x2a" : q.method === "eth_call" && q.params[0].data.startsWith("0x54f6127f")
+      ? ethers.AbiCoder.defaultAbiCoder().encode(["bytes"], [ethers.zeroPadValue("0x7f3f06", 32)]) : ethers.zeroPadValue("0x01", 32);
+    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: q.id, result }) });
+  };
+  await ctx.route("https://account.chainintegrate.it/api/rpc", rpc);
+  await ctx.route("https://rpc.mainnet.lukso.network/**", rpc);
   await ctx.route("https://gastrace.chainintegrate.it/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITE_HTML }));
   const site = await ctx.newPage();
   await site.goto("https://gastrace.chainintegrate.it/");
