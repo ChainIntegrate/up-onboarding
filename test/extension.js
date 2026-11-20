@@ -455,10 +455,10 @@ async function verify(page, file, pw) {
   check(JSON.stringify((await pending).r) === JSON.stringify([UP]), "GasTrace: the owner's page connects to the account");
   check(!(await swk.evaluate(() => chrome.storage.session.get("req:left-behind")))["req:left-behind"], "a request left behind does not block the site, and is cleared (audit U-07)");
   const PHONE = ethers.Wallet.createRandom().address;
-  const OP_TYPES = { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
-  const opTyped = (registry) => ({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: registry },
+  const OP_TYPES = { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "validFrom", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+  const opTyped = (registry) => ({ domain: { name: "GasCylinderRegistry", version: "2", chainId: 42, verifyingContract: registry },
     types: { EIP712Domain: [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }], ...OP_TYPES },
-    primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", deadline: String(Math.floor(Date.now() / 1000) + 600) } });
+    primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", validFrom: String(Math.floor(Date.now() / 1000) - 60), deadline: String(Math.floor(Date.now() / 1000) + 600) } });
   pop = ctx.waitForEvent("page");
   const t0 = opTyped(REG); // the object signed, kept: rebuilding it later would give another deadline (audit Q-01)
   pending = askGt("eth_signTypedData_v4", [UP, JSON.stringify(t0)]);
@@ -471,13 +471,13 @@ async function verify(page, file, pw) {
   // GasTrace's SetData, TransferOwnership: what the window says, from the request's values and the registry's data
   {
     const G = UPCatalog.GCR;
-    const SD = { SetData: [{ name: "dataKeys", type: "bytes32[]" }, { name: "dataValuesHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+    const SD = { SetData: [{ name: "dataKeys", type: "bytes32[]" }, { name: "dataValuesHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "validFrom", type: "uint256" }, { name: "deadline", type: "uint256" }] };
     const enc = "0x" + "cd".repeat(40);
     const cp1 = G.COUNTERPARTY + "11".repeat(20);
     const sdTyped = (entries, { values = true, hash = null } = {}) => {
       const keys = entries.map((e) => e[0]), vals = entries.map((e) => e[1]);
-      const t = { domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: REG }, types: SD, primaryType: "SetData",
-        message: { dataKeys: keys, dataValuesHash: hash || ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [vals])), nonce: "1", deadline: String(Math.floor(Date.now() / 1000) + 3600) } };
+      const t = { domain: { name: "GasCylinderRegistry", version: "2", chainId: 42, verifyingContract: REG }, types: SD, primaryType: "SetData",
+        message: { dataKeys: keys, dataValuesHash: hash || ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [vals])), nonce: "1", validFrom: String(Math.floor(Date.now() / 1000) - 60), deadline: String(Math.floor(Date.now() / 1000) + 3600) } };
       if (values) t.dataValues = vals;
       return t;
     };
@@ -502,6 +502,7 @@ async function verify(page, file, pw) {
       ["the settings", [[G.SETTINGS, enc]], {}, /Impostazioni dell'azienda \(nome e mail\)/, false],
       ["the first setup", [[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc]], {}, /Preparare la cifratura dei dati del registro: password e codice di recupero \(prima volta\)/, true],
       ["a password change", [[G.WRAP_PASSWORD, enc]], { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc }, /Cambiare la password dei dati/, true],
+      ["a new data key (version 2)", [[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc], [G.KEY_EPOCH, ethers.zeroPadValue("0x02", 32)], [G.KEY_RING, enc]], { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc }, /Cambiare la chiave dei dati: nuova password dei dati e nuovo codice di recupero/, true],
     ];
     for (const [name, entries, data, re, red] of cases) {
       for (const k of Object.keys(regData)) delete regData[k];
@@ -528,11 +529,11 @@ async function verify(page, file, pw) {
     const sv = await sensitive(sw.w);
     check(sv.some((x) => /Contenuto non verificabile/.test(x)) && await sw.w.isVisible("#ok"), "GasTrace SetData without the values (pages not updated yet): accepted with a highlighted warning");
     await sw.w.close(); await sw.pending;
-    const TO = { TransferOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
-    sw = await showWindow({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: REG }, types: TO, primaryType: "TransferOwnership",
-      message: { newOwner: PHONE, nonce: "2", deadline: String(Math.floor(Date.now() / 1000) + 3600) } });
+    const TO = { TransferOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "validFrom", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+    sw = await showWindow({ domain: { name: "GasCylinderRegistry", version: "2", chainId: 42, verifyingContract: REG }, types: TO, primaryType: "TransferOwnership",
+      message: { newOwner: PHONE, nonce: "2", validFrom: String(Math.floor(Date.now() / 1000) - 60), deadline: String(Math.floor(Date.now() / 1000) + 3600) } });
     const tv = await sensitive(sw.w);
-    check(tv.length === 1 && /Cedere il registro all'account .* Non lo controllerai più\./.test(tv[0]), "GasTrace: handing the registry over is shown in red");
+    check(tv.length === 1 && /Avviare la cessione del registro all'account .*: si potrà completare dopo 3 giorni; fino ad allora la puoi annullare\./.test(tv[0]), "GasTrace: handing the registry over (after 3 days, cancellable) is shown in red");
     await sw.w.close(); await sw.pending;
   }
   // from a computer with an access: GasTrace's requests are refused (an administrator's computer is needed)

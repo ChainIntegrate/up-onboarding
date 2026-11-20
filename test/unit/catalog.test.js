@@ -103,20 +103,27 @@ test("the relay accepts a catalogued execute, nothing else", () => {
   assert.strictEqual(R.check(R.projectCall(SUPPLIER_REGISTRY, data), { signer: account, chainId: 4201 }).error, "not_in_catalog");
 });
 
-const GT = "https://gastrace.chainintegrate.it", GT_FACTORY = "0xA128e7162fa8Dc779bf31EF569F06B53a499A50e", GT_REG = "0xEae1a8B84977694e5c9925028a23599bc345b801";
+const GT = "https://gastrace.chainintegrate.it", GT_FACTORY = "0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2", GT_REG = "0xEae1a8B84977694e5c9925028a23599bc345b801";
 const DOMAIN_TYPE = [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }];
+// GasTrace version 2: each type ends with nonce, validFrom, deadline (as GasCylinderRegistryV2.sol's type hashes).
+const fieldsList = (f) => f.split(",").map((x) => { const [type, name] = x.split(" "); return { name, type }; });
 const TYPES = {
-  SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
-  SetData: [{ name: "dataKeys", type: "bytes32[]" }, { name: "dataValuesHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
-  TransferOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
-  AcceptOwnership: [{ name: "newOwner", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+  SetOperator: fieldsList("address operator,bool enabled,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  SetData: fieldsList("bytes32[] dataKeys,bytes32 dataValuesHash,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  TransferOwnership: fieldsList("address newOwner,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  CancelOwnershipTransfer: fieldsList("address pendingOwner,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  AcceptOwnership: fieldsList("address newOwner,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  RecordDocument: fieldsList("address signer,bytes32 payloadHash,uint256 nonce,uint256 validFrom,uint256 deadline"),
+  CancelNonces: fieldsList("address signer,uint256[] nonces,uint256 nonce,uint256 validFrom,uint256 deadline"),
 };
 const deadline = () => Math.floor(Date.now() / 1000) + 600;
-const typedOf = (primaryType, message, extra = {}) => ({ domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: GT_REG },
-  types: { EIP712Domain: DOMAIN_TYPE, [primaryType]: TYPES[primaryType] }, primaryType, message, ...extra });
+// validFrom a minute ago unless given, as GasTrace's page signs.
+const typedOf = (primaryType, message, extra = {}) => ({ domain: { name: "GasCylinderRegistry", version: "2", chainId: 42, verifyingContract: GT_REG },
+  types: { EIP712Domain: DOMAIN_TYPE, [primaryType]: TYPES[primaryType] }, primaryType,
+  message: { ...message, validFrom: message.validFrom ?? Math.floor(Date.now() / 1000) - 60 }, ...extra });
 const phone = ethers.Wallet.createRandom().address;
 
-test("GasTrace: its site, and the four owner requests described, with the registry checked on its factory", () => {
+test("GasTrace: its site, and the owner's requests described, with the registry checked on its factory", () => {
   const p = C.projectForOrigin(GT);
   assert.strictEqual(p.id, "gas-cylinders");
   assert.strictEqual(C.projectForOrigin("https://gastrace.chainintegrate.it:444"), null);
@@ -125,8 +132,11 @@ test("GasTrace: its site, and the four owner requests described, with the regist
     ["SetOperator", { operator: phone, enabled: true, nonce: 0, deadline: deadline() }, /Authorize the phone/],
     ["SetOperator", { operator: phone, enabled: false, nonce: 1, deadline: deadline() }, /Revoke the phone/],
     ["SetData", { dataKeys: [C.GCR.COUNTERPARTY + "11".repeat(20), C.GCR.COUNTERPARTY + "22".repeat(20)], dataValuesHash: ethers.id("v"), nonce: 2, deadline: deadline() }, /Add or change 2 customers or refill centres/],
-    ["TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }, /Hand the registry over/],
-    ["AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }, /Accept the ownership/],
+    ["TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }, /Start handing the registry over to the account .*: it can be completed after 3 days; until then you can cancel it\./],
+    ["CancelOwnershipTransfer", { pendingOwner: phone, nonce: 4, deadline: deadline() }, /Cancel handing the registry over/],
+    ["AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }, /Accept the registry handed over to this account/],
+    ["RecordDocument", { signer: account, payloadHash: ethers.id("p"), nonce: 5, deadline: deadline() }, /Correct a cylinder's data \(the correction stays in its history\)/],
+    ["CancelNonces", { signer: account, nonces: [7, 8], nonce: 6, deadline: deadline() }, /Cancel 2 signed requests not sent yet/],
   ];
   for (const [type, msg, re] of cases) {
     const t = typedOf(type, msg);
@@ -135,7 +145,7 @@ test("GasTrace: its site, and the four owner requests described, with the regist
     assert.match(r.lines[0].en, re);
     assert.deepStrictEqual(r.needs, [{ factory: GT_FACTORY, check: "isRegistry(address)", address: GT_REG }]);
     // The digest is the EIP-712 hash the registry checks (ERC-1271 through the account).
-    assert.strictEqual(r.digest, ethers.TypedDataEncoder.hash(t.domain, { [type]: TYPES[type] }, msg));
+    assert.strictEqual(r.digest, ethers.TypedDataEncoder.hash(t.domain, { [type]: TYPES[type] }, t.message));
     // The same as a JSON string, as pages send it.
     assert.strictEqual(C.typedData(p, JSON.stringify(t), ctx).digest, r.digest);
   }
@@ -145,14 +155,24 @@ test("GasTrace: requests outside the catalog are refused", () => {
   const p = C.projectById("gas-cylinders"), ctx = { account, chainId: 42 };
   const op = { operator: phone, enabled: true, nonce: 0, deadline: deadline() };
   const typed = typedOf("SetOperator", op);
-  // the drivers' request, signed by their phones, never by the extension
-  const rec = { domain: typed.domain, types: { RecordDocument: [{ name: "signer", type: "address" }, { name: "payloadHash", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
-    primaryType: "RecordDocument", message: { signer: account, payloadHash: ethers.ZeroHash, nonce: 0, deadline: deadline() } };
-  assert.strictEqual(C.typedData(p, rec, ctx).error, "not_in_catalog");
+  // a request in another key's name: the owner signs only its own corrections and cancellations, accepts for itself
+  const other = ethers.Wallet.createRandom().address;
+  assert.strictEqual(C.typedData(p, typedOf("RecordDocument", { signer: other, payloadHash: ethers.ZeroHash, nonce: 0, deadline: deadline() }), ctx).error, "other_account");
+  assert.strictEqual(C.typedData(p, typedOf("CancelNonces", { signer: other, nonces: [1], nonce: 0, deadline: deadline() }), ctx).error, "other_account");
+  assert.strictEqual(C.typedData(p, typedOf("AcceptOwnership", { newOwner: other, nonce: 0, deadline: deadline() }), ctx).error, "other_account");
+  // version 1's requests (no validFrom) are no longer served
+  const v1 = { domain: { ...typed.domain, version: "1" }, types: { EIP712Domain: DOMAIN_TYPE, SetOperator: fieldsList("address operator,bool enabled,uint256 nonce,uint256 deadline") },
+    primaryType: "SetOperator", message: { operator: phone, enabled: true, nonce: 0, deadline: deadline() } };
+  assert.strictEqual(C.typedData(p, v1, ctx).error, "not_in_catalog");
+  // the validity window: not starting later, at most 7 days long
+  const nowS = Math.floor(Date.now() / 1000);
+  assert.strictEqual(C.typedData(p, typedOf("SetOperator", { ...op, validFrom: nowS + 3600, deadline: nowS + 7200 }), ctx).error, "not_now");
+  assert.strictEqual(C.typedData(p, typedOf("SetOperator", { ...op, validFrom: nowS - 8 * 86400, deadline: nowS + 600 }), ctx).error, "deadline_too_far");
+  assert.strictEqual(C.typedData(p, typedOf("SetOperator", { ...op, validFrom: nowS + 120, deadline: nowS + 3600 }), ctx).ok, true, "a clock a little ahead");
   assert.strictEqual(C.typedData(p, { ...typed, types: { ...typed.types, Extra: [{ name: "a", type: "uint256" }] } }, ctx).error, "not_in_catalog");
   assert.strictEqual(C.typedData(p, { ...typed, types: { EIP712Domain: DOMAIN_TYPE, SetOperator: TYPES.SetOperator.slice(0, 3) } }, ctx).error, "not_in_catalog");
   assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, name: "OtherRegistry" } }, ctx).error, "not_in_catalog");
-  assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, version: "2" } }, ctx).error, "not_in_catalog");
+  assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, version: "3" } }, ctx).error, "not_in_catalog");
   assert.strictEqual(C.typedData(p, { ...typed, domain: { ...typed.domain, salt: ethers.ZeroHash } }, ctx).error, "not_in_catalog");
   assert.strictEqual(C.typedData(p, typed, { account, chainId: 4201 }).error, "other_network");
   assert.strictEqual(C.typedData(p, typedOf("SetOperator", { ...op, deadline: 1000 }), ctx).error, "expired");
@@ -187,8 +207,9 @@ test("no crypto term, cost or payment in any description of the catalog, in both
     if (p.typed) {
       for (const [type, k] of Object.entries(p.typed.types)) {
         if (k.setData) continue;
-        const msg = { operator: account, enabled: true, newOwner: account, nonce: 0n, deadline: 1n };
+        const msg = { operator: account, enabled: true, newOwner: account, pendingOwner: account, signer: account, payloadHash: ethers.ZeroHash, nonces: [1n, 2n], nonce: 0n, validFrom: 0n, deadline: 1n };
         texts.push(k.describe(msg));
+        if (type === "CancelNonces") texts.push(k.describe({ ...msg, nonces: [1n] }));
         if (type === "SetOperator") texts.push(k.describe({ ...msg, enabled: false }));
       }
       texts.push(p.typed.note);
@@ -284,7 +305,7 @@ test("GasTrace SetData: without the values (pages not updated yet), accepted wit
 test("GasTrace: handing the registry over is highlighted; accepting it is not", () => {
   const p = C.projectById("gas-cylinders");
   const r = C.typedData(p, typedOf("TransferOwnership", { newOwner: phone, nonce: 3, deadline: deadline() }), { account, chainId: 42 });
-  assert.ok(r.lines[0].sensitive && /You will no longer control it/.test(r.lines[0].en) && /Non lo controllerai più/.test(r.lines[0].it));
+  assert.ok(r.lines[0].sensitive && /it can be completed after 3 days/.test(r.lines[0].en) && /si potrà completare dopo 3 giorni; fino ad allora la puoi annullare/.test(r.lines[0].it));
   const a = C.typedData(p, typedOf("AcceptOwnership", { newOwner: account, nonce: 0, deadline: deadline() }), { account, chainId: 42 });
   assert.ok(!a.lines[0].sensitive);
 });
@@ -320,4 +341,22 @@ test("GasTrace: its requests are signed from an administrator's computer only (a
   const account = ethers.Wallet.createRandom().address;
   const r = C.typedData(p, typedOf("AcceptOwnership", { newOwner: account, nonce: 0, deadline: Math.floor(Date.now() / 1000) + 3600 }), { account, chainId: 42 });
   assert.strictEqual(r.ok, true); assert.strictEqual(r.signer, "admin");
+});
+
+test("GasTrace SetData: changing the data key, the four keys together, once the data is set up (version 2)", () => {
+  const p = C.projectById("gas-cylinders"), G = C.GCR, enc = "0x" + "ab".repeat(40), num = ethers.zeroPadValue("0x02", 32);
+  const sd = (entries) => { const keys = entries.map((e) => e[0]), vals = entries.map((e) => e[1]);
+    return typedOf("SetData", { dataKeys: keys, dataValuesHash: ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes[]"], [vals])), nonce: 9, deadline: deadline() }, { dataValues: vals }); };
+  const four = [[G.WRAP_PASSWORD, enc], [G.WRAP_RECOVERY, enc], [G.KEY_EPOCH, num], [G.KEY_RING, enc]];
+  const setUp = { [G.WRAP_PASSWORD]: enc, [G.WRAP_RECOVERY]: enc };
+  const r = C.typedData(p, sd(four), { account, chainId: 42, current: setUp });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.ok(r.lines[0].sensitive && /^Cambiare la chiave dei dati: nuova password dei dati e nuovo codice di recupero\. I telefoni chiederanno la nuova password\.$/.test(r.lines[0].it));
+  assert.ok(!r.lines.some((l) => /prima volta/.test(l.it)), "not a first setup");
+  assert.strictEqual(C.typedData(p, sd(four), { account, chainId: 42, current: {} }).error, "rotation_before_setup");
+  assert.strictEqual(C.typedData(p, sd(four.slice(0, 3)), { account, chainId: 42, current: setUp }).error, "key_rotation");
+  assert.strictEqual(C.typedData(p, sd([[G.KEY_EPOCH, num]]), { account, chainId: 42, current: setUp }).error, "key_rotation");
+  assert.strictEqual(C.typedData(p, sd([four[0], four[1], [G.KEY_EPOCH, "0x"], four[3]]), { account, chainId: 42, current: setUp }).error, "key_rotation");
+  // without the epoch and ring, both wraps once set up are still refused (as in version 1)
+  assert.strictEqual(C.typedData(p, sd(four.slice(0, 2)), { account, chainId: 42, current: setUp }).error, "wraps_both");
 });

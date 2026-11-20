@@ -122,9 +122,9 @@ async function run(lang) {
   let w = await pop; await w.setViewportSize({ width: 460, height: 520 }); await w.waitForSelector("#ok:not([hidden])");
   await shot(w, lang, "window-connect");
   await w.click("#ok"); await w.waitForEvent("close").catch(() => {});
-  const typed = { domain: { name: "GasCylinderRegistry", version: "1", chainId: 42, verifyingContract: REG },
-    types: { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
-    primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", deadline: String(Math.floor(Date.now() / 1000) + 3600) } };
+  const typed = { domain: { name: "GasCylinderRegistry", version: "2", chainId: 42, verifyingContract: REG },
+    types: { SetOperator: [{ name: "operator", type: "address" }, { name: "enabled", type: "bool" }, { name: "nonce", type: "uint256" }, { name: "validFrom", type: "uint256" }, { name: "deadline", type: "uint256" }] },
+    primaryType: "SetOperator", message: { operator: PHONE, enabled: true, nonce: "0", validFrom: String(Math.floor(Date.now() / 1000) - 60), deadline: String(Math.floor(Date.now() / 1000) + 3600) } };
   pop = ctx.waitForEvent("page");
   await ask("eth_signTypedData_v4", [UP, JSON.stringify(typed)]);
   w = await pop; await w.setViewportSize({ width: 460, height: 600 }); await w.waitForSelector("#ok:not([hidden])");

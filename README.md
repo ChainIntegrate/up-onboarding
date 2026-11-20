@@ -67,8 +67,9 @@ account is read back and checked afterwards.
 `0x7f3f06`: everything, including the keys) or **access**: CALL limited by LSP6 AllowedCalls to the functions of the
 projects' catalog, SETDATA limited to its own name, SIGN and EXECUTE_RELAY_CALL. The account itself refuses anything
 else from an access key, whoever sends it: no transfer of value or tokens, no other contract, no profile, no keys.
-SIGN cannot be limited, so an access key signs for the account (sign-ins, GasTrace's owner requests): the extension
-asks for an administrator's computer for GasTrace ([docs/integration.md](docs/integration.md), section 7). The
+SIGN cannot be limited, so an access key signs for the account (sign-ins to the projects' sites); GasTrace's owner
+requests need an administrator's key, checked by the extension and by GasTrace's registries (version 2;
+[docs/integration.md](docs/integration.md), section 7). The
 creation's "device" role (operator's page, Android) is the same as access.
 
 LUKSO contracts used (same address on LUKSO and LUKSO Testnet; the page and the service check each has code):

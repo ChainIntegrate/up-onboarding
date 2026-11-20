@@ -15,7 +15,8 @@ and conversations that cite them stay readable.
     own host, or the extension refuses it (`other_site`).
 15. **Live tests on LUKSO still to make** (with the released extension, Argonia's demo account
     `0xC335aFd1d95fA790DE419e9BCe482d9B8BC1D773`):
-    - GasTrace: connect, then the owner's requests on the demo registry `0xEae1a8B84977694e5c9925028a23599bc345b801`;
+    - GasTrace version 2: connect, then the owner's requests on a registry made by the factory V2
+      `0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2` (with 0.6.1);
     - a second computer with its own key (0.5.0): join, authorize as access, revoke;
     - TraceabilityRegistry and Supplier Trust sign-ins and operations, after item 12.
 16. **The Android app** ([android/](android/)): the same flows as the extension on the phone, its key in the
@@ -37,6 +38,17 @@ GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation
 - Handing the registry over in red; GasTrace's own note under its requests ("With this confirmation you authorize
   this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
   validity shown; requests valid for more than 7 days refused (G-07 / U-06).
+
+## 0.6.1 (2026-11-20)
+
+GasTrace version 2 (asked from the GasTrace conversation, 2026-11-20): the factory V2
+`0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2`, domain version `2`; every request with `validFrom` and `deadline`
+(`validFrom` at most 10 minutes ahead, at most 7 days long); `TransferOwnership` described as a start completed after
+3 days and cancellable, `CancelOwnershipTransfer`, `AcceptOwnership` for this account only, `RecordDocument` (the
+owner's own corrections) and `CancelNonces` (its own requests); `SetData` with a new data key (both wraps,
+`GCRKeyEpoch`, `GCRKeyRing`, together, once set up). Version 1's requests are no longer served. The registry now
+checks the administrator too (`isAdministrator`): audit A01 / X-01 closed for GasTrace. GasTrace's
+`scripts/admin-demo.js` passes with this catalog (11 requests checked).
 
 ## 0.6.0 (released 2026-11-16)
 

@@ -67,7 +67,10 @@
 
   // GasTrace, the gas cylinder registry (gas-cylinder-registry): each supplier owns a registry, made by the
   // project's factory; as its owner the client signs EIP-712 requests that the project's own relayer sends.
-  const CYLINDER_FACTORY = "0xA128e7162fa8Dc779bf31EF569F06B53a499A50e"; // GasCylinderRegistryFactory, LUKSO
+  // GasCylinderRegistryFactoryV2 on LUKSO (block 8803983), owned by ChainIntegrate's profile: version 2 of the
+  // registries (validity window, ownership transfer after 3 days, administrator keys only, key rotation). Version 1's
+  // factory (0xA128…A50e) and its demo registry are no longer served (GasTrace's request, 2026-11-20).
+  const CYLINDER_FACTORY = "0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2";
 
   // GasTrace's registry data (ERC725Y keys written by SetData): the only keys an owner's SetData may write.
   const GCR = {
@@ -76,6 +79,8 @@
     SETTINGS: "0x7360ff3fd3307b001f63e23a6ceb3a235f0fc21dfbe6c1051df93ee2e08a16f2",      // id("GCRSettings")
     COUNTERPARTY: "0xb94f78e3e7196a6c35f70000",                                            // LSP2 Mapping "GCRCounterparty" + bytes20
     LSP4_METADATA: "0x9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e",   // the collection's public description
+    KEY_EPOCH: "0xb2836d860fead756b2946e27c46c0638ea1e4f435b0667c5ae1c0193ad14ab5d",       // id("GCRKeyEpoch"): the data key's number
+    KEY_RING: "0x3f91313781b341ca2a148d7a8a1c8ec96b8be5c1e8cf443f55f72ccb5f152b86",        // id("GCRKeyRing"): earlier keys, under the new one
   };
   const empty = (v) => v === undefined || v === null || v === "0x" || v === "";
   // SetData: each key classified, the values checked against the signed hash (when the page sends them, as the
@@ -96,7 +101,7 @@
     const cur = (k) => (current ? current[k] : undefined);
     const known = current !== undefined && current !== null;
     const lines = [];
-    let pw = null, rc = null, settings = null, meta = null;
+    let pw = null, rc = null, settings = null, meta = null, epoch = null, ring = null;
     const cp = { added: 0, changed: 0, removed: 0, some: 0 };
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i], val = values ? values[i] : undefined;
@@ -104,6 +109,8 @@
       else if (k === GCR.WRAP_RECOVERY) rc = { val };
       else if (k === GCR.SETTINGS) settings = { val };
       else if (k === GCR.LSP4_METADATA) meta = { val };
+      else if (k === GCR.KEY_EPOCH) epoch = { val };
+      else if (k === GCR.KEY_RING) ring = { val };
       else if (k.startsWith(GCR.COUNTERPARTY) && k.length === 66) {
         if (!values) cp.some++;
         else if (empty(val)) cp.removed++;
@@ -112,9 +119,16 @@
         else cp.some++;
       } else return { error: "unknown_data_key" };
     }
-    // The data key's wraps: never deleted; both at once only the first time.
+    // The data key's wraps: never deleted; both at once only the first time, or with a new key (version 2: the key's
+    // number and the earlier keys, the four together, once the data is set up).
     if ((pw && values && empty(pw.val)) || (rc && values && empty(rc.val))) return { error: "wrap_deleted" };
-    if (pw && rc) {
+    if (epoch || ring) {
+      if (!(epoch && ring && pw && rc)) return { error: "key_rotation" };
+      if (values && (empty(epoch.val) || empty(ring.val))) return { error: "key_rotation" };
+      if (known && (empty(cur(GCR.WRAP_PASSWORD)) || empty(cur(GCR.WRAP_RECOVERY)))) return { error: "rotation_before_setup" };
+      lines.push(Object.assign(T("Cambiare la chiave dei dati: nuova password dei dati e nuovo codice di recupero. I telefoni chiederanno la nuova password.",
+        "Change the data key: a new data password and a new recovery code. The phones will ask for the new password."), { sensitive: true }));
+    } else if (pw && rc) {
       if (known && (!empty(cur(GCR.WRAP_PASSWORD)) || !empty(cur(GCR.WRAP_RECOVERY)))) return { error: "wraps_both" };
       lines.push(Object.assign(T("Preparare la cifratura dei dati del registro: password e codice di recupero (prima volta)", "Prepare the encryption of the registry's data: password and recovery code (first time)"), { sensitive: true }));
     } else if (pw || rc) {
@@ -190,25 +204,34 @@
       name: "GasTrace",
       sites: ["gastrace.chainintegrate.it"],
       typed: {
-        domain: { name: "GasCylinderRegistry", version: "1" },
+        domain: { name: "GasCylinderRegistry", version: "2" },
         // What the signature does, under the request (the window's note), and the longest validity accepted.
         note: T("Con questa conferma autorizzi questa modifica del registro; la registra il servizio GasTrace.", "With this confirmation you authorize this change of the registry; GasTrace's service records it."),
-        maxValidity: 7 * 24 * 3600,
-        // The registry accepts any signature its owner account accepts (ERC-1271), so any key of the account with
-        // SIGN, an "access" one included (audit A01 / X-01): the extension asks for an administrator's computer.
-        // GasTrace's own guard is for its next factory (decision of the maintainer, 2026-11-15).
+        // deadline - validFrom at most 7 days, validFrom at most a few minutes ahead (the registry allows one hour).
+        maxValidity: 7 * 24 * 3600, maxAhead: 10 * 60,
+        // Only an administrator's key: the extension asks for an administrator's computer, and version 2's registry
+        // checks it too (isAdministrator: the signing key has EDITPERMISSIONS on the owner account; audit A01 / X-01).
         signer: "admin",
         madeBy: CYLINDER_FACTORY ? { factory: CYLINDER_FACTORY, check: "isRegistry(address)" } : null,
         chainIds: [MAINNET],
         types: {
-          SetOperator: { fields: "address operator,bool enabled,uint256 nonce,uint256 deadline",
+          SetOperator: { fields: "address operator,bool enabled,uint256 nonce,uint256 validFrom,uint256 deadline",
             describe: (m) => m.enabled ? T(`Autorizzare il telefono ${short(m.operator)} a registrare per te`, `Authorize the phone ${short(m.operator)} to record for you`)
               : T(`Togliere l'autorizzazione al telefono ${short(m.operator)}`, `Revoke the phone ${short(m.operator)}`) },
-          SetData: { fields: "bytes32[] dataKeys,bytes32 dataValuesHash,uint256 nonce,uint256 deadline", setData: true },
-          TransferOwnership: { fields: "address newOwner,uint256 nonce,uint256 deadline",
-            describe: (m) => Object.assign(T(`Cedere il registro all'account ${short(m.newOwner)}. Non lo controllerai più.`, `Hand the registry over to the account ${short(m.newOwner)}. You will no longer control it.`), { sensitive: true }) },
-          AcceptOwnership: { fields: "address newOwner,uint256 nonce,uint256 deadline",
-            describe: () => T("Accettare la proprietà del registro", "Accept the ownership of the registry") },
+          SetData: { fields: "bytes32[] dataKeys,bytes32 dataValuesHash,uint256 nonce,uint256 validFrom,uint256 deadline", setData: true },
+          TransferOwnership: { fields: "address newOwner,uint256 nonce,uint256 validFrom,uint256 deadline",
+            describe: (m) => Object.assign(T(`Avviare la cessione del registro all'account ${short(m.newOwner)}: si potrà completare dopo 3 giorni; fino ad allora la puoi annullare.`,
+              `Start handing the registry over to the account ${short(m.newOwner)}: it can be completed after 3 days; until then you can cancel it.`), { sensitive: true }) },
+          CancelOwnershipTransfer: { fields: "address pendingOwner,uint256 nonce,uint256 validFrom,uint256 deadline",
+            describe: (m) => T(`Annullare la cessione del registro all'account ${short(m.pendingOwner)}`, `Cancel handing the registry over to the account ${short(m.pendingOwner)}`) },
+          AcceptOwnership: { fields: "address newOwner,uint256 nonce,uint256 validFrom,uint256 deadline", self: "newOwner",
+            describe: () => T("Accettare il registro ceduto a questo account", "Accept the registry handed over to this account") },
+          // The owner's own corrections only (the drivers sign theirs in their app).
+          RecordDocument: { fields: "address signer,bytes32 payloadHash,uint256 nonce,uint256 validFrom,uint256 deadline", self: "signer",
+            describe: () => T("Correggere i dati di una bombola (la correzione resta nella sua storia)", "Correct a cylinder's data (the correction stays in its history)") },
+          CancelNonces: { fields: "address signer,uint256[] nonces,uint256 nonce,uint256 validFrom,uint256 deadline", self: "signer",
+            describe: (m) => T(`Annullare ${count(m.nonces.length, "richiesta firmata", "richieste firmate")} non ancora ${m.nonces.length === 1 ? "inviata" : "inviate"}`,
+              `Cancel ${count(m.nonces.length, "signed request", "signed requests")} not sent yet`) },
         },
       },
       contracts: [],
@@ -333,8 +356,15 @@
     const now = Date.now() / 1000;
     if (msg.deadline !== undefined && Number(msg.deadline) < now) return fail("expired");
     if (msg.deadline !== undefined && spec.maxValidity && Number(msg.deadline) > now + spec.maxValidity) return fail("deadline_too_far");
+    // A validity window (version 2): not starting later than a few minutes from now, at most maxValidity long.
+    if (msg.validFrom !== undefined) {
+      if (spec.maxAhead !== undefined && Number(msg.validFrom) > now + spec.maxAhead) return fail("not_now");
+      if (spec.maxValidity && Number(msg.deadline) - Number(msg.validFrom) > spec.maxValidity) return fail("deadline_too_far");
+      if (Number(msg.deadline) < Number(msg.validFrom)) return fail("typed_data");
+    }
     if (!spec.madeBy) return fail("not_configured");
-    void account; // the registry checks (ERC-1271) that the account is its owner
+    // A field that must be the account itself (accepting a registry, the owner's own corrections and cancellations).
+    if (kind.self && (!account || !ethers.isAddress(account) || ethers.getAddress(msg[kind.self]) !== ethers.getAddress(account))) return fail("other_account");
     const registry = ethers.getAddress(d.verifyingContract);
     let what, reads = [];
     if (kind.setData) {

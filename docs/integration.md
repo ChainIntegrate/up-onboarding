@@ -1,6 +1,6 @@
 # The extension as the access to ChainIntegrate's projects
 
-**State: extension 0.6.0, 2026-11-16.** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
+**State: extension 0.6.1, 2026-11-20.** On LUKSO mainnet. Served projects: GasTrace (the gas cylinder registry),
 TraceabilityRegistry, Supplier Trust Registry. What is open: [../BACKLOG.md](../BACKLOG.md).
 
 Decisions of the maintainer: live tests on LUKSO mainnet with ChainIntegrate's own demo accounts (costs are
@@ -34,8 +34,8 @@ Cross_Chain's UP Wallet. The client never sees LYX, gas, hex data they must chec
 
 | Project | Site | Who signs | Request | Paid by |
 |---|---|---|---|---|
-| **GasTrace** (gas-cylinder-registry) | `gastrace.chainintegrate.it` | the registry's owner (the supplier's account), from an administrator's computer only (section 7) | EIP-712 `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings; values encrypted), `TransferOwnership` / `AcceptOwnership`; domain `GasCylinderRegistry` `1`, registries made by the factory `0xA128e7162fa8Dc779bf31EF569F06B53a499A50e` | the project's relayer (`/gcr/`) |
-| | | drivers | their own app and phone key: **not the extension** (`RecordDocument` is refused) | the project's relayer |
+| **GasTrace** (gas-cylinder-registry) | `gastrace.chainintegrate.it` | the registry's owner (the supplier's account), from an administrator's computer only (section 7) | EIP-712, version 2 of the registries: `SetOperator` (authorize / revoke a driver's phone), `SetData` (counterparties, settings, a new data key; values encrypted), `TransferOwnership` (completed after 3 days) / `CancelOwnershipTransfer` / `AcceptOwnership` (to this account), `RecordDocument` (the owner's own corrections), `CancelNonces` (the owner's own requests); each with `validFrom` and `deadline`; domain `GasCylinderRegistry` `2`, registries made by the factory V2 `0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2` | the project's relayer (`/gcr/`) |
+| | | drivers | their own app and phone key: **not the extension** (a `RecordDocument` signed for another key is refused) | the project's relayer |
 | **TraceabilityRegistry** | `traceability.chainintegrate.it` | the client company's account | SIWE messages (sign-in, signed details for pinning metadata, library reads) | — |
 | | | | factory `deployRegistry` (`0x54C3A7C31C4eCA1f1997f5E6f19197f3A82b88a3`); on registries made by it: `mintRawMaterialLot(Batch)`, `mintProductionBatch`, `invalidateEntry`, `setDocumentHash(Batch)`, `correctDocumentHash`, `setRegistryMetadata`, `addDelegate`, `removeDelegate` | the account service |
 | **Supplier Trust Registry** | `supplier-trust-registry.chainintegrate.it` | the client company's account | sign-in message for the upload service | — |
@@ -80,7 +80,11 @@ needs, digest }`: `title` and `lines` in Italian and English, `needs` the on-cha
   and refill centres, the public description); the request's `dataValues` checked against the signed hash; the
   registry's current values read (`readCurrent`, then `typedData` with `ctx.current`) to describe a first setup, a
   change of password or recovery code (highlighted), customers added, changed or removed; deleting a wrap, or both
-  wraps once set, refused. GasTrace's note says the signature authorizes the change; validity at most 7 days.
+  wraps once set, refused; a new data key (version 2) only as the four keys together (both wraps, `GCRKeyEpoch`,
+  `GCRKeyRing`) once the data is set up, highlighted. GasTrace's note says the signature authorizes the change.
+- **GasTrace's validity** (version 2): `validFrom` at most 10 minutes ahead, `deadline - validFrom` at most 7 days, not
+  expired. A field naming a key must be the account itself (`AcceptOwnership.newOwner`, `RecordDocument.signer`,
+  `CancelNonces.signer`).
 - **Transactions** (`eth_sendTransaction`): the target (a fixed contract, or "a registry made by the factory X",
   checked on the network), the functions allowed, value always 0, the call exactly the encoding of its arguments;
   the description built from the decoded arguments ("Record 2 raw material lots").
@@ -123,13 +127,11 @@ a computer that has the account, as:
   `test/creator.js` checks it on LUKSO's own contracts).
 
 **What an access key can still do: sign.** LSP6 cannot limit SIGN: the account's `isValidSignature` (ERC-1271)
-accepts what any key with SIGN signs. GasTrace verifies its owner's requests that way, so an access key could sign
-`TransferOwnership`, `SetOperator` and `SetData` of a registry the account owns, outside the extension. The
-maintainer's decision (2026-11-15): GasTrace is a demo; its demo account has administrator keys only; the extension
-refuses GasTrace's requests from a computer with an access (the catalog's `signer: "admin"`, checked in the window
-from this computer's permissions on the account); if GasTrace is adopted, its next factory checks on its side that
-the signing key is an administrator of the owner account. Clients are told to authorize as access only their
-company's computers.
+accepts what any key with SIGN signs (sign-ins to the projects' sites, for example). For GasTrace this is closed on
+both sides: the extension refuses its requests from a computer with an access (the catalog's `signer: "admin"`,
+checked in the window from this computer's permissions on the account), and version 2's registries accept an owner's
+signature only from a key with EDITPERMISSIONS on the account (`isAdministrator`), whoever sends it. Clients are told
+to authorize as access only their company's computers.
 
 **Updating an access.** When a project adds an operation to the catalog, the access keys already authorized do not
 have it in their allowed calls yet: the service lists them as `update: true` (`/api/profile/read`), and an
