@@ -39,7 +39,7 @@ GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation
   this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
   validity shown; requests valid for more than 7 days refused (G-07 / U-06).
 
-## 0.6.1 (2026-11-20)
+## 0.6.1 (released 2026-11-20)
 
 GasTrace version 2 (asked from the GasTrace conversation, 2026-11-20): the factory V2
 `0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2`, domain version `2`; every request with `validFrom` and `deadline`
