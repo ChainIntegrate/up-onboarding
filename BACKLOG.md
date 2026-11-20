@@ -46,6 +46,18 @@ and conversations that cite them stay readable.
       before real clients.
     For GasTrace's conversation (its repository): N-02 (identifiers after a data key change), N-03 (handover alerts
     across relayer restarts), N-04 and N-05 (information), R-04, R-06, A07, R02, A10, P-01 (compliance kit).
+    The second report of the same day (Codex, F01…F21) covers the same ground; its numbers for this repository:
+    F01 = N-01 (rated High there, Low in the first report: the maintainer does not share the High rating, see
+    below), F02 = R-03, F15 = R-02, F19 = R-05; and three more:
+    - **F14** (Low): profile updates without `at` (0.5.x) are still served once, without a time limit; retire them
+      now that 0.6.x is the released version; a failed pin after the fingerprint is used needs a new confirmation.
+    - **F12, F20** (part): the privacy notice's sentence on the integrity check reads stronger than its "unknown"
+      state (offline, or an incomplete list, the extension still works): say it as it is.
+    - **F21** (operational): the privacy notice's promises (IPFS unpin on request, 30-day logs, backup restore) to be
+      checked on the server by the maintainer; no code.
+    F01's rating (maintainer's view, 2026-11-20): it needs a compromised or faulty admin page plus a real
+    administrator confirmation; such a page already holds the data password (X-03), and every change stays in the
+    register's history and can be corrected. The fix is the same small one as N-01.
 
 ## Next extension version
 
