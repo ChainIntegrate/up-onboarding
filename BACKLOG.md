@@ -25,7 +25,27 @@ and conversations that cite them stay readable.
     Android Keystore. The creation's "device" role is ready for it (item 10); it joins an existing account as a
     second computer does (0.5.0).
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
-    between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
+    between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`). Also asked by
+    the review of 2026-11-20 before real data (X-04, accepted until the clients are many).
+19. **The review of 2026-11-20** (verification of GasTrace version 2 and extension 0.6.1, `e0f6fbe`): no High or
+    Medium issue; R-01 (X-01 / A01) fixed by version 2, R-07 closed. To fix here, each with the maintainer's consent:
+    - **N-01** (Low): the owner's `RecordDocument` is described with one fixed sentence, whatever it does (one
+      signature can create cylinders and rewrite several). As for `SetData`: the page sends the payload at the
+      request's top level, the window recomputes `hashPayload`, refuses a mismatch and states the counts (cylinders
+      corrected, new cylinders, documents); owner documents it cannot describe are refused. Needs GasTrace's page.
+    - **R-03** (Low): `dataValues` still optional for `SetData` (and the new data key): without them the window
+      warns "content not verifiable" and lets the owner confirm. Make them required once GasTrace's page always
+      sends them (it does since 0.5.1).
+    - **R-02** (Low): README and `docs/integration.md` say an access key reaches "no other contract": its allowed
+      calls are the catalog's functions on any address for the contracts made by a project's factory. Say it as it is.
+    - **R-05** (Low): the `/api/rpc` origin check is described as a restriction; it is checked from a header that
+      only browsers set honestly. Say it as it is in the README.
+    - **R-08** (Info): no postal or PEC address in the privacy notice: left out by the maintainer's decision
+      (2026-11-20).
+    - **U-09**: mitigated (a second administrator advised) and accepted; an optional recovery stays a decision for
+      before real clients.
+    For GasTrace's conversation (its repository): N-02 (identifiers after a data key change), N-03 (handover alerts
+    across relayer restarts), N-04 and N-05 (information), R-04, R-06, A07, R02, A10, P-01 (compliance kit).
 
 ## Next extension version
 
