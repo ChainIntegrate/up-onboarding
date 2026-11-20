@@ -2,7 +2,7 @@
 
 The client's access to their ChainIntegrate account from a computer, and to ChainIntegrate's projects. Chrome, Edge
 and Brave (Chromium 121 or later), Manifest V3. Separate from UP Wallet for the browser: no networks to choose, no
-technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in each version: [../BACKLOG.md](../BACKLOG.md)).
+technical words, only ChainIntegrate's sites. **Status: 0.6.1** (what changed in each version: [../BACKLOG.md](../BACKLOG.md)).
 
 ## What the client sees
 
@@ -14,20 +14,26 @@ technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in
    back with its password. A wrong password or another access's copy is refused, and nothing is saved on the
    computer before the check passes.
 4. **Create your account**: the invitation code, the profile's name (lowercase letters, digits and hyphens), this
-   computer's name, a description and a picture (optional), with the reminder that the profile is public. The
+   computer's name, a description and a picture (optional), with the reminder that the profile is public, and the
+   terms of service and privacy notice to accept (their date goes with the request). The
    extension signs the request with the computer's key and sends it to the account service; about a minute later
    the account is ready. A **new backup copy naming the account** is then required, made and checked as before.
    *Or*, for a computer added to an existing account: its code, in groups of 4, to type on a computer that has the
    account; as soon as it is authorized the account appears by itself, then the backup copy naming it is required.
 5. **Ready**:
-   - the account: its address (copy), its name and picture, the link to the public profile;
+   - the account: its address (copy), its name and picture, the link to the public profile; a notice when the terms
+     or the privacy notice changed since they were accepted ("Read");
    - "Change the profile or this computer's name" (the profile: administrators only);
-   - "Your account's computers": their names and roles; for administrators, "Authorize another computer" (its
-     code, a name, administrator or access) and "Revoke" for the others, each confirmed, and "Update" for an access
-     whose allowed operations are not the catalog's of today (`UPRelay.updateDevice`);
+   - "Your account's computers": their names and roles, this computer's name as written in the account; the
+     computers added or revoked since the last opening, until "Seen"; with one administrator only, the advice to
+     add a second one ("Later" puts it off 30 days). For administrators, "Authorize another computer" (its code, a
+     name, administrator or access; "ChainIntegrate will never ask you to authorize a computer"; one more
+     confirmation for an administrator; the password inside the confirmation), "Revoke" for the others, and
+     "Update" for an access whose allowed operations are not the catalog's of today (`UPRelay.updateDevice`);
    - "Connected sites": the projects' sites that see the account's address, each can be disconnected;
-   - this computer's code and name; "Check the backup copy", "Create a new backup copy"; "Remove the access from
-     this computer", after a confirmation that names the account.
+   - this computer's code and name; "Check the backup copy", "Create a new backup copy" (after a check: move the
+     copy off the computer; checked more than six months ago: a reminder); "Remove the access from this
+     computer", after a confirmation that names the account.
 6. **On a project's site** (`*.chainintegrate.it`, only the sites of the catalog): the site finds "ChainIntegrate
    Account" among the wallets it offers. Connecting, a sign-in, a signature or an operation opens the extension's
    **confirmation window** (GasTrace's requests: only on an administrator's computer, read from the account; an
@@ -35,8 +41,8 @@ technical words, only ChainIntegrate's sites. **Status: 0.5.1** (what changed in
    itself; "Cancel" has the focus; "Confirm" unlocks the key for that one request. A request outside the catalog
    is refused without a window.
 
-**Restore**: on a new computer, or after reinstalling, the backup file and its password give back the same access
-with the same code; the account comes from the file (confirmed by the service), and the profile and this
+**Restore**: on a computer that replaces the previous one (the screen says so: a second place is "Add this computer
+to an existing account"), the backup file and its password give back the same access with the same code; the account comes from the file (confirmed by the service), and the profile and this
 computer's name are read back from the account.
 
 ## How it works
@@ -54,13 +60,15 @@ computer's name are read back from the account.
   (LSP25) and sent by the account service, which pays (`shared/relay.js`; [../docs/integration.md](../docs/integration.md)).
 - The projects' pages: `provider.js` (in the page, EIP-6963, holds nothing; nothing is set as `window.ethereum` or
   `window.lukso`), `bridge.js` (isolated world, forwards), `background.js` (serves only the sites of the catalog,
-  `shared/catalog.js`, by the origin Chrome gives; reading the network goes to ChainIntegrate's node through the
-  account service, `/api/rpc`, the node's key staying on the server, and to LUKSO's public node when it does not
-  answer), `confirm.html` and `confirm.js` (the request checked again against the catalog, its on-chain checks,
+  `shared/catalog.js`, by the origin Chrome gives; one request per site at a time, a request left behind no longer
+  blocking it; reading the network goes to ChainIntegrate's node through the account service, `/api/rpc`, the
+  node's key staying on the server, and to LUKSO's public node when it does not answer, each node used only after
+  it said itself it is on the account's network, `eth_chainId`), `confirm.html` and `confirm.js` (the request checked again against the catalog, its on-chain checks,
   the description, the key unlocked, the signature or the operation through the relay, the answer to the page's
   tab; closing the window cancels).
 - `lib/integrity.js`: the extension's files against the SHA-256 published for its version; the key is not unlocked
-  when one differs (in the page and in the confirmation window).
+  when one differs (in the page and in the confirmation window). The list must name each code file once, else the
+  state is "unknown" (as offline), never "ok".
 - ethers 6.13.4 is included (`vendor/`, MIT; an extension cannot load code from a server); a unit test checks it is
   byte for byte the file the web pages load from cdnjs.
 - Permissions: `storage`; hosts `account.chainintegrate.it` (the account service) and LUKSO's public nodes (the

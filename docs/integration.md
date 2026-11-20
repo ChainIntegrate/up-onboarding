@@ -6,7 +6,8 @@ TraceabilityRegistry, Supplier Trust Registry. What is open: [../BACKLOG.md](../
 Decisions of the maintainer: live tests on LUKSO mainnet with ChainIntegrate's own demo accounts (costs are
 negligible), no Testnet deployments of the projects; no budget per project or account (today only ChainIntegrate's
 accounts exist, and Supplier Trust and TraceabilityRegistry require a membership token): a simulation before each
-send and a daily cap for the whole service; the relay serves only the accounts the service created.
+send, a daily cap per account and for the whole service, a gas cap per operation; the relay serves only the
+accounts the service created.
 
 ## 1. The goal
 
@@ -51,14 +52,16 @@ ChainIntegrate's own administration (Supplier Trust `setTierLimits`, `addMembers
   provider holding nothing) and `bridge.js` in the extension's isolated world. The provider is announced with
   **EIP-6963** (`name: "ChainIntegrate Account"`, `rdns: "it.chainintegrate.account"`, the icon) only after the
   extension's service worker has said, from the origin Chrome gives, that the page is a catalog's site. Nothing is
-  set as `window.lukso` or `window.ethereum`: LUKSO's extension keeps working next to it.
+  set on `window` (no `window.lukso`, no `window.ethereum`): LUKSO's extension keeps working next to it.
 - Methods: `eth_requestAccounts` / `eth_accounts` (the account's address, after the client connects the site once,
   in the window; "Connected sites" in the extension's page disconnects it), `eth_chainId`, `net_version`,
   `wallet_switchEthereumChain` (only to the account's network), `personal_sign`, `eth_signTypedData_v4`,
   `eth_sendTransaction`, and the reading methods (`eth_call`, `eth_blockNumber`, `eth_getLogs`, ...), forwarded to
-  ChainIntegrate's node through the account service (`/api/rpc`, the node's key staying on the server) or to
-  LUKSO's public node when it does not answer. Anything else is refused.
-- A request that needs the client opens `confirm.html`; one request per site at a time; closing the window cancels.
+  ChainIntegrate's node through the account service (`/api/rpc`, the node's key staying on the server; answered
+  only with the extension's origin) or to LUKSO's public node when it does not answer; a node is used only after it
+  answered the account's chain id itself (`eth_chainId`, asked again every 10 minutes). Anything else is refused.
+- A request that needs the client opens `confirm.html`; one request per site at a time (a request left behind, its
+  window gone or older than 15 minutes, no longer blocks the site); closing the window cancels.
   The key is opened only in that window, after the computer's lock or the password, and used for that request only.
 
 ## 5. The catalog (`shared/catalog.js`)
@@ -103,7 +106,7 @@ call, the Key Manager's nonce for that key and a validity window; anyone may sub
    confirmation asks the service for the nonce and the network's time (`/api/relay/nonce`), signs the LSP25 message
    for `execute(CALL, to, 0, data)`, valid until ten minutes after the network's time, and sends it (`/api/relay`).
 3. The service checks again, independently (`shared/relay.js`, `shared/catalog.js`): the account is one it created,
-   the call is in the catalog, its `needs` hold, the daily cap; simulates (whatever the Key Manager or the target
+   the call is in the catalog, its `needs` hold, the daily caps (per account and overall), the gas cap; simulates (whatever the Key Manager or the target
    refuses costs nothing, and the reason is answered by name); sends `executeRelayCall` from its wallet; waits;
    answers the transaction hash.
 4. The window answers the page with the hash, as a wallet would.
@@ -140,11 +143,12 @@ checked by the service: the key is an access of the account, the payload exactly
 access of 0.5.x (`UPRelay.OLD_ACCESS_PERMS`, SUPER_CALL) is updated the same way. Until then it loses nothing; only
 the new operations are refused by the account.
 
-The change (`UPRelay.addDevice`, `removeDevice`: the list of keys, the permissions, the name; for access, its allowed
-data key) is signed by the administrator's key and sent over the relay; the service checks it against the account's
+The change (`UPRelay.addDevice`, `removeDevice`, `updateDevice`: the list of keys, the permissions, the name; for
+access, its allowed data key and allowed calls) is signed by the administrator's key and sent over the relay; the service checks it against the account's
 current list of keys on the network and rebuilds it byte for byte. The new computer finds the account by itself
 (`/api/lookup` reads the keys on the network), then makes the backup copy naming it. The extension's page lists the
-account's computers, with "Revoke" for the others (administrators only; a key cannot revoke itself).
+account's computers, with "Revoke" for the others (administrators only; a key cannot revoke itself), shows the
+computers added or revoked since its last opening, and advises a second administrator while there is only one.
 
 ## 8. Open points
 
@@ -153,4 +157,5 @@ account's computers, with "Revoke" for the others (administrators only; a key ca
 - **The phone**: the same catalog in the Android app; for pages opened on a phone, WalletConnect or a direct link.
 - **Accounts not created by the service** (existing Universal Profiles that authorize a ChainIntegrate key): not
   served by the relay today.
-- **Review**: the security review is done when these changes are nearly complete (maintainer's decision, 2026-11-12).
+- **Reviews**: an independent technical review (November 2026) of this project and GasTrace; its findings for this
+  repository are closed in 0.6.0 and 0.6.1 or decided by the maintainer ([../BACKLOG.md](../BACKLOG.md)).

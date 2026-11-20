@@ -12,12 +12,14 @@ and conversations that cite them stay readable.
     TraceabilityRegistry and Supplier Trust still look only for `window.lukso` and WalletConnect: each page adds an
     EIP-6963 listener and offers "ChainIntegrate Account" next to the others, nothing else changes (same messages,
     same calls). Supplier Trust's sign-in message names the domain given by its backend: it must be the page's
-    own host, or the extension refuses it (`other_site`).
+    own host, or the extension refuses it (`other_site`); the projects' sign-in messages must be issued when they
+    are signed (`Issued At` within 15 minutes, 0.6.0).
 15. **Live tests on LUKSO still to make** (with the released extension, Argonia's demo account
     `0xC335aFd1d95fA790DE419e9BCe482d9B8BC1D773`):
     - GasTrace version 2: connect, then the owner's requests on a registry made by the factory V2
       `0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2` (with 0.6.1);
-    - a second computer with its own key (0.5.0): join, authorize as access, revoke;
+    - a second computer with its own key: join, authorize as access (allowed calls, 0.6.0) and as administrator,
+      "Update", revoke;
     - TraceabilityRegistry and Supplier Trust sign-ins and operations, after item 12.
 16. **The Android app** ([android/](android/)): the same flows as the extension on the phone, its key in the
     Android Keystore. The creation's "device" role is ready for it (item 10); it joins an existing account as a
@@ -25,21 +27,13 @@ and conversations that cite them stay readable.
 18. **The Chrome Web Store** (even unlisted): Chrome then verifies the extension's files, updates it and syncs it
     between the client's computers. The extension's ID is already fixed for it (`manifest.json` `key`).
 
-## 0.5.1 (released 2026-11-14)
+## Next extension version
 
-GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation, 2026-11-14):
-- `SetData`: each data key classified (the data password's and the recovery code's wraps, the company's settings,
-  a customer or refill centre, the collection's public description); any other key refused. The request's values
-  (top-level `dataValues`, sent by GasTrace's page) are checked against the signed `dataValuesHash`; without them
-  the request is accepted with a highlighted "content not verifiable" warning (transition, to be made required).
-  The window reads the registry's current values (`UPCatalog.readCurrent`, then `typedData` with `ctx.current`) to
-  tell a first setup from a change: both wraps only the first time, never deleted; customers added, changed or
-  removed. Fixed line: the values are encrypted, the window shows the kind of change.
-- Handing the registry over in red; GasTrace's own note under its requests ("With this confirmation you authorize
-  this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
-  validity shown; requests valid for more than 7 days refused (G-07 / U-06).
+- Nothing yet.
 
-## 0.6.1 (released 2026-11-20)
+## Release history
+
+### 0.6.1 (released 2026-11-20)
 
 GasTrace version 2 (asked from the GasTrace conversation, 2026-11-20): the factory V2
 `0xd60146C03f288fCeEEdB90731f162fF57F7ebdd2`, domain version `2`; every request with `validFrom` and `deadline`
@@ -50,7 +44,7 @@ owner's own corrections) and `CancelNonces` (its own requests); `SetData` with a
 checks the administrator too (`isAdministrator`): audit A01 / X-01 closed for GasTrace. GasTrace's
 `scripts/admin-demo.js` passes with this catalog (11 requests checked).
 
-## 0.6.0 (released 2026-11-16)
+### 0.6.0 (released 2026-11-16)
 
 Left from 0.5.x, done here: this computer's name read from the account at each opening; the restore screen says
 restoring is for a computer that replaces the previous one; the password field inside the computers' confirmations;
@@ -114,19 +108,27 @@ The audit's Low findings (maintainer's consent 2026-11-15):
 - Not changed, by the maintainer's decision: **X-04** (side-loaded extension, until clients are many: item 18) and
   **X-05** (one server, while the volume is small).
 
-## Next extension version
+### 0.5.1 (released 2026-11-14)
 
-- Nothing yet.
+GasTrace's data requests (audit A02 / G-04, asked from the GasTrace conversation, 2026-11-14):
+- `SetData`: each data key classified (the data password's and the recovery code's wraps, the company's settings,
+  a customer or refill centre, the collection's public description); any other key refused. The request's values
+  (top-level `dataValues`, sent by GasTrace's page) are checked against the signed `dataValuesHash`; without them
+  the request is accepted with a highlighted "content not verifiable" warning (transition, to be made required).
+  The window reads the registry's current values (`UPCatalog.readCurrent`, then `typedData` with `ctx.current`) to
+  tell a first setup from a change: both wraps only the first time, never deleted; customers added, changed or
+  removed. Fixed line: the values are encrypted, the window shows the kind of change.
+- Handing the registry over in red; GasTrace's own note under its requests ("With this confirmation you authorize
+  this change of the registry; GasTrace's service records it") instead of "your account does not change"; the
+  validity shown; requests valid for more than 7 days refused (G-07 / U-06).
 
-## Pages, after 0.5.0 (no new extension version)
+### Pages, after 0.5.0 (no new extension version)
 
 - **The guide** (`web/guida.html`, asked by the maintainer 2026-11-13): every step for the client in Italian and
   English, with the extension's button names; linked from the client's page and from the invitation message. The
   extension's footer will link it in its next version. Its screenshots (`web/guide/<lang>/`, 11 per language) are
   made from the extension itself with example data by `node tools/guide-screenshots.js`: run it again after any
   change to the extension's screens, and check the guide's text still matches.
-
-## Release history
 
 ### 0.5.0 (released 2026-11-13)
 

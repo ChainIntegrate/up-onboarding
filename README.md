@@ -37,9 +37,9 @@ closed in 0.6.0 or decided by the maintainer, as [BACKLOG.md](BACKLOG.md) lists,
 | **Browser extension** "ChainIntegrate Account" | The client's access on a computer: its own key, protected by the computer's lock or a password, with a required backup copy; the account's creation with an invitation code; changes to the profile; the account's computers (add, authorize, revoke); the access to the projects' pages, each request confirmed in its own window | [`extension/`](extension/) |
 | **Account service** | Creates the accounts (invitation codes, daily and per-address limits) and sends the operations a key of the account signs (LSP25 relay), paying the gas with its own wallet; reads the network for the extension from ChainIntegrate's node; e-mail alerts, nightly backup | [`tools/creator/`](tools/creator/) |
 | **The projects' catalog** | What each project's pages may ask of an account and how to say it in plain words: read by the extension (to describe and allow) and by the service (to relay), one file | [`shared/catalog.js`](shared/catalog.js), [`docs/integration.md`](docs/integration.md) |
-| **Web pages** | `index.html`, for the client: the three steps, the extension's download, the invitation code from the link. `invites.html` and `operator.html`, for ChainIntegrate only: invitations, and an account created by hand. `privacy.html` | [`web/`](web/) |
+| **Web pages** | `index.html`, for the client: the three steps, the extension's download, the invitation code from the link. `guida.html`, the guide. `invites.html` and `operator.html`, for ChainIntegrate only: invitations, and an account created by hand. `privacy.html`, `termini.html` | [`web/`](web/) |
 | **Shared code** | The request and its signature, the key store, the creation call, the relay, the catalog, IPFS: one copy used by the extension, the service and the pages (`npm run sync` copies it) | [`shared/`](shared/) |
-| **Android app** | The same as the extension, on the phone | [`android/`](android/) (design) |
+| **Android app** | The same as the extension, on the phone | [`android/`](android/) (design, not written yet) |
 
 This project is separate from [Cross_Chain](https://github.com/ChainIntegrate/Cross_Chain) and its UP Wallet
 (the extension and the Android app), which serve people who already use crypto.
@@ -49,13 +49,14 @@ This project is separate from [Cross_Chain](https://github.com/ChainIntegrate/Cr
 1. installs the extension (the client's page links the latest release) and protects the access on the computer
    (the computer's lock or a password);
 2. downloads the backup copy and loads it back to check it (required before anything else);
-3. types the invitation code from ChainIntegrate, the profile's name and, optionally, a description and a picture:
-   the extension signs the request with the computer's key and the service creates the account, paying, in about a
+3. types the invitation code from ChainIntegrate, the profile's name and, optionally, a description and a picture,
+   and accepts the terms of service: the extension signs the request with the computer's key and the service creates the account, paying, in about a
    minute; then a backup copy naming the account is required;
 4. uses the account on the projects' sites (`*.chainintegrate.it`): the site finds the extension, and every sign-in,
    signature or operation is confirmed in the extension's window;
 5. adds another computer with its own key ("Add this computer to an existing account", authorized from a computer
-   that has the account), revokes a lost one, restores from the backup copy.
+   that has the account; a second administrator is advised, never required), revokes a lost one, restores from the
+   backup copy on a computer that replaces the previous one.
 
 What a creation writes, the same whether the service or the operator's page creates it: one `deployERC1167Proxies`
 call to LUKSO's `LSP23LinkedContractsFactory` through `UniversalProfileInitPostDeploymentModule` (the mechanism
@@ -84,7 +85,8 @@ LUKSO contracts used (same address on LUKSO and LUKSO Testnet; the page and the 
 
 **No recovery by ChainIntegrate, by design.** ChainIntegrate never adds a key of its own, so it has no power over
 any account, holds nothing that could be stolen from all clients at once, and is not a custodian. What protects
-the client is the backup copy (required, and checked when it is made) and a second computer with its own key.
+the client is the backup copy (required, and checked when it is made) and a second administrator computer with its
+own key (advised by the extension while there is only one).
 
 **Wording.** The client is creating an account to use ChainIntegrate's services, and nothing they see should recall
 crypto: an account, a public profile, computers and their codes. No blockchain, crypto, wallet, token, gas, LYX,
@@ -94,16 +96,17 @@ description of the catalog). The operator's page keeps the technical terms: only
 
 ## Pages
 
-Every page is in Italian and English, with a toggle at the top (kept in the browser; `?lang=en` or `?lang=it` sets
-it from a link), ChainIntegrate's look (light grey, ink, teal and slate blue) and a dark theme on request. Pages
+Every page is in Italian and English, with a toggle at the top (kept in the browser; `?lang=en` or `?lang=it` in a
+link wins), ChainIntegrate's look (light grey, ink, teal and slate blue) and a dark theme on request. Pages
 load only their own scripts and ethers 6.13.4 from cdnjs with its integrity hash, and never hold a private key.
 
 | Page | For | What it does |
 |---|---|---|
 | `web/index.html` | the client | "Create your ChainIntegrate account": the three steps in plain words, the extension's download (`releases/latest`) and how to install it in a folder that is not synced, the questions people ask |
 | `web/guida.html` | the client | The guide (screenshots in `web/guide/`, made by `tools/guide-screenshots.js` from the extension itself): installing, the access and the backup copy, the account, the projects' sites and the confirmation window, another computer, restoring, a lost computer, updates, safety; the names of the buttons as the extension shows them |
-| `web/privacy.html` | everyone | The privacy notice of the extension and the account service |
-| `web/invites.html` | ChainIntegrate | Signs in with a ChainIntegrate account allowed by the service (`operators`), makes an invitation (note, expiry) and gives the message to send the client, in Italian or English, with the link `…/#invito=<code>`; lists the codes and revokes an open one; not indexed |
+| `web/privacy.html` | everyone | The privacy notice of the extension and the account service: the controller, the legal bases, what is kept and for how long, third parties, what becomes public |
+| `web/termini.html` | everyone | The terms of service, accepted in the extension before the creation (`UPRequest.TERMS`) |
+| `web/invites.html` | ChainIntegrate | Signs in (a SIWE message, an administrator key) with a ChainIntegrate account allowed by the service (`operators`), for 2 hours, makes an invitation (note, expiry) and gives the message to send the client, in Italian or English, with the link `…/#invito=<code>`; lists the codes and revokes an open one; not indexed |
 | `web/operator.html` | ChainIntegrate | Creates an account by hand (a request file or filled in), with the operator's own wallet, and checks it; not indexed |
 
 ## Tests
@@ -115,27 +118,35 @@ npm test
 npm run pack:extension   # the extension's zip, in dist/ (reproducible)
 ```
 
-- `npm run test:unit` (`test/unit/`): the request, the key store, the relay (profile, names, devices), the catalog
-  (every project's requests, refusals, and no crypto term, cost or payment in any description), the extension's
-  package against its published SHA256SUMS, the vendored ethers, the shared copies.
+- `npm run test:unit` (`test/unit/`): the request, the key store and the password rule, the relay (profile, names,
+  devices, the access's allowed calls, updates), the catalog (every project's requests, GasTrace version 2 with its
+  validity and data key change, sign-in times, refusals, and no crypto term, cost or payment in any description),
+  the integrity check's file list, the extension's package against its published SHA256SUMS, the vendored ethers,
+  the shared copies.
 - `npm run test:e2e` (`test/e2e.js`): a local Hardhat chain with LUKSO's own contracts at their official addresses
   (`test/fixtures/lukso-contracts.json`, bytecode from `@lukso/lsp-smart-contracts@0.14.0` and
   `@lukso/lsp23-contracts@0.15.0`), the operator's page creating and checking an account, the keys' permissions,
-  the client's page (no crypto term, the invitation link), the guide (no crypto term, both languages), the invitations page (sign-in, an invitation and its
-  message, revoke), the language toggle and the layout at phone width.
+  the client's page (no crypto term, the invitation link), the guide (no crypto term, both languages), the privacy
+  notice and the terms, the invitations page (sign-in, an invitation and its message, revoke), the operator page's
+  IPFS settings, the language toggle and the layout at phone width.
 - `npm run test:creator` (`test/creator.js`): the account service on that chain with LUKSO's chain id: creation and
-  its limits, the relay (profile, names, the projects' catalog with its on-chain checks, devices authorized and
-  revoked, everything the Key Manager refuses), `/api/rpc`, the alerts, backup and rebuild, withdraw.
+  its limits, the terms kept, a creation stopped after signing finished at the next start, a node on another
+  network, the relay (profile, names, the projects' catalog with its on-chain checks, devices authorized, updated
+  and revoked, everything the Key Manager refuses, per-account limits), what an access key cannot do on the network
+  without the service, profile updates served once, `/api/rpc` and its origin, the invitations page (SIWE, an
+  administrator key, one browser), the alerts, backup and rebuild, withdraw.
 - `npm run test:extension` (`test/extension.js`): the extension in Chromium: setup with a password and with the
   computer's lock (a virtual authenticator with PRF), backup and restore, creation, changes, the account's
-  computers, joining an account, integrity, the projects' pages (EIP-6963, connect, sign-in, operations, GasTrace's
-  typed data, refusals), and no crypto term on any screen or confirmation window.
+  computers (authorize, revoke, update, changes since last time, the second administrator), joining an account,
+  the terms, integrity (an incomplete list is not "ok"), the projects' pages (EIP-6963, connect, sign-in,
+  operations, GasTrace's typed data and its administrator-only rule, a request left behind, a node on another
+  network, the origin the service requires, refusals), and no crypto term on any screen or confirmation window.
 
 **Dependencies** (audit A17 / Q-02, checked 2026-11-15 with `npm audit`). What runs on the server, the account
 service (`tools/creator`: ethers 6.17.0, nodemailer), has no known advisory; CI installs it as the server does. The
 pages and the extension load ethers 6.13.4 (its integrity hash pinned; the root `devDependencies` keep that version
 to check it). The advisories left are all in the test tooling (Hardhat 2 and what it brings: a local chain for the
-tests, never deployed nor packaged), and go away only with Hardhat 3, a rewrite of the test setup: not urgent.
+tests, never deployed nor packaged), which only Hardhat 3, a rewrite of the test setup, removes.
 
 **Where the tests run** (audit A22): Linux (Ubuntu, as on GitHub Actions) with Node 22, `zip` (for the package)
 and Chromium from Playwright; `test:creator` starts a Hardhat node through `npx` and uses the fixed local ports

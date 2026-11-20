@@ -1,7 +1,7 @@
 # Publishing account.chainintegrate.it
 
-The client's page (`https://account.chainintegrate.it/`), the privacy notice and the operator's page
-(`/operator.html`) are static files: the `web/` folder of this repository, served by nginx, with the published
+The client's page (`https://account.chainintegrate.it/`), the guide, the privacy notice, the terms of service, the
+invitations page and the operator's page (`/operator.html`) are static files: the `web/` folder of this repository, served by nginx, with the published
 SHA256SUMS of each extension version (`/extension/<version>/SHA256SUMS`). The account service (`/api/`,
 `tools/creator`: creation, relay, reading the network for the extension) runs next to them, from the same clone.
 
@@ -137,8 +137,9 @@ The service (`tools/creator`) runs from the same clone, as its own system user, 
    ```
 
 **The invitations page** (`/invites.html`, ChainIntegrate only): in the configuration, `"operators"` lists the
-addresses allowed to use it (your account, as connected in LUKSO's extension or UP Wallet, or a key), and
-`"maxInvitesPerDay"` (default 20); restart the service. The site file has its location (`connect-src 'self'`), so
+addresses allowed to use it (your account, as connected in LUKSO's extension or UP Wallet, signing with one of its
+administrator keys; or a key), and `"maxInvitesPerDay"` (default 20); restart the service. Each sign-in is e-mailed
+by `alert.js check`; a session lasts 2 hours, from the browser that signed in. The site file has its location (`connect-src 'self'`), so
 copy it again and reload nginx:
 
 ```bash

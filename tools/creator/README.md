@@ -3,7 +3,9 @@
 ChainIntegrate in LUKSO's place, as LUKSO's relayer does for Universal Everything: it creates a client's account when
 their extension asks, with an invitation code, and sends the operations one of the account's keys signs, paying the
 gas with its own wallet. It also reads the network for the extension from ChainIntegrate's node. Node.js, one file
-(`creator.js`), ethers as its only dependency, behind nginx at `/api/` (127.0.0.1:8811). The service's wallet and
+(`creator.js`), ethers 6.17.0 as its only dependency (nodemailer for the alerts), behind nginx at `/api/`
+(127.0.0.1:8811). At the start and every 10 minutes it asks the node its chain id and stops if it is not the
+configuration's (audit A15); at the start it also finishes a creation stopped after its transaction was signed. The service's wallet and
 ChainIntegrate have **no key and no permission** on the accounts: they belong to the clients' keys only.
 
 ## Endpoints
@@ -25,7 +27,8 @@ ChainIntegrate have **no key and no permission** on the accounts: they belong to
 1. **Limits**: requests per IP address per minute (`perIpPerMinute`), accounts per day in total (`maxPerDay`).
 2. **The invitation code**: known, open, not expired. Codes are stored as SHA-256 hashes only.
 3. **The request** (`shared/request.js`): cleaned and checked (the profile name's rule, PNG or JPEG); the network
-   must be the service's; at most `maxControllers` keys, at least one administrator.
+   must be the service's; at most `maxControllers` keys, at least one administrator; the date of the terms of
+   service the client accepted (`terms`, kept with the account; optional for 0.5.x).
 4. **The signature**: `personal_sign` of `UPRequest.signingMessage(request)` by one of the request's administrator
    keys: an account is created only for keys their owner holds.
 5. **Creation**, one at a time: the picture and the profile to ChainIntegrate's IPFS node (`shared/ipfs.js`, Kubo's
@@ -53,9 +56,11 @@ Then: the account is one this service created; the request is valid for at most 
 until ten minutes after the network's time; a validity that starts after the latest block is waited for, up to a
 minute and a half); a simulation, so whatever the Key Manager refuses (a stranger's key, an access key changing the
 profile or the keys, a used nonce) costs nothing and is answered with its reason by name (`NotAuthorised`,
-`NoPermissionsSet`, `InvalidRelayNonce`, ...); `maxRelayPerDay` for the whole service (200, with an alert e-mail when
-reached) and `relayPerIpPerMinute` (20). Each operation sent is logged in `relay.jsonl` (account, signer,
-operation, transaction, outcome); a refusal is logged in the journal.
+`NoPermissionsSet`, `InvalidRelayNonce`, ...); at most `maxRelayGas` per operation; `maxRelayPerAccountPerDay` per
+account (operations and profiles stored, reserved at once), `maxRelayPerDay` for the whole service (200, with an
+alert e-mail when reached) and `relayPerIpPerMinute` (20). Each operation sent is logged in `relay.jsonl` (account,
+signer, operation, transaction, outcome); a refusal is logged in the journal (account and key, never a profile's
+or an invitation's note).
 
 ## Commands
 
@@ -87,8 +92,9 @@ their owner: `sudo -u up-onboarding CREATOR_CONFIG=/etc/up-onboarding/config.jso
   `up-onboarding-alert@.service`);
 - `check`, every 10 minutes (`up-onboarding-creator-check.timer`): the service answers at `/api/health`, the gas
   wallet holds more than `minBalance` + 0.1, no code is in `review` (or `creating` for more than 15 minutes), the
-  relay's daily cap is not reached, the nightly backup is there (at most 26 hours old).
-  An e-mail when a problem appears, every 6 hours while it lasts, and when it is solved;
+  relay's daily cap is not reached, the nightly backup is there (at most 26 hours old), the node answers the
+  configuration's chain id. An e-mail when a problem appears, every 6 hours while it lasts, and when it is solved;
+  and one listing the sign-ins to the invitations page since the last check (`admin.jsonl`);
 - `test`: a test e-mail.
 
 ## Configuration
@@ -104,7 +110,7 @@ their owner: `sudo -u up-onboarding CREATOR_CONFIG=/etc/up-onboarding/config.jso
 | `gasKeyFile` | the gas wallet's private key, one line, mode 600: a wallet used only for this, with little LYX |
 | `ipfsApi` | the IPFS node's write API, `http://<node>:5001`: the same value as `IPFS_API_URL` in the other ChainIntegrate backends on this server (traceability-registry, supplier-trust-registry). The node's firewall accepts only allowed servers; no secret in the address |
 | `ipfsAuthFile` | optional: an `Authorization` header value, one line, mode 600, when the node's API is behind a proxy that asks for one |
-| `dataDir` | the codes (`invites.json`), the created accounts (`created.jsonl`: the relay serves only these), the relay's log (`relay.jsonl`) |
+| `dataDir` | the codes (`invites.json`), the created accounts (`created.jsonl`: the relay serves only these), the relay's log (`relay.jsonl`), the profile updates served (`profile-updates.txt`, their hashes), the invitations page's sign-ins (`admin.jsonl`) |
 | `maxPerDay`, `perIpPerMinute`, `maxControllers`, `inviteDays` | 20, 1, 5, 30 |
 | `minBalance` | the gas wallet's floor, in LYX (0.05) |
 | `maxRelayPerDay`, `relayPerIpPerMinute` | the relay's daily cap for the whole service and its per-address limit (200, 20) |
@@ -120,8 +126,8 @@ Tests: `npm run test:creator` (a local chain with LUKSO's contracts, the IPFS AP
 
 ## Backup and recovery
 
-`dataDir` holds the codes (`invites.json`), the created accounts (`created.jsonl`: the relay serves only these) and
-the relay's log. Every night `up-onboarding-backup.timer` runs `creator.js backup`: a dated `.tar.gz` in `backupDir`,
+`dataDir` holds the codes (`invites.json`), the created accounts (`created.jsonl`: the relay serves only these), the
+relay's log and the files above. Every night `up-onboarding-backup.timer` runs `creator.js backup`: a dated `.tar.gz` in `backupDir`,
 readable by the service only, the latest 30 kept; `alert.js check` sends an e-mail when the latest is older than 26
 hours. To restore one: stop the service, `sudo tar -xzf <copy> -C /var/lib/up-onboarding`, start it.
 
